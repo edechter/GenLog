@@ -1,10 +1,11 @@
-%% pdcg.pl
+%% sdcl.pl
 %% author: Eyal Dechter
 
 %% TODO
 %% - Change all computations to log domain
 
 :- use_module(library(record)).
+:- use_module(library(lists)).
 
 :- op(1000, xfy, --->).
 :- op(1000, xfy, <--).
@@ -12,7 +13,7 @@
 
 %% ----------------------------------------------------------------------
 %%
-%% compile_sdcl/1 compiles loaded sdcl rules
+%% compile_sdcl/0 compiles loaded sdcl rules
 %%
 %% - provides each sdcl rule with a rule representation and
 %%   asserts(sdcl_rule(RuleRepr, Rule)).
@@ -35,6 +36,57 @@ compile_sdcl :-
         ;
          true
         ).
+
+%% ----------------------------------------------------------------------
+%%
+
+get_rule_p(RuleId, P) :- 
+        sdcl_rule(RuleId, _ :: P).
+
+set_rule_p(RuleId, P) :-
+        R = sdcl_rule(RuleId, Rule :: _),
+        call(R),
+        retractall(R),
+        R_new = sdcl_rule(RuleId, Rule :: P),
+        assertz(R_new).
+
+rule_functor(RuleId, Functor/Arity) :-
+        sdcl_rule(RuleId, Head <-- _ :: _),
+        functor(Head, Functor, Arity).
+
+functor_rules(Functor/Arity, RuleIds) :-
+        bagof(RuleId,
+              rule_functor(RuleId, Functor/Arity),
+              RuleIds).
+
+functor_rules_norm(Functor/Arity, Z) :-
+        functor_rules(Functor/Arity, RuleIds),
+        findall(W,
+                (member(RuleId, RuleIds), 
+                 sdcl_rule(RuleId, Rule :: W)
+                ),
+                Ws),
+        sum_list(Ws, Z).
+
+normalize_functor_rules(Functor/Arity) :-
+        functor_rules(Functor/Arity, RuleIds),
+        functor_rules_norm(Functor/Arity, Z),
+        (
+         member(RuleId, RuleIds),
+         get_rule_p(RuleId, P),
+         P1 is P/Z, 
+         set_rule_p(RuleId, P1),
+         fail
+         ;
+         true).
+
+normalize_rules :-
+        normalize_functor_rules(_),
+        fail
+        ;
+        true.
+
+        
 
 %% ----------------------------------------------------------------------
 %%      meta_best_first(Goal)
@@ -60,7 +112,9 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         % initialize priority queue. Each element of priority queue is
         % of the form deriv_info(CurrentGoalList-OrigGoal, DerivationGraph)
         pq_singleton(deriv_info(GoalList-Goal, dgraph(Goal, [])),
-                     1, BeamWidth, PQ),
+                     0,
+                     BeamWidth,
+                     PQ),
         
         bf_options_inference_limit(OptionsRecord, InferenceLimit),
 
@@ -76,8 +130,8 @@ mi_best_first(Goal, Score, DGraph, Options) :-
 %% ----------------------------------------------------------------------
 %% Options record for mi_best_first
 
-:- record bf_options(beam_width=infinity,
-                     inference_limit=1000
+:- record bf_options(beam_width=100,
+                     inference_limit=100000
                     ).
 %% ----------------------------------------------------------------------
 %% mi_best_first_go/5.
@@ -109,7 +163,7 @@ mi_best_first_go(PQ, OrigGoal, ScoreOut, DGraphOut, OptionsRecord) :-
         %--DEBUG
         % format("Extend ~w with score ~w to \n", [Elem, Score]),
         % (
-        %  member(E-S, ElemScore), 
+        %  member(E-S, ElemScores), 
         %  format("~w:  ~w \n", [S, E]),
         %  fail
         % ;
@@ -118,16 +172,13 @@ mi_best_first_go(PQ, OrigGoal, ScoreOut, DGraphOut, OptionsRecord) :-
         %--END DEBUG
         % insert extensions into priority queue
         pq_inserts(ElemScores, PQ1, NewPQ),
-        %---DEBUG
-        % format("Priority Queue: \n"),
-        % pq_show(NewPQ),
-        %---END DEBUG
         
         % loop
         mi_best_first_go(NewPQ, OrigGoal, ScoreOut, DGraphOut, OptionsRecord).
         
 
-        
+%% ----------------------------------------------------------------------
+
 
 %% extend(deriv_info(Goals-OrigGoal, DGraph), Score, Extensions)
 %% assumptions:
@@ -139,24 +190,32 @@ extend(deriv_info([G|Rest]-OrigGoal, DGraph), Score, ElemScores) :-
         findall(deriv_info(G_new-OrigGoal_copy, DGraph_new)-Score_new,
                 (
                  copy_term([G|Rest]-OrigGoal, [G_copy|Rest_copy]-OrigGoal_copy),
-                 match(G_copy, BodyList, Rule-RuleRepr, S),
-                 Score_new is Score * S,
-                 DGraph_new = dgraph(StartGoal, [hyperedge(G_copy, RuleRepr, BodyList)|HyperEdges]),
+                 match(G_copy, BodyList, _-RuleRepr, Context, S),
+                 Prob is exp(S), 
+                 Score_new is Score + S,
+                 DGraph_new = dgraph(StartGoal,
+                                     [hyperedge(G_copy, RuleRepr-Context, Prob, BodyList)
+                                     |HyperEdges]),
                  append(BodyList, Rest_copy, G_new)
                 ),
                 ElemScores
                ).
 
 %% match goal against SDCL db
-%% match(Literal, BodyList, RuleCopy, Score)
-match(Literal, BodyList, Rule-RuleRepr, Prob) :-
-        findall(OrigProb,
-                sdcl_rule(_, Literal <-- Body :: OrigProb), 
-                OrigProbs),
+%% match(Literal, BodyList, Rule-RuleRepr, Context, Score)
+match(Literal, BodyList, Rule-RuleRepr, Context, LogProb) :-
+        findall(RuleRepr-OrigProb,
+                sdcl_rule(RuleRepr, Literal <-- Body :: OrigProb), 
+                RuleProbs),
+        % Context: the alternative rules this match is being compared
+        % to
+        pair_list_firsts(RuleProbs, Context),
+        pair_list_seconds(RuleProbs, OrigProbs),
         sum_list(OrigProbs, Z),
         !,
         sdcl_rule(RuleRepr, Literal <-- Body :: OrigProb), 
-        Prob is OrigProb / Z, 
+        LogProb is log(OrigProb) - log(Z),
+        % write(LogProb), nl, 
         and_to_list(Body, BodyList).
 
 %% conjunction to list
@@ -171,7 +230,7 @@ and_to_list((C, Cs), [C|Xs]) :-
         and_to_list(Cs, Xs).
 
 %% ----------------------------------------------------------------------
-%%      mi_best_first_all(Goal, List of deriv(Goal, DGraph, Score), Options)
+%%      mi_best_first_all(Goal, List of deriv(Goal, DGraph, ConditionalProb), Options)
 %%
 %%
 %%      Options:
@@ -182,10 +241,35 @@ and_to_list((C, Cs), [C|Xs]) :-
 %%       - InferenceLimit: Limits the maximum number of inference
 %%       steps for each derivation of Goal (default: 1000).
 %%       ----------------------------------------------------------------------
-mi_best_first_all(Goal, Results, Options) :-
+mi_best_first_all(Goal, Results, LogP, Options) :-
         findall(deriv(Goal, DGraph, Score), 
-                mi_best_first(Goal, Score, DGraph, Options),
+                 mi_best_first(Goal, Score, DGraph, Options),
+                Results0),
+        % add conditional probability given Goal being true to each
+        % derivation
+        findall(Score,
+                member(deriv(Goal, DGraph, Score), Results0),
+                Scores),
+        log_sum_exp(Scores, LogP),
+        %% FIXME: is there a better way to do this? 
+        findall(deriv(Goal, DGraph, ConditionalProb), 
+                (
+                 member(deriv(Goal, DGraph, Score), Results0),
+                 ConditionalProb is exp(Score)
+                ),
                 Results).
+
+log_sum_exp(Xs, Y) :-
+        max_list(Xs, MaxX),
+        findall(X1,
+                (member(X, Xs), X1 is exp(X - MaxX)),
+                Xs1),
+        sum_list(Xs1, X2),
+        Y is MaxX + log(X2).
+        
+%% ----------------------------------------------------------------------
+%%      Log likelihood of data
+        
         
 
 %%
@@ -284,7 +368,7 @@ pq_show(_).
 %% during best first search. 
 %%
 %% A derivation graph is a structure dgraph(start goal, list of hyperedges)
-%% Each hyperedge is a structure hyperedge(Goal, Rule, ChildGoals).
+%% Each hyperedge is a structure hyperedge(Goal, Rule, Prob, ChildGoals).
 %%
 %% This graph is a multiway tree, so we also supply a predicate to
 %% construct trees out of these graphs.
@@ -293,16 +377,16 @@ pq_show(_).
 
 dgraph_dtree(DGraph, DTree) :-
         DGraph = dgraph(Start, _), 
-        DTree = dtree(Start, _, _), 
+        DTree = dtree(Start, _, _,  _), 
         dgraph_dtree_go(DGraph, DTree).
-dgraph_dtree_go(dgraph(Start, HyperEdges), dtree(Goal, Rule, Trees)) :-
-        member(hyperedge(Goal, Rule, Children), HyperEdges),
+dgraph_dtree_go(dgraph(Start, HyperEdges), dtree(Goal, Rule, Prob,Trees)) :-
+        member(hyperedge(Goal, Rule, Prob, Children), HyperEdges),
         !,
-        findall(dtree(Child, R, Cs), 
+        findall(dtree(Child, R, P, Cs), 
                 (member(Child, Children),
                  dgraph_dtree_go(
                                  dgraph(Start, HyperEdges),
-                                 dtree(Child, R, Cs)))
+                                 dtree(Child, R, P, Cs)))
                 ,
                  Trees).
 
@@ -311,10 +395,11 @@ pprint_dtree(DTree) :-
         pprint_dtree(DTree, 2).
 pprint_dtree(DTree, Indent) :-
         pprint_dtree(DTree, Indent, 0).
-pprint_dtree(dtree(Goal, Rule, SubTrees), Indent, Cursor) :-
+pprint_dtree(dtree(Goal, Rule, Prob, SubTrees), Indent, Cursor) :-
         tab(Cursor),
         write('+ '),
         portray_clause(Rule),
+        format(":: ~w", [Prob]),
         nl,
         !,
         (
@@ -326,7 +411,7 @@ pprint_dtree(dtree(Goal, Rule, SubTrees), Indent, Cursor) :-
         true
         ).
 
-canonical_rule(Rule, Canonical) :-
+canonical_rule(Rule :: _, Canonical) :-
         copy_term(Rule, Canonical), 
         numbervars(Canonical, 0, _). 
                
@@ -344,17 +429,27 @@ take(N, [X|Xs], [X|Ys]) :-
         N1 is N - 1,
         take(N1, Xs, Ys).
 
+% pair_list_firsts(List of pairs X-Y, List of first elements X)
+pair_list_firsts([], []).
+pair_list_firsts([X-_|Rest], [X|Xs]) :-
+        pair_list_firsts(Rest, Xs).
+
+% pair_list_seconds(List of pairs X-Y, List of second elements X)
+pair_list_seconds([], []).
+pair_list_seconds([_-Y|Rest], [Y|Ys]) :-
+        pair_list_seconds(Rest, Ys).
+
 
 %% ----------------------------------------------------------------------
 
 s(X, Y) <-- np(Number, X, Z), vp(Number, Z, Y)     :: 0.75.
-s(X, Y) <-- s(X, Y), s(X, Y) :: 0.1.
+s(X, Y) <-- s(X, Z), s(Z, Y) :: 0.01.
 
 np(Number, X, Y) <-- pn(Number, X, Y)                     :: 1.
 np(Number, X, Y) <-- det(Number, X, Z), n(_, Number, Z, Y)      :: 1.
 
-vp(Number, X, Y) <-- v(intransitive, Number, X, Z), np(_, Z, Y) :: 0.6.
-vp(Number, X, Y) <-- v(transitive, Number, X, Y)          :: 0.4.
+vp(Number, X, Y) <-- v(transitive, Number, X, Z), np(_, Z, Y) :: 0.6.
+vp(Number, X, Y) <-- v(intransitive, Number, X, Y)          :: 0.4.
 
 pp(X, Y) <-- prep(X, Z), np(_, Z, Y) :: 1.
 
