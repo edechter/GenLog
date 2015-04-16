@@ -43,12 +43,23 @@ compile_sdcl :-
 get_rule_p(RuleId, P) :- 
         sdcl_rule(RuleId, _ :: P).
 
+get_rule_alpha(RuleId, Alpha) :-
+        sdcl_rule(RuleId, _),
+        %% XXX: Change this now! Alpha value should not be hardcoded!
+        Alpha = 0.1.
+
 set_rule_p(RuleId, P) :-
         R = sdcl_rule(RuleId, Rule :: _),
         call(R),
         retractall(R),
         R_new = sdcl_rule(RuleId, Rule :: P),
         assertz(R_new).
+
+rules(RuleIds) :-
+        findall(RuleId, sdcl_rule(RuleId, _), RuleIds).
+
+rule_functors(Functors) :-
+        setof(F/A, R^rule_functor(R, F/A), Functors).
 
 rule_functor(RuleId, Functor/Arity) :-
         sdcl_rule(RuleId, Head <-- _ :: _),
@@ -269,7 +280,13 @@ log_sum_exp(Xs, Y) :-
         
 %% ----------------------------------------------------------------------
 %%      Log likelihood of data
-        
+log_likelihood(Goals, LogP, Options) :-
+        findall(L,
+                mi_best_first_all(Goal, _, L, Options),
+                Ls),
+        sum_list(Ls, LogP).
+
+                
         
 
 %%
@@ -442,8 +459,8 @@ pair_list_seconds([_-Y|Rest], [Y|Ys]) :-
 
 %% ----------------------------------------------------------------------
 
-s(X, Y) <-- np(Number, X, Z), vp(Number, Z, Y)     :: 0.75.
-s(X, Y) <-- s(X, Z), s(Z, Y) :: 0.01.
+s(X, Y) <-- np(Number, X, Z), vp(Number, Z, Y)     :: 0.5.
+s(X, Y) <-- s(X, Z), s(Z, Y) :: 0.5.
 
 np(Number, X, Y) <-- pn(Number, X, Y)                     :: 1.
 np(Number, X, Y) <-- det(Number, X, Z), n(_, Number, Z, Y)      :: 1.
@@ -454,6 +471,7 @@ vp(Number, X, Y) <-- v(intransitive, Number, X, Y)          :: 0.4.
 pp(X, Y) <-- prep(X, Z), np(_, Z, Y) :: 1.
 
 pn(singular, [eyal|X], X) :: 0.5.
+pn(singular, [amy|X], X) :: 0.5.
 pn(plural, [they|X], X)   <-- true   :: 0.5.
 
 n(book, singular, [book|X], X) <-- true  :: 1.
