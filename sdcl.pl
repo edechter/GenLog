@@ -22,7 +22,13 @@
 
 
 %% ----------------------------------------------------------------------
-
+%% lips_estimate(LIPS).  An estimate of the numeber of logical
+%% inferences per second. This is used to provide a computation time
+%% limit for each branch of the derivation search below. Given a time
+%% limit in seconds, we calculate an inference limit for use with
+%% call_with_inference_limit/3.
+:- dynamic lips_estimate/1.
+lips_estimate(3e6).
 
 %% ----------------------------------------------------------------------
 %% sdcl_rule record
@@ -167,13 +173,14 @@ normalize_rules :-
 mi_best_first_options_default(
       [
        beam_width(1000),
-       inference_limit(100000)
+       time_limit_seconds(1)
        ]).
 
 mi_best_first(Goal, Score, DGraph) :-
         mi_best_first(Goal, Score, DGraph, []). 
 
 mi_best_first(Goal, Score, DGraph, Options) :-
+        
         % make options record
         mi_best_first_options_default(DefaultOptions), 
         merge_options(Options, DefaultOptions, AllOptions),
@@ -196,8 +203,10 @@ mi_best_first(Goal, Score, DGraph, Options) :-
                      0,
                      BeamWidth,
                      PQ),
+
+        bf_options_time_limit_seconds(OptionsRecord, TimeLimit),
+        time_limit_inference_limit(TimeLimit, InferenceLimit), 
         
-        bf_options_inference_limit(OptionsRecord, InferenceLimit),
         call_with_inference_limit(mi_best_first_go(PQ, Goal, Score, DGraph, OptionsRecord),
                                   InferenceLimit,
                                   Result),
@@ -207,7 +216,15 @@ mi_best_first(Goal, Score, DGraph, Options) :-
          true
          ).
 
-
+%% time_limit_inference_limit(+TimeLimit, -InferenceLimit) TimeLimit is
+%% a number of seconds, and InferenceLimit is the approximate number
+%% of inferences that can be made in that amount of time. The estimate
+%% is made using the the value of lips_estimate/1. 
+time_limit_inference_limit(TimeLimit, InferenceLimit) :-
+        lips_estimate(Lips), 
+        InferenceLimit is floor(TimeLimit * Lips).
+        
+        
 :- begin_tests(mi_best_first).
 
 %% test that we get at least the first result correctly.
@@ -229,8 +246,8 @@ test(mi_best_first,
 %% ----------------------------------------------------------------------
 %% Options record for mi_best_first
 
-:- record bf_options(beam_width=10,
-                     inference_limit=10
+:- record bf_options(beam_width=100,
+                     time_limit_seconds=1
                     ).
 %% ----------------------------------------------------------------------
 %% mi_best_first_go/5.

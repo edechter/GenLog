@@ -43,7 +43,7 @@ go0 :-  compile_sdcl_file('trivial.pl'),
 
 go :-
         compile_sdcl_file('trivial.pl'),
-        Options = [beam_width(100), inference_limit(1E7)],
+        Options = [beam_width(100), time_limit_seconds(1)],
         data_set(Goals),
         variation_em_single_iteration(Goals, Options),
         variation_em_single_iteration(Goals, Options).
