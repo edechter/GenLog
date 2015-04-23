@@ -1,0 +1,27 @@
+%% trivial_2.pl
+%% simple sdcl for testing
+%% ----------------------------------------------------------------------
+
+s(X, Y) --->
+        num(Number),
+        person(Person),
+        np(X, Y | Number, Person).
+
+np(X, Y | Number, third) --->
+        pn(X, Y | Number)                       :: 1.
+np(X, Y | Number, third) --->
+        det(X, Z | Number), n(Z, Y | Number)    :: 1.
+
+np(['I'|Y], Y | singular, first).
+np([we|Y], Y  | plural, first).
+
+np([you|Y], Y  | plural, second).
+
+det([the|X], X | singular) :: 1.
+det([a|X], X | singular)   :: 1.
+det([the|X], X | plural)   :: 1.
+det(X, X | plural)   :: 1.
+
+person(first).
+person(second).
+person(third).

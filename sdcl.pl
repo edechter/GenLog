@@ -2,103 +2,153 @@
 %% author: Eyal Dechter
 
 %% TODO
-%% - Change all computations to log domain
+%%
+%% - Enable maximum number of solutions, so that if there are very
+%% large number, the system doesn't choke. 
+
+% :- module(sdcl).
 
 :- use_module(library(record)).
 :- use_module(library(lists)).
+:- use_module(library(debug)).
+:- use_module(library(option)).
+:- use_module(library(gensym)).
 
 :- op(1000, xfy, --->).
-:- op(1000, xfy, <--).
 :- op(1200, xfy, ::).
 
+:- ['compile'].
+:- ['pprint'].
+
+
 %% ----------------------------------------------------------------------
-%%
-%% compile_sdcl/0 compiles loaded sdcl rules
-%%
-%% - provides each sdcl rule with a rule representation and
-%%   asserts(sdcl_rule(RuleRepr, Rule)).
-compile_sdcl :-
-        retractall(sdcl_rule(_, _)),
-        !,
-        (
-         (
-          Rule = (_ <-- _ :: _),
-          call(Rule)
-         ;
-          Rule1 = (F :: P),
-          call(Rule1),         
-          F \= (_ <-- _), 
-          Rule = (F <-- true :: P)
-         ),
-         canonical_rule(Rule, RuleRepr),
-         assertz(sdcl_rule(RuleRepr, Rule)),
-         fail
+
+
+%% ----------------------------------------------------------------------
+%% sdcl_rule record
+
+:- record sdcl_rule(id,
+                    head,
+                    body,
+                    weight,
+                    group
+                    ).
+
+find_rule_by_id(RuleId, Rule) :-
+        make_sdcl_rule([id(RuleId)], Rule),
+        call(Rule), !
         ;
-         true
-        ).
+        throw(error(domain_error(sdcl_rule, Rule), find_rule_by_id(RuleId, Rule))).
 
-%% ----------------------------------------------------------------------
-%%
+:- begin_tests('sdcl_rule record').
 
-get_rule_p(RuleId, P) :- 
-        sdcl_rule(RuleId, _ :: P).
+test('find_rule_by_id',
+     [
+      setup(setup_trivial_sdcl),
+      forall((setup_trivial_sdcl, rules(Rules), member(RuleId, Rules))),
+      true(Rule1 =@= Rule),
+      cleanup(cleanup_trivial_sdcl)
+     ]) :-
+        find_rule_by_id(RuleId, Rule1),
+        Rule = sdcl_rule(RuleId, _, _, _, _),
+        call(Rule), !.
+       
 
-get_rule_alpha(RuleId, Alpha) :-
-        sdcl_rule(RuleId, _),
+:- end_tests('sdcl_rule record').
+        
+get_rule_weight(RuleId, W) :-
+        find_rule_by_id(RuleId, Rule),
+        sdcl_rule_weight(Rule, W).
+
+get_rule_alpha(_, Alpha) :-
         %% XXX: Change this now! Alpha value should not be hardcoded!
         Alpha = 0.1.
 
-set_rule_p(RuleId, P) :-
-        R = sdcl_rule(RuleId, Rule :: _),
-        call(R),
-        retractall(R),
-        R_new = sdcl_rule(RuleId, Rule :: P),
-        assertz(R_new).
+set_rule_weight(RuleId, P) :-
+        find_rule_by_id(RuleId, Rule),
+        set_weight_of_sdcl_rule(P, Rule, NewRule),
+        retractall(Rule),
+        assert(NewRule).
 
+set_rule_weights(RuleIdWeightAssoc) :-
+        rule(RuleId),
+        get_assoc(RuleId, RuleIdWeightAssoc, W),
+        set_rule_weight(RuleId, W),
+        fail
+        ;
+        true.
+        
+        
 rules(RuleIds) :-
-        findall(RuleId, sdcl_rule(RuleId, _), RuleIds).
+        make_sdcl_rule([], Rule),
+        findall(RuleId, (call(Rule),
+                         sdcl_rule_id(Rule, RuleId)),
+                RuleIds).
 
-rule_functors(Functors) :-
-        setof(F/A, R^rule_functor(R, F/A), Functors).
+rule(RuleId) :-
+        rules(RuleIds),
+        !,
+        member(RuleId, RuleIds).
 
 rule_functor(RuleId, Functor/Arity) :-
-        sdcl_rule(RuleId, Head <-- _ :: _),
-        functor(Head, Functor, Arity).
+        find_rule_by_id(RuleId, Rule),
+        sdcl_rule_head(Rule, sdcl_term(Functor/Arity, _, _)).
 
 functor_rules(Functor/Arity, RuleIds) :-
-        bagof(RuleId,
-              rule_functor(RuleId, Functor/Arity),
+        FA = Functor/Arity,
+        findall(RuleId,
+              (
+               make_sdcl_rule([id(RuleId)], R),
+               call(R),
+               sdcl_rule_head(R, sdcl_term(FA, _, _))
+                ),
               RuleIds).
 
-functor_rules_norm(Functor/Arity, Z) :-
-        functor_rules(Functor/Arity, RuleIds),
-        findall(W,
+functors(Functors) :-
+        rules(RuleIds),
+        setof(F/A,
+              RuleId^(member(RuleId, RuleIds),
+               rule_functor(RuleId, F/A)),
+              Functors).
+
+rule_group_rules(RuleGroup, RuleIds) :-
+        findall(RuleId,
+                sdcl_rule(RuleId, _, _, _, RuleGroup),
+                RuleIds).
+
+rule_group_norm(RuleGroup, Z) :-
+        rule_group_rules(RuleGroup, RuleIds),
+        findall(Weight,
                 (member(RuleId, RuleIds), 
-                 sdcl_rule(RuleId, Rule :: W)
+                 get_rule_weight(RuleId, Weight)
                 ),
                 Ws),
         sum_list(Ws, Z).
 
-normalize_functor_rules(Functor/Arity) :-
-        functor_rules(Functor/Arity, RuleIds),
-        functor_rules_norm(Functor/Arity, Z),
+normalize_rule_group(RuleGroup) :-
+        rule_group_rules(RuleGroup, RuleIds),
+        rule_group_norm(RuleGroup, Z),
         (
          member(RuleId, RuleIds),
-         get_rule_p(RuleId, P),
+         get_rule_weight(RuleId, P),
          P1 is P/Z, 
-         set_rule_p(RuleId, P1),
+         set_rule_weight(RuleId, P1),
          fail
          ;
          true).
 
 normalize_rules :-
-        normalize_functor_rules(_),
+        rule_groups(RuleGroups),
+        !,
+        (
+        member(RuleGroup, RuleGroups), 
+        normalize_rule_group(RuleGroup),
         fail
         ;
-        true.
-
+        true
+        ).
         
-
+        
 %% ----------------------------------------------------------------------
 %%      meta_best_first(Goal)
 %%
@@ -112,37 +162,75 @@ normalize_rules :-
 %%       - InferenceLimit: Limits the maximum number of inference
 %%       steps for each derivation of Goal (default: 1000).
 %%       ----------------------------------------------------------------------
+
+
+mi_best_first_options_default(
+      [
+       beam_width(1000),
+       inference_limit(100000)
+       ]).
+
+mi_best_first(Goal, Score, DGraph) :-
+        mi_best_first(Goal, Score, DGraph, []). 
+
 mi_best_first(Goal, Score, DGraph, Options) :-
         % make options record
-        make_bf_options(Options, OptionsRecord), 
-        % initialize priority queue
-        GoalList = [Goal],
+        mi_best_first_options_default(DefaultOptions), 
+        merge_options(Options, DefaultOptions, AllOptions),
+        make_bf_options(AllOptions, OptionsRecord),
+
+        % translate goal
+        tr_sdcl_term(Goal, GoalTr),
         
+        % initialize priority queue
+        reset_gen_node,
+        gen_node_id(NodeId), 
+        GoalList = [goal(NodeId, GoalTr)],
+
         bf_options_beam_width(OptionsRecord, BeamWidth),
 
         % initialize priority queue. Each element of priority queue is
         % of the form deriv_info(CurrentGoalList-OrigGoal, DerivationGraph)
-        pq_singleton(deriv_info(GoalList-Goal, dgraph(Goal, [])),
+        DGraph0 = dgraph(NodeId, [goal(NodeId, GoalTr)], []),
+        pq_singleton(deriv_info(GoalList-Goal, DGraph0),
                      0,
                      BeamWidth,
                      PQ),
         
         bf_options_inference_limit(OptionsRecord, InferenceLimit),
-
         call_with_inference_limit(mi_best_first_go(PQ, Goal, Score, DGraph, OptionsRecord),
                                   InferenceLimit,
                                   Result),
         (Result = inference_limit_exceeded ->
          format("***Inference Limit Exceeded***\n"), 
          fail;
-         true).
-              
+         true
+         ).
+
+
+:- begin_tests(mi_best_first).
+
+%% test that we get at least the first result correctly.
+test(mi_best_first,
+     [
+      setup(setup_trivial_sdcl),
+      cleanup(cleanup_trivial_sdcl),
+      true(G=@= s([a], []))
+     ]) :-
+        G=s(_X, []), 
+        mi_best_first(G, _, _),
+        !.
+        
+
+:- end_tests(mi_best_first).
+
+
         
 %% ----------------------------------------------------------------------
 %% Options record for mi_best_first
 
-:- record bf_options(beam_width=100,
-                     inference_limit=100000
+:- record bf_options(beam_width=10,
+                     inference_limit=10
                     ).
 %% ----------------------------------------------------------------------
 %% mi_best_first_go/5.
@@ -150,95 +238,213 @@ mi_best_first(Goal, Score, DGraph, Options) :-
 %%
 %% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, +OptionsRecord) 
 mi_best_first_go(PQ, _, _, _, _) :-
+        %% --- DEBUG
+        % print_current_frame,
+        %% ---
+
         % if PQ is empty, fail.
         pq_empty(PQ), !, fail.
-mi_best_first_go(PQ, Goal, ScoreOut, DGraphOut, OptionsRecord) :-
+mi_best_first_go(PQ, Goal, ScoreOut, DGraphOut,  OptionsRecord) :-
+        %% --- DEBUG
+        % print_current_frame,
+        %% ---
+
         % Solution is found, return goal.
         % Continue to next goal on backtracking.
         pq_find_max(PQ, deriv_info([]-OrigGoal, DGraph), Score, NewPQ),
-        !, 
+         
         (
          Goal = OrigGoal,
          ScoreOut = Score,
          DGraphOut = DGraph
+         
         ;
          mi_best_first_go(NewPQ, Goal, ScoreOut, DGraphOut, OptionsRecord)
         ).
         
 mi_best_first_go(PQ, OrigGoal, ScoreOut, DGraphOut, OptionsRecord) :-
+        %% --- DEBUG
+        % print_current_frame,
+        %% ---
+
         % If the next best is not a solution
         % get the best solution from priority queue
         pq_find_max(PQ, Elem, Score, PQ1),
+
         % extend best solution
         extend(Elem, Score, ElemScores),
-        %--DEBUG
-        % format("Extend ~w with score ~w to \n", [Elem, Score]),
-        % (
-        %  member(E-S, ElemScores), 
-        %  format("~w:  ~w \n", [S, E]),
-        %  fail
-        % ;
-        %  true
-        % ),
-        %--END DEBUG
-        % insert extensions into priority queue
-        pq_inserts(ElemScores, PQ1, NewPQ),
-        
-        % loop
-        mi_best_first_go(NewPQ, OrigGoal, ScoreOut, DGraphOut, OptionsRecord).
+
+        %% if any of the generated elements is a solution, return
+        %% these immediately
+        (
+         member(deriv_info([]-OrigGoal, DGraphOut)-ScoreOut, ElemScores)
+        ;
+         findall(ES,
+                 (ES = (deriv_info(Gs-_, _)-_),
+                  member(ES, ElemScores), 
+                  Gs \= []),
+                 ElemScores1),
+         pq_inserts(ElemScores1, PQ1, NewPQ),
+         % pq_size(NewPQ, Size),
+         % format("PQ Size: ~w\n", [Size]),
+         % pq_show(NewPQ), 
+         mi_best_first_go(NewPQ, OrigGoal, ScoreOut, DGraphOut, OptionsRecord)
+        ).
         
 
 %% ----------------------------------------------------------------------
 
+:- begin_tests(extend).
+test(extend,
+     [setup(setup_trivial_sdcl),
+      true(NExt=2)]
+     ) :-
+    X = s(_, _),
+    tr_sdcl_term(X, T),
+    G = goal(1, T), 
+    
+    DInfo = deriv_info([G]-G, dgraph(_, [1], [])),
+    extend(DInfo, 0, Extensions),
+    length(Extensions, NExt).
+        
+:- end_tests(extend). 
+      
 
 %% extend(deriv_info(Goals-OrigGoal, DGraph), Score, Extensions)
 %% assumptions:
 %% - Goals is not empty
-%% - Goals is a list of literals
+%% - Goals is a list of structures of the form goal(GoalId, Goal) where Goal is an sdcl_term/3.
 %% - Extensions is a list of pairs deriv_info(Goals-OrigGoal, DGraph)-Score
 extend(deriv_info([G|Rest]-OrigGoal, DGraph), Score, ElemScores) :-
-        DGraph = dgraph(StartGoal, HyperEdges),
+        
+        % the current derivation graph
+        DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
+
+        %% G_new: the new queue of goals for the current derivation
+        %% OrigGoal_copy: a copy of the toplevel goal (keeps track of top level bindings in this derivation)
+        %% DGraph_new: the new derivation graph generated by a choice of extending rule
         findall(deriv_info(G_new-OrigGoal_copy, DGraph_new)-Score_new,
                 (
                  copy_term([G|Rest]-OrigGoal, [G_copy|Rest_copy]-OrigGoal_copy),
-                 match(G_copy, BodyList, _-RuleRepr, Context, S),
-                 Prob is exp(S), 
-                 Score_new is Score + S,
-                 DGraph_new = dgraph(StartGoal,
-                                     [hyperedge(G_copy, RuleRepr-Context, Prob, BodyList)
-                                     |HyperEdges]),
-                 append(BodyList, Rest_copy, G_new)
+
+                 % find a matching rule for the current goal
+                 G_copy = goal(NodeId, Goal),
+                 match(Goal, BodyList, RuleId, Prob),
+                 
+                 %% for each
+
+                 (
+                  bagof(goal(ChildNodeId, ChildGoal),
+                        (
+                         member(ChildGoal, BodyList),
+                         gen_node_id(ChildNodeId)
+                        ),
+                        ChildNodes) -> true
+                  ;
+                  ChildNodes = []
+                 ),
+                 length(BodyList, BN),
+                 length(ChildNodes, CN),
+                 assertion(BN = CN), 
+                 
+                 
+                 findall(ChildNodeId,
+                         member(goal(ChildNodeId, _), ChildNodes),
+                         ChildNodeIds),
+
+                 %% append new goal nodes onto the list of nodes for the derivation graph
+                 append(ChildNodes, Nodes, Nodes_new),
+                 
+                 %% create a new hyperedge for the derivation graph
+                 HyperEdge = hyperedge(NodeId, RuleId, ChildNodeIds),
+                 % debug(dgraph,
+                       % "Generate hyperedge: ~w", [HyperEdge]),
+                 
+                 %% construct updated derivation graph
+                 HyperEdges_new = [HyperEdge|HyperEdges],
+                 DGraph_new = dgraph(StartNodeId, Nodes_new, HyperEdges_new),
+
+                 %% assert dgraph is a tree
+                 %% i.e. number of nodes is number of edge children plus 1
+                 assert_dgraph_tree_property(DGraph_new), 
+                         
+
+                 
+
+                 %% calculate the updated log probability of the
+                 %% current derivation
+                 LogProb is log(Prob),
+                 Score_new is Score + LogProb,
+                 assertion(Score_new =< Score),
+
+                 %% prepend the new goal nodes onto the goal stack
+                 append(ChildNodes, Rest_copy, G_new)
+                                 
                 ),
                 ElemScores
                ).
 
-%% match goal against SDCL db
-%% match(Literal, BodyList, Rule-RuleRepr, Context, Score)
-match(Literal, BodyList, Rule-RuleRepr, Context, LogProb) :-
-        findall(RuleRepr-OrigProb,
-                sdcl_rule(RuleRepr, Literal <-- Body :: OrigProb), 
-                RuleProbs),
-        % Context: the alternative rules this match is being compared
-        % to
-        pair_list_firsts(RuleProbs, Context),
-        pair_list_seconds(RuleProbs, OrigProbs),
-        sum_list(OrigProbs, Z),
+
+reset_gen_node :-
+        reset_gensym('node_').
+                     
+gen_node_id(Id) :-
+        gensym('node_', Id).
+
+%% match goal against SDCL DB
+%% match(Goal, BodyList, Rule-RuleId, RuleProb)
+match(Goal, BodyList, RuleId, Prob) :-
+        % find all matching rules for the current conditioner
+        Goal = sdcl_term(F/A, _, Conds),
+        Head = sdcl_term(F/A, _, Conds),
+        findall(P,
+                sdcl_rule(RuleId, Head, _, P, _),
+                Ps),
+        sum_list(Ps, Z),
         !,
-        sdcl_rule(RuleRepr, Literal <-- Body :: OrigProb), 
-        LogProb is log(OrigProb) - log(Z),
-        % write(LogProb), nl, 
+        % find a matching rule for the goal in the db
+        Rule=sdcl_rule(RuleId, _, _, _, _),
+        Rule, 
+        copy_term(Rule, RuleCopy),
+        RuleCopy = sdcl_rule(RuleId, Goal, Body, P0, _),
+        
+        Prob is P0/Z,
+        
+        % NB: sdcl probabilities should be normalized at this point
         and_to_list(Body, BodyList).
+
+
+:- begin_tests(match).
+
+test(match,
+     [setup(setup_trivial_sdcl),
+      true(NMatch=2)]
+     ) :-
+    X = s(_, _),
+    tr_sdcl_term(X, G),
+    
+    findall(RuleId, 
+            match(G, RuleId, _, _),
+            MatchingRuleIds),
+    length(MatchingRuleIds, NMatch).
+        
+:- end_tests(match). 
 
 %% conjunction to list
 and_to_list(true, []).
 and_to_list(C, [C]) :-
         C \= true,
         C \= (_,_).
-and_to_list((true, Cs), Xs) :- 
+and_to_list((true, Cs), Xs) :-
         and_to_list(Cs, Xs).
 and_to_list((C, Cs), [C|Xs]) :-
         C \= true,
         and_to_list(Cs, Xs).
+
+list_to_and([], true).
+list_to_and([X], X).
+list_to_and([X|Xs], (X, Ys)) :-
+        list_to_and(Xs, Ys).
 
 %% ----------------------------------------------------------------------
 %%      mi_best_first_all(Goal, List of deriv(Goal, DGraph, ConditionalProb), Options)
@@ -252,6 +458,9 @@ and_to_list((C, Cs), [C|Xs]) :-
 %%       - InferenceLimit: Limits the maximum number of inference
 %%       steps for each derivation of Goal (default: 1000).
 %%       ----------------------------------------------------------------------
+mi_best_first_all(Goal, Results, LogP) :-
+        mi_best_first_all(Goal, Results, LogP, []).
+
 mi_best_first_all(Goal, Results, LogP, Options) :-
         findall(deriv(Goal, DGraph, Score), 
                  mi_best_first(Goal, Score, DGraph, Options),
@@ -266,7 +475,7 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
         findall(deriv(Goal, DGraph, ConditionalProb), 
                 (
                  member(deriv(Goal, DGraph, Score), Results0),
-                 ConditionalProb is exp(Score)
+                 ConditionalProb is exp(Score - LogP)
                 ),
                 Results).
 
@@ -280,7 +489,7 @@ log_sum_exp(Xs, Y) :-
         
 %% ----------------------------------------------------------------------
 %%      Log likelihood of data
-log_likelihood(Goals, LogP, Options) :-
+log_likelihood(Goal, LogP, Options) :-
         findall(L,
                 mi_best_first_all(Goal, _, L, Options),
                 Ls),
@@ -330,13 +539,14 @@ pq_insert(Elem, Score, pq(Elems, Size, MaxSize), pq(NewElems, SizeOut, MaxSize))
 % resulting in NewSorted.
 %
 % if Sorted is empty
-pq_insert_sorted_list(Elem, Score, [], [pq_elem(Elem, Score)]).
+pq_insert_sorted_list(Elem, Score, [], [pq_elem(Elem, Score)]) :- !.
 % if Score is greater than or equal to score at head of list
 pq_insert_sorted_list(Elem, Score, [pq_elem(E, S)|Xs], [pq_elem(Elem, Score), pq_elem(E, S) | Xs]) :-
-        Score >= S.
+        Score >= S, !.
+
 % if Score is less than score at head of list, recurse
 pq_insert_sorted_list(Elem, Score, [pq_elem(E, S)|Xs], [pq_elem(E, S) | Xs1]) :-
-        Score < S, 
+        Score < S, !, 
         pq_insert_sorted_list(Elem, Score, Xs, Xs1).
 
 % pq_inserts(+[Elem-Score], +PQ, -NewPQ)
@@ -372,53 +582,159 @@ pq_size(pq(_, Size, _), Size).
 % pq_show(PQ) pretty prints priority queues
 pq_show(pq(Elems, Size, _)) :-
         format("Size: ~w\n", [Size]),
-        member(pq_elem(Elem, Score), Elems),
-        format("~w:  ~w \n", [Score, Elem]),
+        member(pq_elem(Elem, _), Elems),
+        Elem = deriv_info(_, DGraph),
+        pprint_dgraph(DGraph),
+        pprint_raw_dgraph(DGraph),
+        dgraph_dtree(DGraph, DTree), 
+        pprint_raw_dtree(DTree),
+        assert_dgraph_tree_property(DGraph), 
         fail.
 pq_show(_).
 
+dgraph_size(dgraph(_, _, Hs), M) :-
+        length(Hs, M).
+
+assert_dgraph_tree_property(DGraph) :-
+        DGraph = dgraph(_, Nodes, HEdges),
+        length(Nodes, NumNodes),
+        maplist(call(arg, 3), HEdges, HChildren),
+        maplist(length, HChildren, HNChildren),
+        sum_list(HNChildren, NChildren),
+        assertion(NumNodes is NChildren + 1).
+        
+
+
+
+
 
 %% ----------------------------------------------------------------------
-%% Derivation data structure
+%% ----------------------------------------------------------------------
+%% Derivation data structures
 %% 
 %% A data structure for constructing derivation graphs and trees
 %% during best first search. 
 %%
-%% A derivation graph is a structure dgraph(start goal, list of hyperedges)
-%% Each hyperedge is a structure hyperedge(Goal, Rule, Prob, ChildGoals).
+%% A derivation graph is a structure dgraph(start_node_id, list of nodes, list of hyperedges)
+%% A node is a structure node(Id, Goal)
+%% A hyperedge is a structure hyperedge(NodeId, RuleId, ChildNodeIds).
 %%
 %% This graph is a multiway tree, so we also supply a predicate to
 %% construct trees out of these graphs.
 %%
-%% A derivation tree is a structure: dtree(Goal, Rule, [list of dtree]).
+%% A derivation tree is a structure: dtree(Node, RuleId, [list of dtree]).
 
+%% --------------------
+%% dgraph_dtree(+DGraph, -DTree) is det
+%% Convert DGraph into a DTree
 dgraph_dtree(DGraph, DTree) :-
-        DGraph = dgraph(Start, _), 
-        DTree = dtree(Start, _, _,  _), 
-        dgraph_dtree_go(DGraph, DTree).
-dgraph_dtree_go(dgraph(Start, HyperEdges), dtree(Goal, Rule, Prob,Trees)) :-
-        member(hyperedge(Goal, Rule, Prob, Children), HyperEdges),
-        !,
-        findall(dtree(Child, R, P, Cs), 
-                (member(Child, Children),
-                 dgraph_dtree_go(
-                                 dgraph(Start, HyperEdges),
-                                 dtree(Child, R, P, Cs)))
-                ,
+        DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
+        StartNode = goal(StartNodeId, _),
+        (
+         member(StartNode, Nodes) ->
+         true
+         ;
+         throw(error(ill_formed_dgraph, 'StartNode not found in Nodes'))
+        ), 
+        DTree = dtree(StartNode, _, _), 
+        dgraph_dtree_go(HyperEdges, Nodes, DTree).
+
+dgraph_dtree_go(HyperEdges,
+                Nodes,
+                dtree(goal(NodeId, _), RuleId, Trees)) :-
+        member(hyperedge(NodeId, RuleId, ChildNodeIds), HyperEdges),
+        !, 
+        findall(dtree(ChildNode, R, Cs), 
+                (member(ChildNodeId, ChildNodeIds),
+                 ChildNode = goal(ChildNodeId, _),
+                 (
+                  member(ChildNode, Nodes) ->
+                  true
+                 ;
+                  throw(error(ill_formed_dgraph, 'ChildNode not found in Nodes'))
+                 ),
+                 dgraph_dtree_go(HyperEdges,
+                                 Nodes,
+                                 dtree(ChildNode, R, Cs))), 
                  Trees).
+%% --------------------
+
+:- begin_tests(dgraph).
+
+test(dgraph_dtree) :- 
+      Nodes = [goal(node_1, g1),
+               goal(node_2, g2),
+               goal(node_3, g3),
+               goal(node_4, g4),
+               goal(node_5, g5)],
+      HyperEdges = [hyperedge(node_1, r(1), [node_2, node_5]),
+                    hyperedge(node_2, r(2), [node_3, node_4]), 
+                    hyperedge(node_3, r(1), []),
+                    hyperedge(node_4, r(3), []),
+                    hyperedge(node_5, r(2), [])
+                   ], 
+      DGraph = dgraph(node_1, Nodes, HyperEdges),
+      dgraph_dtree(DGraph, DTree),
+      test_dtree(DTree_Correct),
+      assertion(DTree=DTree_Correct).
+      
+      
+
+
+test_dtree(DTree) :-
+        N1 = goal(node_1, g1),
+        N2 = goal(node_2, g2),
+        N3 = goal(node_3, g3),
+        N4 = goal(node_4, g4),
+        N5 = goal(node_5, g5),
+        DTree = dtree(N1, r(1),
+                      [dtree(N2, r(2),
+                             [dtree(N3, r(1), []),
+                              dtree(N4, r(3), [])]),
+                       dtree(N5, r(2), [])]).
+        
+                            
+                      
+      
+
+:- end_tests(dgraph). 
+
+pprint_dgraph(DGraph) :-
+        dgraph_dtree(DGraph, DTree),
+        pprint_dtree(DTree).
+
+pprint_raw_dgraph(DGraph) :-
+        DGraph = dgraph(_StartNode, _Nodes, Edges),
+        !,
+        member(Edge, Edges),
+        writeln(Edge),
+        fail
+        ; true. 
+
+pprint_raw_dtree(DTree) :-
+        DTree = dtree(Node, Rule, Children),
+        writeln(Node-Rule),
+        !,
+        member(Child, Children),
+        pprint_raw_dtree(Child), 
+        fail
+        ; true. 
+
 
 % pprint_dtree(DTree) pretty prints a derivation tree DTree
 pprint_dtree(DTree) :-
         pprint_dtree(DTree, 2).
 pprint_dtree(DTree, Indent) :-
         pprint_dtree(DTree, Indent, 0).
-pprint_dtree(dtree(Goal, Rule, Prob, SubTrees), Indent, Cursor) :-
+pprint_dtree(dtree(goal(NodeId, Goal), RuleId, SubTrees), Indent, Cursor) :-
         tab(Cursor),
         write('+ '),
-        portray_clause(Rule),
-        format(":: ~w", [Prob]),
+        pprint_term(Goal, GString),
+        find_rule_by_id(RuleId, Rule),
+        pprint_rule(Rule, RString), 
+        format("~w: ~w -- ~w : ~w", [NodeId, GString, RuleId, RString]),
         nl,
-        !,
+
         (
         Cursor1 is Cursor + Indent,
         member(SubTree, SubTrees),
@@ -427,6 +743,38 @@ pprint_dtree(dtree(Goal, Rule, Prob, SubTrees), Indent, Cursor) :-
         ;
         true
         ).
+
+%% number of nodes in dtree
+dtree_nodes(Tree, Nodes) :-
+        dtree_nodes(Tree, [], Nodes).
+
+dtree_nodes(dtree(Node, _, Children), NIn, [Node|NOut]) :-
+        dtree_nodes_go(Children, NIn, NOut).
+
+dtree_nodes_go([], NIn, NIn).
+dtree_nodes_go([Tree|Trees], NIn, NOut) :-
+        dtree_nodes(Tree, NIn, NTmp),
+        dtree_nodes_go(Trees, NTmp, NOut).
+
+
+:- begin_tests(dtree_nodes).
+
+test(dtree_nodes, set(Node==[node1, node2,  node3])) :-
+        test_dtree(Tree), 
+        dtree_nodes(Tree, Nodes),
+        member(Node, Nodes).
+
+test_dtree(Tree) :-
+        Tree = dtree(node1, _,
+                     [
+                      dtree(node2, _, []),
+                      dtree(node3, _, [])
+                     ]).
+
+:- end_tests(dtree_nodes).
+
+
+        
 
 canonical_rule(Rule :: _, Canonical) :-
         copy_term(Rule, Canonical), 
@@ -456,51 +804,58 @@ pair_list_seconds([], []).
 pair_list_seconds([_-Y|Rest], [Y|Ys]) :-
         pair_list_seconds(Rest, Ys).
 
+% replicate(N, Xs, Ys) if Ys is N repetitions of Xs
+replicate(N, Xs, Ys) :-
+        replicate(N, Xs, [], Ys).
+
+replicate(0, _, YsIn, YsOut) :- !, YsIn = YsOut.
+replicate(N, Xs, YsIn, YsOut) :-
+        N1 is N - 1,
+        append(Xs, YsIn, YsTmp), 
+        replicate(N1, Xs, YsTmp, YsOut).
+
+
+:- begin_tests(auxiliary).
+
+test(replicate, [true(Xs = [a,a,a,a,a])]) :-
+        replicate(5, [a], Xs).
+
+test(replicate_empty, [true(Xs = [])]) :-
+        replicate(5, [], Xs).
+
+
+:- end_tests(auxiliary).
+
+% print_current_frame
+print_current_frame :-
+        prolog_current_frame(Frame), 
+        format("Current Frame: ~w\n", [Frame]).
 
 %% ----------------------------------------------------------------------
 
-s(X, Y) <-- np(Number, X, Z), vp(Number, Z, Y)     :: 0.5.
-s(X, Y) <-- s(X, Z), s(Z, Y) :: 0.5.
+        
+%% ----------------------------------------------------------------------
+%% Predicates for building unit tests
 
-np(Number, X, Y) <-- pn(Number, X, Y)                     :: 1.
-np(Number, X, Y) <-- det(Number, X, Z), n(_, Number, Z, Y)      :: 1.
+trivial_sdcl_file('trivial.pl').
 
-vp(Number, X, Y) <-- v(transitive, Number, X, Z), np(_, Z, Y) :: 0.6.
-vp(Number, X, Y) <-- v(intransitive, Number, X, Y)          :: 0.4.
+setup_trivial_sdcl :-
+        retractall(sdcl_rule(_, _, _, _, _)),
+        trivial_sdcl_file(File), 
+        compile_sdcl_file(File).
 
-pp(X, Y) <-- prep(X, Z), np(_, Z, Y) :: 1.
+cleanup_trivial_sdcl :-
+        retractall(sdcl_rule(_, _, _, _, _)).
 
-pn(singular, [eyal|X], X) :: 0.5.
-pn(singular, [amy|X], X) :: 0.5.
-pn(plural, [they|X], X)   <-- true   :: 0.5.
+setup_sdcl(File) :-
+        retractall(sdcl_rule(_, _, _, _, _)),
+        compile_sdcl_file(File).
 
-n(book, singular, [book|X], X) <-- true  :: 1.
-n(book, plural, [books|X], X) <-- true  :: 1.
-n(song, singular, [song|X], X) <-- true  :: 1.
-n(song, plural, [songs|X], X) <-- true  :: 1.
+cleanup_sdcl :-
+        retractall(sdcl_rule(_, _, _, _, _)).
+        
 
-v(transitive, singular, [halts|X], X) <-- true :: 1.0.
-v(transitive, plural , [halt|X], X) <-- true  :: 1.0.
-v(transitive, singular, [sees|X], X) <-- true  :: 1.0.
-
-v(intransitive, singular, [writes|X], X) <-- true:: 0.5.
-v(intransitive, plural  , [write|X], X) <-- true :: 0.5.
-
-det(singular, [the|X], X) <-- true:: 1.
-det(singular, [a|X], X) <-- true  :: 1.
-det(plural  , [the|X], X) <-- true:: 1.
-det(plural  , X, X) <-- true   :: 1.
-
-% pn(singular, [eyal|Z], Z) <-- true :: 2.1.
-% pn(singular, [amy|Z], Z) <-- true :: 3.2.
-% pn(singular, [dog|Z], Z) <-- true :: 2.1.
-% pn(singular, [whale|Z], Z) <-- true :: 3.2.
-
-% pn(plural, [they|Z], Z) <-- true :: 2.
-% pn(plural, [people|Z], Z) <-- true :: 0.3.
-
-% vp(singular, [runs|Z], Z) <-- true :: 1.
-% vp(plural, [run|Z], Z) <-- true :: 1.
+        
 
 
 
@@ -538,43 +893,4 @@ det(plural  , X, X) <-- true   :: 1.
         
         
 
-
-
-%% ------------------------------------------------------------------
-%% example dcg
-
-% s ---> np(Number), vp(Number)     :: 1.
-
-% np(Number) ---> pn(Number)                     :: 1.
-% np(Number) ---> det(Number), n(_, Number)      :: 1.
-
-% vp(Number) ---> v(intransitive, Number), np(_) :: 0.6.
-% vp(Number) ---> v(transitive, Number)          :: 0.4.
-
-% pp ---> prep, np(_) :: 1.
-
-% pn(singular) ---> [eyal]   :: 0.5.
-% pn(plural)   ---> [they]   :: 0.5.
-
-% n(book, singular)  ---> [book]   :: 1.
-% n(book, plural)    ---> [books]   :: 1.
-% n(song, singular)  ---> [song]   :: 1.
-% n(song, plural)    ---> [songs]   :: 1.
-
-% v(transitive, singular) ---> [halts]  :: 1.0.
-% v(transitive, plural)  ---> [halt]   :: 1.0.
-% v(transitive, singular) ---> [see]   :: 1.0.
-
-% v(intransitive, singular) ---> [writes] :: 0.5.
-% v(intransitive, plural)   ---> [write]  :: 0.5.
-
-% det(singular) ---> [the] :: 1.
-% det(singular) ---> [a]   :: 1.
-% det(plural)   ---> [the] :: 1.
-% det(plural)   ---> []    :: 1.
-
-
-
-
-%% ----------------------------------------------------------------------
 
