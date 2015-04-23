@@ -67,6 +67,7 @@ vp(X, Y | Number, Person, intransitive) --->
 
 verb_root(see | transitive).
 verb_root(see | intransitive).
+verb_root(sing |  transitive).
 verb_root(sing |  intransitive).
 verb_root(write |  intransitive).
 

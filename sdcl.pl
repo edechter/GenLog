@@ -28,7 +28,7 @@
 %% limit in seconds, we calculate an inference limit for use with
 %% call_with_inference_limit/3.
 :- dynamic lips_estimate/1.
-lips_estimate(3e6).
+lips_estimate(1e6).
 
 %% ----------------------------------------------------------------------
 %% sdcl_rule record
@@ -83,6 +83,14 @@ set_rule_weights(RuleIdWeightAssoc) :-
         fail
         ;
         true.
+
+get_rule_weights(RuleIdWeightAssoc) :-
+        findall(RuleId-W,
+                (rule(RuleId),
+                 get_rule_weight(RuleId, W)),
+                RuleWeights),
+        list_to_assoc(RuleWeights, RuleIdWeightAssoc).
+
         
         
 rules(RuleIds) :-
@@ -184,7 +192,7 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         % make options record
         mi_best_first_options_default(DefaultOptions), 
         merge_options(Options, DefaultOptions, AllOptions),
-        make_bf_options(AllOptions, OptionsRecord),
+        make_bf_options(AllOptions, OptionsRecord, _RestOptions),
 
         % translate goal
         tr_sdcl_term(Goal, GoalTr),
