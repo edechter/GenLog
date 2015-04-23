@@ -241,7 +241,6 @@ test(mi_best_first,
 
 :- end_tests(mi_best_first).
 
-
         
 %% ----------------------------------------------------------------------
 %% Options record for mi_best_first

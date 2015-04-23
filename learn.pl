@@ -185,7 +185,7 @@ test(expected_rule_counts,
       ]) :-
        Goals = [s([a, a], [])],
        
-       expected_rule_counts(Goals, Assoc, [inference_limit(1000000)]),
+       expected_rule_counts(Goals, Assoc),
        assertion(get_assoc(r(1), Assoc, 1.0)),
        assertion(get_assoc(r(2), Assoc, 2.0)).
 
