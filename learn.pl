@@ -121,6 +121,20 @@ free_energy(PriorHyperParams,
                      ),
         FreeEnergy is LogLikelihood + FreeEnergy1 + FreeEnergy2.
 
+%% ----------
+%%      loglikelihood(+DSearchResults, +MultinomialWeights, -Loglikelihood) is det
+%%      loglikelihood(+DSearchResult, +MultinomialWeights, -Loglikelihood) is det
+%%
+%%      compute the loglikelihood one or more goals given the
+%%      corresponding dsearch_result/3 structure for each goal.
+
+%%      - DSearchResults: a list of dsearch_result/3 structures, one for
+%%      each goal
+%%      - DSearchResult:  a single dsearch_result/3 structure
+%%      - MultinomialWeights: an assoc associating each rule id with a
+%%      weight.
+
+% loglikelihood/3
 loglikelihood([], _, 0) :- !.
 loglikelihood(Ds, MultinomialWeights, Loglikelihood) :-
         Ds = [_|_],  
@@ -132,19 +146,20 @@ loglikelihood(dsearch_result(_, Count, Derivations), MultinomialWeights, Loglike
                  dgraph_rule_counts(DGraph, RuleCounts)),
                 RuleCountsList),
         maplist(call(multinomial_loglikelihood, MultinomialWeights), RuleCountsList, Ls),
-        maplist(call(prod, Count), Ls, Ls1), 
+        maplist(call(prod, Count), Ls, Ls1), % account for multiple
+                                             % observations of the
+                                             % same goal
         Loglikelihood <- logSumExp(Ls1).
 
 % worker predicate
+% loglikelihood/4
 loglikelihood([], _, LIn, LIn) :- !.
 loglikelihood([D|Ds], MultinomialWeights, LIn, LOut) :-
         loglikelihood(D, MultinomialWeights, L),
         LTmp is LIn + L, 
         loglikelihood(Ds, MultinomialWeights, LTmp, LOut).
         
-        
-        
-
+% calls r to compute the actual loglikelihood
 multinomial_loglikelihood(MultinomialWeights, Counts, LogLikelihood) :-
         assoc_to_values(MultinomialWeights, Ws),
         assoc_to_values(Counts, Cs), 
@@ -372,8 +387,6 @@ test(expected_rule_counts,
 
 
 
-
-
 %% ----------------------------------------------------------------------
 %%      expected_rule_counts1(ScoredDerivations, Assoc)
 %%
@@ -400,18 +413,23 @@ expected_rule_counts1([DGraph-W|Ds], AssocIn, AssocOut) :-
         dgraph_rule_counts(DGraph, W, Assoc),
         add_assocs(0, AssocIn, Assoc, AssocTmp),
         expected_rule_counts1(Ds, AssocTmp, AssocOut).
-        
+
+
+%% ----------------------------------------------------------------------
 %%     dgraph_rule_counts(+DGraph, -Assoc) is Det
-%%     - Returns the rule counts Assoc for DGraph.
+%%
+%%     Returns the rule counts Assoc for DGraph. 
 %%     - DGraph: The dgraph(_, _) structure.
 %%     - Assoc: An assoc (key = rule id, val = number) in which each
 %%     key is associated with the number of times it appears in the
-%%     DGraph.
+%%     DGraph. If a rule is not present in the derivation, it is given
+%%     count 0.
 dgraph_rule_counts(DGraph, Assoc) :-
         % since no weight is given, set the weight to 1. 
         dgraph_rule_counts(DGraph, 1, Assoc). 
 
 %%    dgraph_rule_counts(+DGraph, +W, -Assoc) is det.
+%%
 %%    - Returns an assoc of rule counts in the derivation graph,
 %%    weighted by W. 
 dgraph_rule_counts(DGraph, W, Assoc) :-
