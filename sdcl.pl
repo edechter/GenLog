@@ -13,6 +13,8 @@
 :- use_module(library(debug)).
 :- use_module(library(option)).
 :- use_module(library(gensym)).
+:- use_module(library(real)).
+
 
 :- r(library("matrixStats")).
 

@@ -11,7 +11,7 @@ observations([
               'they see the car stop',
               'they see s the book stop',
               'eyal see s the car stop',
-              'eyal see s the book stop',
+              'eyal see s the book s stop',
               'they see the car stop they sing the book stop',
               'eyal see s the book stop eyal see s the car stop'
               
