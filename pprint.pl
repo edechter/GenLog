@@ -75,15 +75,25 @@ pprint_derivs(Derivs, Options) :-
         ).
 
 %% ----------------------------------------------------------------------
-%%        pprint_rules(Assoc, Out, Options)
-%%        pprint_rules(Assoc, Options)
-%%        pprint_rules(Options)
+%%        pprint_rule_map(Assoc, Out, Options)
+%%        pprint_rule_map(Assoc, Options)
+%%        pprint_rule_map(Assoc)
 %%
-%%        pprint print an assoc of rules to values
+%%        pprint_rule_weights(Out, Options)
+%%        pprint_rule_weights(Options)
+%%        pprint_rule_weights
+%%
+%%        pprint_rule_alphas(Out, Options)
+%%        pprint_rule_alphas(Options)
+%%        pprint_rule_alphas
 
-pprint_rule_map :-
-        get_rule_weights(Assoc),
-        pprint_rule_map(Assoc, Out, []),
+%% FIXME: do we need options here? if so, implement them.
+
+pprint_rule_map(Assoc) :-
+        pprint_rule_map(Assoc, []).
+
+pprint_rule_map(Assoc, Options) :-
+        pprint_rule_map(Assoc, Out, Options),
         write(Out).
 
 pprint_rule_map(Assoc, Out, Options) :-
@@ -91,6 +101,7 @@ pprint_rule_map(Assoc, Out, Options) :-
         maplist(call(pprint_rule_map_in_rule_group, Assoc), RuleGroups, Xs),
         atomic_list_concat(Xs, '\n\n', Out).
 
+% worker predicate
 pprint_rule_map_in_rule_group(Assoc, RuleGroup, Out) :-
         rule_group_rules(RuleGroup, RuleIds),
         maplist(pprint_rule, RuleIds, Xs),
