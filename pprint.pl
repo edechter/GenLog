@@ -1,4 +1,5 @@
 
+:- use_module(library(pairs)).
 %% ----------------------------------------------------------------------
 %% pretty print sdcl_terms and corresponding rules
 
@@ -72,6 +73,47 @@ pprint_derivs(Derivs, Options) :-
         ;
          true
         ).
+
+%% ----------------------------------------------------------------------
+%%        pprint_rules(Assoc, Out, Options)
+%%        pprint_rules(Assoc, Options)
+%%        pprint_rules(Options)
+%%
+%%        pprint print an assoc of rules to values
+
+pprint_rule_map :-
+        get_rule_weights(Assoc),
+        pprint_rule_map(Assoc, Out, []),
+        write(Out).
+
+pprint_rule_map(Assoc, Out, Options) :-
+        rule_groups(RuleGroups),
+        maplist(call(pprint_rule_map_in_rule_group, Assoc), RuleGroups, Xs),
+        atomic_list_concat(Xs, '\n\n', Out).
+
+pprint_rule_map_in_rule_group(Assoc, RuleGroup, Out) :-
+        rule_group_rules(RuleGroup, RuleIds),
+        maplist(pprint_rule, RuleIds, Xs),
+        pairs_keys_values(Pairs, RuleIds, Xs),
+        findall(Line,
+                (member(RuleId-String, Pairs),
+                 get_assoc(RuleId, Assoc, Val), 
+                 format(atom(Line), "~|~w: ~10+~|~w ~`.t ~60+~g\n", [RuleId, String, Val])),
+                Lines),
+        atomic_list_concat(Lines, Out).
+         
+% show_rules :-
+%         findall(Id-W, 
+%                 sdcl_rule(Id, _, _, W, _),
+%                 Assoc),
+%         keysort(Assoc,AssocSorted),
+%         !,
+%         member(Id-W, AssocSorted),
+%         pprint_rule(Id, RString), 
+%         format("~|~w: ~t ~10+~w  ~t ~65+:: ~2f\n", [Id, RString, W]),
+%         fail
+%         ;
+%         true.
 
 
 

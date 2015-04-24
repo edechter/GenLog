@@ -14,6 +14,8 @@
 :- use_module(library(option)).
 :- use_module(library(gensym)).
 
+:- r(library("matrixStats")).
+
 :- op(1000, xfy, --->).
 :- op(1200, xfy, ::).
 
@@ -67,8 +69,16 @@ get_rule_weight(RuleId, W) :-
         sdcl_rule_weight(Rule, W).
 
 get_rule_alpha(_, Alpha) :-
-        %% XXX: Change this now! Alpha value should not be hardcoded!
+        %% FIXME: Change this now! Alpha value should not be hardcoded!
         Alpha = 0.1.
+
+get_rule_alphas(AlphaAssoc) :-
+        findall(RuleId-Alpha,
+                (rule(RuleId),
+                 get_rule_alpha(RuleId, Alpha)),
+                RAs),
+        list_to_assoc(RAs, AlphaAssoc).
+                 
 
 set_rule_weight(RuleId, P) :-
         find_rule_by_id(RuleId, Rule),
@@ -130,6 +140,15 @@ rule_group_rules(RuleGroup, RuleIds) :-
                 sdcl_rule(RuleId, _, _, _, RuleGroup),
                 RuleIds).
 
+%% rule_groups(-RuleGroups) is det.
+%% RuleGroups is a list of rule groups present in the current rule set. 
+rule_groups(RuleGroups) :-
+        findall(RuleGroup,
+                sdcl_rule(_, _, _, _, RuleGroup),
+                RuleGroups0),
+        sort(RuleGroups0, RuleGroups).
+        
+
 rule_group_norm(RuleGroup, Z) :-
         rule_group_rules(RuleGroup, RuleIds),
         findall(Weight,
@@ -138,6 +157,35 @@ rule_group_norm(RuleGroup, Z) :-
                 ),
                 Ws),
         sum_list(Ws, Z).
+
+rule_group_norm(RuleGroup, RuleAssoc, Z) :-
+        rule_group_rules(RuleGroup, RuleIds),
+        findall(Weight,
+                (member(RuleId, RuleIds), 
+                 get_assoc(RuleId, RuleAssoc, Weight)
+                ),
+                Ws),
+        sum_list(Ws, Z).
+
+rule_group_norms(RuleGroupAssoc) :-
+        rule_groups(RuleGroups),
+        findall(RuleGroup-Z,
+                (member(RuleGroup, RuleGroups),
+                 rule_group_norm(RuleGroup, Z)),
+                RuleGroupValList),
+        list_to_assoc(RuleGroupValList, RuleGroupAssoc).
+
+%% Collapse rule assoc over rule group, summing the corresponding
+%% values.
+rule_group_norms(RuleAssoc, RuleGroupAssoc) :-
+        rule_groups(RuleGroups),
+        findall(RuleGroup-Z,
+                (member(RuleGroup, RuleGroups),
+                 rule_group_norm(RuleGroup, RuleAssoc, Z)),
+                RuleGroupValList),
+        list_to_assoc(RuleGroupValList, RuleGroupAssoc).
+
+                 
 
 normalize_rule_group(RuleGroup) :-
         rule_group_rules(RuleGroup, RuleIds),
@@ -494,8 +542,7 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
         findall(Score,
                 member(deriv(Goal, DGraph, Score), Results0),
                 Scores),
-        log_sum_exp(Scores, LogP),
-        %% FIXME: is there a better way to do this? 
+        LogP <- logSumExp(Scores),
         findall(deriv(Goal, DGraph, ConditionalProb), 
                 (
                  member(deriv(Goal, DGraph, Score), Results0),

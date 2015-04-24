@@ -117,13 +117,6 @@ rule_head_to_rule_group(sdcl_term(F/A, _, Args), RuleGroup) :-
         numbervars(Args1), 
         RuleGroup = rule_group(F/A, Args1).
 
-%% rule_groups(-RuleGroups) is det.
-%% RuleGroups is a list of rule groups present in the current rule set. 
-rule_groups(RuleGroups) :-
-        findall(RuleGroup,
-              sdcl_rule(_, _, _, _, RuleGroup),
-              RuleGroups0),
-        sort(RuleGroups0, RuleGroups).
         
         
 

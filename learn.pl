@@ -7,7 +7,8 @@
 
 :- nodebug(real).
 
-:- r(source("optimize.r")).
+:- r(source("learn.r")).
+:- r(library("matrixStats")).
 
 :- [sdcl].
 
@@ -76,7 +77,17 @@ variational_em_single_iteration(Goals, Options) :-
         compute_variational_weights(HyperParams, NewWeights),
         debug_new_rule_weights(NewWeights, Msg2),
         debug(learning, Msg2, []), 
-        set_rule_weights(NewWeights).
+        set_rule_weights(NewWeights),
+        get_rule_alphas(PriorHyperParams), 
+        free_energy(PriorHyperParams,
+                    HyperParams,
+                    NewWeights,
+                    DSearchResults,
+                    LogLikelihood,
+                    FreeEnergy),
+        debug_free_energy(FreeEnergy, LogLikelihood, Msg3),
+        debug(learning(free_energy), Msg3, []). 
+                    
 
 % auxiliary debugging messages
 debug_expected_rule_counts(ExpectedCounts, Msg) :-
@@ -88,6 +99,10 @@ debug_new_rule_weights(NewWeights, Msg) :-
         format(atom(M1), "~|~`-t~30+\nMultinomial Weights: \n\n", []),
         pprint_num_assoc(NewWeights, M2),
         atomic_list_concat([M1, M2], '\n', Msg).
+
+debug_free_energy(FreeEnergy, _LogLikelihood, Msg) :-
+        format(atom(Msg), "~|VBEM FreeEnergy: ~20+~g \n\n", [FreeEnergy]).
+
 
 %% ----------------------------------------------------------------------
 %%      free_energy(+ExpectedCounts, -VB_LowerBound) is det
@@ -103,7 +118,7 @@ free_energy(PriorHyperParams,
             HyperParams,
             MultinomialWeights,
             DSearchResults,
-            Loglikelihood,
+            LogLikelihood,
             FreeEnergy
             ) :-
         loglikelihood(DSearchResults,
@@ -174,13 +189,50 @@ test(multinomial_loglikelihood,
         list_to_assoc([r(1)-0.2, r(2)-0.0001, r(3)-0.5], MultinomialWeights),
         multinomial_loglikelihood(MultinomialWeights, Counts, LogLikelihood),
         LogLikelihoodTrue = -102.4081,
-        Error is abs(LogLikelihood-LogLikelihoodTrue).
-        
-      
-
+        Error is abs(LogLikelihood-LogLikelihoodTrue).        
 :- end_tests(learning).
 
+%% ----------
+%%      free_energy1(+PriorHyperParams,
+%%                   +HyperParams
+%%                   -Free_Energy1)
+%%
+%%      - terms 2 and 3 in Eq 8.
+
+free_energy1(PriorHyperParams,
+             HyperParams, 
+             FreeEnergy1) :-
+        Mu_r = PriorHyperParams,
+        Mu_r_Star = HyperParams,
+        rule_group_norms(PriorHyperParams, Mu_A),
+        rule_group_norms(HyperParams, Mu_A_Star),
+        assoc_to_values(Mu_r, Mu_r_Vals),
+        assoc_to_values(Mu_r_Star, Mu_r_Star_Vals),
+        assoc_to_values(Mu_A, Mu_A_Vals),
+        assoc_to_values(Mu_A_Star, Mu_A_Star_Vals),
+        FreeEnergy1 <- (sumOfLnGamma(Mu_A_Star_Vals)
+                       - sumOfLnGamma(Mu_A_Vals)
+                       - sumOfLnGamma(Mu_r_Star_Vals)
+                       + sumOfLnGamma(Mu_r_Vals)).
+                        
+
+
+%% ----------        
+%% term 4 in Eq 8.                                
+free_energy2(PriorHyperParams,        
+             HyperParams,
+             MultinomialWeights, 
+             FreeEnergy2
+            ) :-
+        Mu_r = PriorHyperParams,
+        Mu_r_Star = HyperParams,
+        assoc_to_values(Mu_r, Mu_r_Vals),
+        assoc_to_values(Mu_r_Star, Mu_r_Star_Vals),
+        assoc_to_values(MultinomialWeights, Pi),
+        FreeEnergy2 <- sum((Mu_r_Star_Vals - Mu_r_Vals) * log(Pi)).
+
         
+
         
         
         
