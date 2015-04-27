@@ -90,8 +90,7 @@ test(compile_sdcl_clause1,
 %% translate SDCL syntax to structure representation
 %%
 %% an SDCL term is of the form
-%% sdcl_term(Functor/Arity, Vars, Conds)
-
+%% sdcl_term(Functor/Arity, Vars, Conds
 %% tr_sdcl_term(+TermIn, -TermOut) is det.
 %% TermIn is a sdcl term, e.g., s(X, Y | Y, G)
 %% TermOut is structured representation, e.g. sdcl_term(s/4, [X, Y], [Y, G]).

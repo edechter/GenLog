@@ -73,9 +73,11 @@ get_rule_prob(RuleId, P) :-
         find_rule_by_id(RuleId, Rule),
         sdcl_rule_prob(Rule, P).
 
-get_rule_alpha(_, Alpha) :-
-        %% FIXME: Change this now! Alpha value should not be hardcoded!
-        Alpha = 0.1.
+get_rule_alpha(RuleId, Alpha) :-
+        find_rule_by_id(RuleId, Rule),
+        sdcl_rule_alpha(Rule, Alpha).
+
+
 
 get_rule_alphas(AlphaAssoc) :-
         findall(RuleId-Alpha,
