@@ -25,12 +25,16 @@ run_batch_vbem(Goals) :-
         run_batch_vbem(Goals, []).
 
 run_batch_vbem(Goals, Options) :-
-        run_batch_vbem(Goals, 1, Options).
+        FreeEnergy0 = 9e10, % ~infinity
+        run_batch_vbem(Goals, 1, FreeEnergy0, Options).
 
-run_batch_vbem(Goals, Iter, Options) :-
+% worker predicate
+% * FreeEnergy0: the value of the variational free energy on the last
+% iteration.
+run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
         debug(learning, "Batch VBEM: Iter ~w...\n", [Iter]),
         time(
-             variational_em_single_iteration(Goals, Options),
+             variational_em_single_iteration(Goals, FreeEnergy, Options),
              CPU_time,
              _Wall_time), 
         debug(learning, "Batch VBEM: Iter ~w complete: ~2f s \n", [Iter, CPU_time]),
@@ -40,8 +44,13 @@ run_batch_vbem(Goals, Iter, Options) :-
         (Iter >= MaxIter ->
          debug(learning, "Batch VBEM: Finished.\n", [])
         ;
+         vbem_options_epsilon(OptRecord, Eps),
+         abs(FreeEnergy0 - FreeEnergy) < Eps ->
+         debug(learning, "Batch VBEM: Converged ... Finished. \n", [])
+        ;
+         
          Iter1 is Iter + 1,
-         run_batch_vbem(Goals, Iter1, Options)
+         run_batch_vbem(Goals, Iter1, FreeEnergy, Options)
         ).
     
         
@@ -59,16 +68,16 @@ run_batch_vbem(Goals, Iter, Options) :-
 %% ----------------------------------------------------------------------
 
 %% ----------------------------------------------------------------------
-%%      variational_em_single_iteration(+Goals)
-%%      variational_em_single_iteration(+Goals, +Options)
+%%      variational_em_single_iteration(+Goals, -FreeEnergy)
+%%      variational_em_single_iteration(+Goals, -FreeEnergy, +Options)
 %%
 %%      Execute a single iteration of Variational EM on the list of
 %%      Goals. See mi_best_first/4 for a list of Options. Updates the
 %%      global rules weights with new multinomial weights. 
-variational_em_single_iteration(Goals) :-
+variational_em_single_iteration(Goals, FreeEnergy) :-
         variational_em_single_iteration(Goals, []).
 
-variational_em_single_iteration(Goals, Options) :-
+variational_em_single_iteration(Goals, FreeEnergy, Options) :-
         prove_goals(Goals, DSearchResults), 
         expected_rule_counts(DSearchResults, ExpectedCounts, Options),
         debug_expected_rule_counts(ExpectedCounts, Msg1),
@@ -77,7 +86,7 @@ variational_em_single_iteration(Goals, Options) :-
         compute_variational_weights(HyperParams, NewWeights),
         debug_new_rule_weights(NewWeights, Msg2),
         debug(learning, Msg2, []), 
-        set_rule_weights(NewWeights),
+        set_rule_probs(NewWeights),
         get_rule_alphas(PriorHyperParams), 
         free_energy(PriorHyperParams,
                     HyperParams,
@@ -134,7 +143,7 @@ free_energy(PriorHyperParams,
                      MultinomialWeights, 
                      FreeEnergy2
                      ),
-        FreeEnergy is LogLikelihood + FreeEnergy1 + FreeEnergy2.
+        FreeEnergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2.
 
 %% ----------
 %%      loglikelihood(+DSearchResults, +MultinomialWeights, -Loglikelihood) is det
@@ -164,7 +173,15 @@ loglikelihood(dsearch_result(_, Count, Derivations), MultinomialWeights, Loglike
         maplist(call(prod, Count), Ls, Ls1), % account for multiple
                                              % observations of the
                                              % same goal
-        Loglikelihood <- logSumExp(Ls1).
+        (
+         %% If there are no derivations we just assign a very low
+         %% loglikelihood
+         %% TODO: This should be set globally somewhere
+         Ls1 = [] ->
+         Loglikelihood = 9e9
+        ;
+         Loglikelihood <- logSumExp(Ls1)
+        ).
 
 % worker predicate
 % loglikelihood/4
@@ -267,7 +284,7 @@ normalize_variational_weights(VariationalWeightsNum, %% numerator
                 (
                  member(RuleId, RuleIds),
                  get_assoc(RuleId, VariationalWeightsNum, VNum),
-                 sdcl_rule(RuleId, _, _, _, RuleGroup),
+                 sdcl_rule(RuleId, _, _, _, _, RuleGroup),
                  get_assoc(RuleGroup, VariationalWeightsDen, VDen),
                  VariationalWeight <- exp(VNum - digamma(VDen))
                  ),
@@ -312,7 +329,7 @@ test(sum_rule_assoc_across_rule_groups,
         list_to_assoc(RuleVals, RuleAssoc),
         sum_rule_assoc_across_rule_groups(RuleAssoc, RuleGroupAssoc),
         assoc_to_list(RuleGroupAssoc, RuleGroupVals),
-        member(_-Val, RuleGroupVals).        
+        member(_-Val, RuleGroupVals).
 
 :- end_tests(variational_weights).
 
@@ -645,17 +662,6 @@ pprint_num_assoc(Assoc, Out) :-
                 ),
                 Lines),
         atomic_list_concat(Lines, Out).
-
-
-        
-
-
-        
-                 
-                        
-        
-
-
 
 %% ----------------------------------------------------------------------
 

@@ -6,7 +6,7 @@
 pprint_rule(r(RuleN), Out) :-
         find_rule_by_id(r(RuleN), Rule),
         pprint_rule(Rule, Out).
-pprint_rule(sdcl_rule(_, Head, Body, _, _), Out) :-
+pprint_rule(sdcl_rule(_, Head, Body, _, _,  _), Out) :-
         pprint_rule(Head, Body, Out).
 
 pprint_rule(Head, Body, Out) :-
@@ -89,6 +89,10 @@ pprint_derivs(Derivs, Options) :-
 
 %% FIXME: do we need options here? if so, implement them.
 
+pprint_rule_probs :-
+        get_rule_probs(Assoc),
+        pprint_rule_map(Assoc). 
+
 pprint_rule_map(Assoc) :-
         pprint_rule_map(Assoc, []).
 
@@ -130,10 +134,6 @@ pprint_rule_map_in_rule_group(Assoc, RuleGroup, Out) :-
 
 %% ----------------------------------------------------------------------
 %% auxiliary predicates
-         
-         
-
-
         
 pprint_vars([V], Out) :-
         !,

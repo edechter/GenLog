@@ -2,6 +2,7 @@
 
 :- [sdcl].
 :- [learn].
+:- [data_utils].
 
 
 
@@ -17,25 +18,20 @@ observations([
               
              ]).
 
-observations2([
-              'a a a a'
-             ]).
+number_sentences(Xs) :-
+        Xs = [
+              'one', 
+              'one two three four five six seven eight nine ten'
+              ].
               
-
-data_set(Goals) :-
-        findall(Goal,
-                (observations(Obs),
-                 member(Ob, Obs),
-                 atomic_list_concat(Ws, ' ', Ob),
-                 Goal = s(Ws, [])),
-                Goals).
-                
         
 
 go :-
-        compile_sdcl_file('simple.pl'),
+        compile_sdcl_file('number.pl'),
         Options = [beam_width(100), time_limit_seconds(1)],
-        data_set(Goals),
+        number_sentences(Xs),
+        sentence_data_set(hear, Xs, Goals),
+        writeln(Goals), 
         run_batch_vbem(Goals, Options).
         % variational_em_single_iteration(Goals, Options),
         % variational_em_single_iteration(Goals, Options).
