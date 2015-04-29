@@ -17,10 +17,11 @@ atom_split_list(Atom, List) :-
 
 
 %% ----------------------------------------------------------------------
-%%      sentence_data_set(+StartPredicate, +Sentences, -DataSet) is Det
+%%      sentence_data_set(+StartPredicate, +Sentences, -DataSet) is det
 %%
 %%      - StartPredicate: predicate corresponding to the start symbol.
-%%      - Sentences: A list of sentences, with words separated by a space. 
+%%      - Sentences: A list of sentences, with words separated by a
+%%      space, or a pair of a sentence and a count.
 %%      - DataSet: A list of prolog goals corresponding to each sentence.
 %%
 %%      Example:
@@ -28,16 +29,19 @@ atom_split_list(Atom, List) :-
 %% 
 %%      Goals = [s([my, dog, hates, cats], []), s([does, your, dog, hate, cats, ?], [])]
 sentence_data_set(_, [], []) :- !.
-sentence_data_set(StartPredicate, [S|Ss], [G|Gs]) :-
+sentence_data_set(StartPredicate, [S-C|Ss], [G|Gs]) :- !,
         atom_split_list(S, Xs),
-        G =.. [StartPredicate, Xs, []],
+        G0 =.. [StartPredicate, Xs, []],
+        G = count(G0, C),
         sentence_data_set(StartPredicate, Ss, Gs).
+sentence_data_set(StartPredicate, [S|Ss], Gs) :-
+        sentence_data_set(StartPredicate, [S-1|Ss], Gs).
 
 
 :- begin_tests(data_utils).
 
 test(sentence_data_set,
-     [true(Gs==[s([my, dog, hates, cats], []), s([does, your, dog, hate, cats, ?], [])])]) :-
+     [true(Gs==[count(s([my, dog, hates, cats], []), 1), count(s([does, your, dog, hate, cats, ?], []), 1)])]) :-
         sentence_data_set(s, ['my dog hates cats', 'does your dog hate cats ?'], Gs).
 
 :- end_tests(data_utils).
