@@ -1,10 +1,10 @@
-%% sdcl.pl
+% sdcl.pl
 %% author: Eyal Dechter
 
 
 %% TODO: Enable maximum number of solutions, so that if there are very
 %% large number, the system doesn't choke.
-%% TODO: Maintain alpha value for each rule. 
+%% TODO: predicates for setting alpha values of existing rules both via various defaults and custom.
 %% TODO: VBEM should do something graceful if there are observations it can't answer.
 
 % :- module(sdcl).
@@ -24,6 +24,7 @@
 
 :- ['compile'].
 :- ['pprint'].
+:- [assoc_extra].
 
 
 %% ----------------------------------------------------------------------
@@ -68,23 +69,11 @@ test('find_rule_by_id',
        
 
 :- end_tests('sdcl_rule record').
-        
+
+% accessors and setters for rule probability values
 get_rule_prob(RuleId, P) :-
         find_rule_by_id(RuleId, Rule),
         sdcl_rule_prob(Rule, P).
-
-get_rule_alpha(RuleId, Alpha) :-
-        find_rule_by_id(RuleId, Rule),
-        sdcl_rule_alpha(Rule, Alpha).
-
-
-
-get_rule_alphas(AlphaAssoc) :-
-        findall(RuleId-Alpha,
-                (rule(RuleId),
-                 get_rule_alpha(RuleId, Alpha)),
-                RAs),
-        list_to_assoc(RAs, AlphaAssoc).
                  
 
 set_rule_prob(RuleId, P) :-
@@ -108,7 +97,120 @@ get_rule_probs(RuleIdProbAssoc) :-
                 RuleProbs),
         list_to_assoc(RuleProbs, RuleIdProbAssoc).
 
+% accessors and setters for rule alpha values
+get_rule_alpha(RuleId, Alpha) :-
+        find_rule_by_id(RuleId, Rule),
+        sdcl_rule_alpha(Rule, Alpha).
+
+
+get_rule_alphas(AlphaAssoc) :-
+        findall(RuleId-Alpha,
+                (rule(RuleId),
+                 get_rule_alpha(RuleId, Alpha)),
+                RAs),
+        list_to_assoc(RAs, AlphaAssoc).
+
+set_rule_alpha(RuleId, default) :-
+        !,
+        set_rule_alpha(RuleId, 1.0).
+
+set_rule_alpha(RuleId, A) :-
+        assertion(number(A)),
+        assertion(A>0),
+        !,
+        find_rule_by_id(RuleId, Rule),
+        set_alpha_of_sdcl_rule(A, Rule, NewRule),
+        retractall(Rule),
+        assert(NewRule).
+
+
+
+set_rule_alphas(default) :-
+        !,
+        findall(_,
+                (rule(RuleId),
+                 set_rule_alpha(RuleId, 1.0)),
+                _).
+
+set_rule_alphas(uniform) :-
+        !,
+        set_rule_alphas(uniform(1.0)).
+
+
+set_rule_alphas(uniform(K)) :-
+        !,
+        assertion(number(K)),
+        findall(_,
+                (rule_group(RuleGroup),
+                 rule_group_rules(RuleGroup, RuleIds),
+                 length(RuleIds, N),
+                 assertion(N>0),
+                 Alpha is 1.0/(K*N),
+                 constant_assoc(RuleIds, Alpha, AlphaAssoc),
+                 set_rule_alphas(AlphaAssoc)),
+                _).
+                 
+set_rule_alphas(Assoc) :-
+        is_assoc(Assoc), !,
+        assoc_to_list(Assoc, RAs),
+        findall(_,
+                (member(R-A, RAs),
+                 set_rule_alpha(R, A)),
+                _).
+                
+
         
+
+:- begin_tests(alphas).
+
+test(set_default_rule_alpha,
+     [setup(setup_trivial_sdcl),
+      cleanup(cleanup_trivial_sdcl),
+      all(Alpha=[1.0, 1.0])]) :-
+        rule(RuleId),
+        find_rule_by_id(RuleId, Rule),
+        set_rule_alpha(RuleId, default),
+        sdcl_rule_alpha(Rule, Alpha).
+
+test(set_default_rule_alphas,
+     [setup(setup_trivial_sdcl),
+      cleanup(cleanup_trivial_sdcl),
+      all(Alpha=[1.0, 1.0])]) :-
+        set_rule_alphas(default),
+        rule(RuleId),
+        find_rule_by_id(RuleId, Rule),
+        sdcl_rule_alpha(Rule, Alpha).
+
+test(set_uniform_rule_alpha,
+     [setup(setup_sdcl('trivial_2.pl')),
+      cleanup(cleanup_sdcl),
+      true(RAs ~= [r(1)-1.0, r(2)-0.5, r(3)-0.5,
+                          r(4)-1.0, r(5)-1.0, r(6)-1.0,
+                          r(7)-0.5, r(8)-0.5, r(9)-0.5,
+                          r(10)-0.5, r(11)-0.333333333, r(12)-0.33333333,
+                          r(13)-0.333333333])]) :-
+        set_rule_alphas(uniform),
+        get_rule_alphas(Assoc),
+        assoc_to_list(Assoc, RAs).
+
+test(set_uniform_k_rule_alpha,
+     [setup(setup_sdcl('trivial_2.pl')),
+      cleanup(cleanup_sdcl),
+      true(RAs ~= [r(1)-0.50, r(2)-0.25, r(3)-0.25,
+                          r(4)-0.5, r(5)-0.5, r(6)-0.5,
+                          r(7)-0.25, r(8)-0.25, r(9)-0.25,
+                          r(10)-0.25, r(11)-0.1666666, r(12)-0.1666666,
+                          r(13)-0.166666])]) :-
+        set_rule_alphas(uniform(2.0)),
+        get_rule_alphas(Assoc),
+        assoc_to_list(Assoc, RAs).
+
+
+
+
+:- end_tests(alphas).
+
+
         
 rules(RuleIds) :-
         make_sdcl_rule([], Rule),
@@ -154,6 +256,11 @@ rule_groups(RuleGroups) :-
                 sdcl_rule(_, _, _, _, _, RuleGroup),
                 RuleGroups0),
         sort(RuleGroups0, RuleGroups).
+
+rule_group(RuleGroup) :-
+        rule_groups(RuleGroups),
+        member(RuleGroup, RuleGroups).
+                
         
 
 rule_group_norm(RuleGroup, Z) :-
