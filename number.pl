@@ -21,7 +21,7 @@ macro(
       ( next1([N2|X], X | [N1|Y], Y) :- number_lex(N2), number_lex(N1))      
       ).
 
-% next1([two|X], X | [one|Y], Y).
+% NEXT1([two|X], X | [one|Y], Y).
 % next1([three|X], X | [two|Y], Y).
 % next1([four|X], X | [three|Y], Y).
 % next1([five|X], X | [four|Y], Y).
