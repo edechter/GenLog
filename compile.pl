@@ -228,9 +228,18 @@ tr_split_args([A|In], Vars, [A|Conds], conds) :-
 
 
 expand_macro( (Head :- Body), Rules) :-
-        findall(Head,
-                Body,
+        replace_qvars_with_vars((Head :- Body),
+                                (Head1 :- Body1)),
+        writeln((Head1 :- Body1)),
+        findall(Head1,
+                call_comp(Body1),
+                Rules1),
+        findall(Rule,
+                (member(Rule1, Rules1),
+                 comp_to_term(Rule1, Rule)
+                 ),
                 Rules).
+                 
 
 
 :- begin_tests(translate).
@@ -252,9 +261,127 @@ test(expand_macro,
                       Rules),
         member(Rule, Rules).
 
+test_expanded_qvars([(a(X | Y, Z) ---> a(X | Y), b(X | Y,Z)),
+                      (b(X | Y, Z) ---> a(X | Y), b(X | Y,Z))]).
+
+test(expand_macro_qvars,
+     [setup(test_expanded_qvars(TRules)),
+      all(Rule =@= TRules)]) :-
+        expand_macro( (
+                       ('?X'(X | Y, Z) ---> a(X | Y), b(X | Y,Z))
+                       :- 
+                       (member('?X', [a, b]))
+                      ),
+                      Rules),
+        member(Rule, Rules).
+
 :- end_tests(translate).
 
         
+%% replace q_vars with Prolog vars.
+%% a Q var is an atom of the form '?..'
+%% Q vars can appear as functors
+
+is_qvar(X) :-
+        atom(X), 
+        sub_atom(X, 0, _, _, '?').
+
+replace_qvars_with_vars(TermIn, TermOut) :-
+        empty_assoc(Empty), 
+        replace_qvars_with_vars(Empty, TermIn, _, TermOut).
+
+replace_qvars_with_vars(AssocIn, Q, AssocOut, TermOut) :-
+        is_qvar(Q),
+        !,
+        (
+         get_assoc(Q, AssocIn, V) ->
+         TermOut = V,
+         AssocIn = AssocOut
+        ;
+         put_assoc(Q, AssocIn, V, AssocOut),
+         TermOut = V
+        ).
+replace_qvars_with_vars(AssocIn, V, AssocOut, TermOut) :-
+        var(V),
+        !,
+        AssocOut = AssocIn,
+        TermOut = V.
+replace_qvars_with_vars(AssocIn, [], AssocIn, []) :- !.
+replace_qvars_with_vars(AssocIn, [X|Xs], AssocOut, TermOut) :-
+        !,
+        replace_qvars_with_vars(AssocIn, X, AssocTmp, XOut),
+        replace_qvars_with_vars(AssocTmp, Xs, AssocOut, XsOut),
+        TermOut = [XOut|XsOut].
+replace_qvars_with_vars(AssocIn, A, AssocOut, AOut) :-
+        atomic(A),
+        !,
+        AssocIn = AssocOut,
+        A = AOut.
+% if Term is a compound term with :- as the functor
+replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
+        compound(Term),
+        Term =.. [F|As],
+        (F=(:-) ; predicate_property(Term, built_in)),
+        !,
+        replace_qvars_with_vars(AssocIn, As, AssocOut, AsOut),
+        TermOut =.. [F|AsOut].
+% if Term is an explicit compound term
+replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
+        compound(Term),
+        Term =.. ['$COMP'|As],
+        !,
+        replace_qvars_with_vars(AssocIn, As, AssocOut, AsOut),
+        TermOut =.. ['$COMP'|AsOut].
+replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
+        compound(Term),
+        Term =.. [F|As],
+        !,
+        Term1 = '$COMP'(F,As),
+        replace_qvars_with_vars(AssocIn, Term1, AssocOut, TermOut).
+
+%% from_comp(CompTerm, Term) translates between an explicit compound
+%% term '$COMP'(Functor, Args) and a Prolog compound term Functor(Args).
+comp_to_term(X, X) :-
+        var(X),
+        !.
+comp_to_term('$COMP'(F, As), Term) :-
+        !,
+        assertion(atomic(F)),
+        comp_to_term(As, As1),
+        Term =.. [F| As1].
+comp_to_term([], []) :- !.
+comp_to_term([X|Xs], [Y|Ys]) :-
+        !,
+        comp_to_term(X, Y),
+        comp_to_term(Xs, Ys).
+comp_to_term(TermIn, TermOut) :-
+        TermIn =.. [F|As],
+        !,
+        comp_to_term(As, AsOut),
+        TermOut =.. [F|AsOut].
+comp_to_term(X, X).
+        
+         
+%% call_comp(CompTerm) evalutes an explicit compound if present,
+%% otherwise just calls
+call_comp('$COMP'(F,As)) :-
+        !,
+        T =.. [F|As],
+        call_comp(T).
+call_comp((A,B)) :-
+        !,
+        call_comp(A),
+        call_comp(B).
+call_comp(X) :- call(X).
+        
+        
+
+
+:- begin_tests(name).
+
+test()
+
+:- end_tests(name).
 
         
         
