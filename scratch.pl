@@ -3,7 +3,7 @@
 :- [sdcl].
 :- [learn].
 :- [data_utils].
-
+:- [number_words].
 
 
 observations([
