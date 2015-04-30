@@ -4,8 +4,8 @@
 
 %% TODO: Enable maximum number of solutions, so that if there are very
 %% large number, the system doesn't choke.
-%% TODO: predicates for setting alpha values of existing rules both via various defaults and custom.
 %% TODO: VBEM should do something graceful if there are observations it can't answer.
+
 
 % :- module(sdcl).
 

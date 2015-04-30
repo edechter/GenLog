@@ -35,7 +35,7 @@ run_batch_vbem(Goals, Options) :-
 run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
         debug(learning, "Batch VBEM: Iter ~w...\n", [Iter]),
         time(
-             variational_em_single_iteration(Goals, FreeEnergy, Options),
+             variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options),
              CPU_time,
              _Wall_time), 
         debug(learning, "Batch VBEM: Iter ~w complete: ~2f s \n", [Iter, CPU_time]),
@@ -43,7 +43,8 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
         make_vbem_options(Options, OptRecord, _),
         vbem_options_max_iter(OptRecord, MaxIter), 
         (Iter >= MaxIter ->
-         debug(learning, "Batch VBEM: Finished.\n", [])
+         debug(learning, "Batch VBEM: Finished.\n", []),
+         set_rule_alphas(HyperParams)
         ;
          vbem_options_epsilon(OptRecord, Eps),
          abs(FreeEnergy0 - FreeEnergy) < Eps ->
@@ -69,21 +70,21 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
 %% ----------------------------------------------------------------------
 
 %% ----------------------------------------------------------------------
-%%      variational_em_single_iteration(+Goals, -FreeEnergy)
-%%      variational_em_single_iteration(+Goals, -FreeEnergy, +Options)
+%%      variational_em_single_iteration(+Goals, -HyperParams, -FreeEnergy)
+%%      variational_em_single_iteration(+Goals, -HyperParams, -FreeEnergy, +Options)
 %%
 %%      Execute a single iteration of Variational EM on the list of
 %%      Goals. See mi_best_first/4 for a list of Options. Updates the
 %%      global rules weights with new multinomial weights. 
-variational_em_single_iteration(Goals, FreeEnergy) :-
-        variational_em_single_iteration(Goals, []).
+variational_em_single_iteration(Goals, HyperParams, FreeEnergy) :-
+        variational_em_single_iteration(Goals, HyperParams, FreeEnergy, []).
 
-variational_em_single_iteration(Goals, FreeEnergy, Options) :-
-        prove_goals(Goals, DSearchResults), 
+variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
+        prove_goals(Goals, DSearchResults, Options),
         expected_rule_counts(DSearchResults, ExpectedCounts, Options),
         debug_expected_rule_counts(ExpectedCounts, Msg1),
         debug(learning,Msg1, []),
-        update_hyperparams(ExpectedCounts, constant(0.1), HyperParams),
+        update_hyperparams(ExpectedCounts, HyperParams),
         compute_variational_weights(HyperParams, NewWeights),
         debug_new_rule_weights(NewWeights, Msg2),
         debug(learning, Msg2, []), 
@@ -179,7 +180,7 @@ loglikelihood(dsearch_result(_, Count, Derivations), MultinomialWeights, Loglike
          %% loglikelihood
          %% TODO: This should be set globally somewhere
          Ls1 = [] ->
-         Loglikelihood = 9e9
+         Loglikelihood = 0 %%9e9
         ;
          Loglikelihood <- logSumExp(Ls1)
         ).
@@ -344,23 +345,22 @@ test(sum_rule_assoc_across_rule_groups,
 
 
 %% ----------------------------------------------------------------------
-%%      update_hyperparams(+ExpectedCounts, +Alpha0, -VariationalParams) is det
+%%      update_hyperparams(+ExpectedCounts, +AlphaAssoc, -VariationalParams) is det
 %%
-%%      ExpectedCounts is an assoc of rule ids and their expected
-%%      counts. Alpha0 is either constant(Val), uniform, uniform(K),
-%%      or an assoc from rule ids to numbers. VariationalParams is an
+%%      - ExpectedCounts is an assoc of rule ids and their expected
+%%      counts.
+%%      - AlphaAssoc is an assoc of rule ids and their alpha values.
+%%      - VariationalParams is an
 %%      assoc consisting of the current variational parameters based
 %%      on the expected counts.
 %%
 
-update_hyperparams(ExpectedCounts, constant(Alpha0), Alpha) :-
-        !, 
-        scalar_add_assoc(Alpha0, ExpectedCounts, Alpha).
+update_hyperparams(ExpectedCounts, AlphaAssoc, HyperParams) :-
+        add_assocs(0, ExpectedCounts, AlphaAssoc, HyperParams).
 
-%% FIXME: Implement alternative Alpha0
-update_hyperparams(_, Alpha0, _) :-
-        Alpha0 \= constant(_),       
-        throw(not_implemented_error). 
+update_hyperparams(ExpectedCounts, HyperParams) :-
+        get_rule_alphas(AlphaAssoc),
+        update_hyperparams(ExpectedCounts, AlphaAssoc, HyperParams).
 
 
 
