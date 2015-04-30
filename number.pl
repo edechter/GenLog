@@ -7,10 +7,13 @@
 %% property of grandmother. And because Susanna's mother is Amy and
 %% her grandmother is Brenda.
 
+hear(X,X).
 hear(X, Y) ---> number(X, Z), hear(Z, Y).
 hear(X, Y) --->
         number(X, Z),
-        count(X, Y | X, Z).
+        count(X, Z1 | X, Z),
+        hear(Z1,
+             Y).
 
 count(X, Z | X, Z) :: 0.9.
 count(X, Y | X, Z) --->
