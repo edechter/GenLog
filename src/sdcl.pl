@@ -4,7 +4,9 @@
 
 %% TODO: Enable maximum number of solutions, so that if there are very
 %% large number, the system doesn't choke.
-%% TODO: VBEM should do something graceful if there are observations it can't answer.
+%% TODO: Use the module system.
+%% TODO: Change name to GenLog instead of sdcl.
+%% TODO: VBEM should should report the change in FreeEnergy between each iteration instead of the absolute magnitude.
 
 
 
@@ -35,6 +37,7 @@
 %% call_with_inference_limit/3.
 :- dynamic lips_estimate/1.
 lips_estimate(1e6).
+%% TODO: make this into setting
 
 %% ----------------------------------------------------------------------
 %% sdcl_rule record
