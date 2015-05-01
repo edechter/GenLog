@@ -24,6 +24,7 @@
 :- ['compile'].
 :- ['pprint'].
 :- [assoc_extra].
+:- [plunit_extra].
 
 
 %% ----------------------------------------------------------------------
@@ -181,7 +182,7 @@ test(set_default_rule_alphas,
         sdcl_rule_alpha(Rule, Alpha).
 
 test(set_uniform_rule_alpha,
-     [setup(setup_sdcl('trivial_2.pl')),
+     [setup(setup_sdcl('../example/trivial_2.gl')),
       cleanup(cleanup_sdcl),
       true(RAs ~= [r(1)-1.0, r(2)-0.5, r(3)-0.5,
                           r(4)-1.0, r(5)-1.0, r(6)-1.0,
@@ -193,7 +194,7 @@ test(set_uniform_rule_alpha,
         assoc_to_list(Assoc, RAs).
 
 test(set_uniform_k_rule_alpha,
-     [setup(setup_sdcl('trivial_2.pl')),
+     [setup(setup_sdcl('../example/trivial_2.gl')),
       cleanup(cleanup_sdcl),
       true(RAs ~= [r(1)-0.50, r(2)-0.25, r(3)-0.25,
                           r(4)-0.5, r(5)-0.5, r(6)-0.5,
@@ -1041,7 +1042,7 @@ print_current_frame :-
 %% ----------------------------------------------------------------------
 %% Predicates for building unit tests
 
-trivial_sdcl_file('trivial.pl').
+trivial_sdcl_file('../example/trivial.gl').
 
 setup_trivial_sdcl :-
         retractall(sdcl_rule(_, _, _, _, _, _)),

@@ -329,7 +329,7 @@ digamma_on_val(V0, V1) :-
 :- begin_tests(variational_weights).
 
 test(sum_rule_assoc_across_rule_groups,
-     [setup(setup_sdcl('trivial_2.pl')),
+     [setup(setup_sdcl('../example/trivial_2.gl')),
       cleanup(cleanup_sdcl),
       set(Val = [1, 5])]) :-
         RuleVals = [r(1)-1,
