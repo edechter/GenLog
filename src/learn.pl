@@ -63,6 +63,11 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
              _Wall_time), 
         debug(learning, "Batch VBEM: Iter ~w complete: ~2f s \n", [Iter, CPU_time]),
 
+        DeltaFreeEnergy is FreeEnergy - FreeEnergy0,
+        
+        debug_free_energy(DeltaFreeEnergy, Msg),
+        debug(learning(free_energy), Msg, []),
+
         make_vbem_options(Options, OptRecord, _),
         vbem_options_max_iter(OptRecord, MaxIter), 
         (Iter >= MaxIter ->
@@ -117,10 +122,9 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
                     HyperParams,
                     NewWeights,
                     DSearchResults,
-                    LogLikelihood,
-                    FreeEnergy),
-        debug_free_energy(FreeEnergy, LogLikelihood, Msg3),
-        debug(learning(free_energy), Msg3, []). 
+                    _LogLikelihood,
+                    FreeEnergy).
+
                     
 
 % auxiliary debugging messages
@@ -134,8 +138,8 @@ debug_new_rule_weights(NewWeights, Msg) :-
         pprint_num_assoc(NewWeights, M2),
         atomic_list_concat([M1, M2], '\n', Msg).
 
-debug_free_energy(FreeEnergy, _LogLikelihood, Msg) :-
-        format(atom(Msg), "~|VBEM FreeEnergy: ~20+~g \n\n", [FreeEnergy]).
+debug_free_energy(DeltaFreeEnergy, Msg) :-
+        format(atom(Msg), "~|VBEM Delta FreeEnergy: ~20+~g \n\n", [DeltaFreeEnergy]).
 
 
 %% ----------------------------------------------------------------------
@@ -206,6 +210,10 @@ loglikelihood(dsearch_result(_, Count, Derivations), MultinomialWeights, Loglike
         ;
          Loglikelihood <- logSumExp(Ls1)
         ).
+
+prod(V, A, B) :-
+        B is A * V.
+
 
 % worker predicate
 % loglikelihood/4

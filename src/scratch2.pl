@@ -1,7 +1,7 @@
 
 
-:- [sdcl].
-:- [learn].
+:- use_module(sdcl).
+:- use_module(learn).
 :- [data_utils].
 :- [number_words].
 
@@ -36,7 +36,7 @@ number_sentences(Xs) :-
         
 
 go :-
-        compile_sdcl_file('number.pl'),
+        compile_sdcl_file('../example/number.gl'),
         Options = [beam_width(100), time_limit_seconds(2)],
         set_rule_alphas(uniform),
         number_sentences(Xs),

@@ -7,8 +7,12 @@
            get_rule_probs/1,
            set_rule_prob/2,
            set_rule_probs/1,
+
            get_rule_alpha/2,
            get_rule_alphas/1,
+           set_rule_alpha/2,
+           set_rule_alphas/1,
+
            rules/1,
            rule/1,
            rule_functor/2,
