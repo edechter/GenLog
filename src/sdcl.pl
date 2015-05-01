@@ -1,11 +1,52 @@
 % sdcl.pl
 %% author: Eyal Dechter
 
+:- module(sdcl,
+          [find_rule_by_id/2,
+           get_rule_prob/2,
+           get_rule_probs/1,
+           set_rule_prob/2,
+           set_rule_probs/1,
+           get_rule_alpha/2,
+           get_rule_alphas/1,
+           rules/1,
+           rule/1,
+           rule_functor/2,
+           functor_rules/2,
+           functors/1,
+           rule_group_rules/2,
+           rule_groups/1,
+           rule_group_norm/2,
+           rule_group_norm/3,           
+           rule_group_norms/2,
+           normalize_rule_group/1,
+           normalize_rules/0,
 
+           mi_best_first/3,
+           mi_best_first/4,
 
+           mi_best_first_all/3,
+           mi_best_first_all/4,
 
+           pprint_dgraph/1,
+           pprint_dtree/1,
 
+           dtree_nodes/2,
+           
+           setup_trivial_sdcl/0,
+           cleanup_trivial_sdcl/0,
+           setup_sdcl/1,
+           cleanup_sdcl/0,
 
+           op(1000, xfy, --->),
+           op(1200, xfy, ::),
+           
+           and_to_list/2,
+           list_to_and/2
+
+                 ]).
+
+%% External imports
 :- use_module(library(record)).
 :- use_module(library(lists)).
 :- use_module(library(debug)).
@@ -14,16 +55,21 @@
 :- use_module(library(real)).
 :- use_module(library(settings)).
 
+%% Local imports
+:- use_module(assoc_extra).
+:- use_module(plunit_extra).
+:- use_module(compile).
+:- use_module(pprint).
+
 
 :- r(library("matrixStats")).
 
 :- op(1000, xfy, --->).
+
 :- op(1200, xfy, ::).
 
-:- ['compile'].
-:- ['pprint'].
-:- [assoc_extra].
-:- [plunit_extra].
+
+
 
 
 %% ----------------------------------------------------------------------

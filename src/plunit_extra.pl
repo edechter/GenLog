@@ -1,6 +1,9 @@
+:- module(plunit_extra,
+          [op(700, xfx, ~=),
+          (~=)/2
+           ]).
 
-
-:- op(800, xfy, ~=).
+:- op(700, xfx, ~=).
 
 plunit_float_tol(1e-3).
 

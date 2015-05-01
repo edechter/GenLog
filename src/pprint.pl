@@ -1,5 +1,19 @@
 
+
+:- module(pprint,
+          [pprint_rule/2,
+           pprint_term/2,
+           pprint_deriv/1,
+           pprint_deriv/2,
+           pprint_derivs/1,
+           pprint_derivs/2,
+           pprint_rule_probs/0,
+           pprint_rule_map/1,
+           pprint_rule_map/2,
+           pprint_rule_map/3
+           ]).
 :- use_module(library(pairs)).
+
 %% ----------------------------------------------------------------------
 %% pretty print sdcl_terms and corresponding rules
 

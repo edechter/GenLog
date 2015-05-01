@@ -1,9 +1,23 @@
 
+
+:- module(compile,
+          [compile_sdcl_file/1,
+           retract_all_rules/0,
+           tr_sdcl_term/2,
+           tr_sdcl_clause/2,
+           sdcl_rule/6
+           ]).
+        
 :- use_module(library(varnumbers)).
 :- use_module(library(gensym)).
 :- use_module(library(debug)).
 
+:- use_module(sdcl).
 
+:- use_module(pprint).
+
+%% ----------------------------------------------------------------------
+:- dynamic sdcl_rule/6.
 
 %% ----------------------------------------------------------------------
 %% compile SDCL syntax to prolog syntax
@@ -44,8 +58,9 @@ compile_sdcl_clause(RuleId, Clause) :-
         ;
          ground(RuleId) -> true
         ;
-         throw(error(instantiation_error, compile_sdcl_clause/2),
-               'RuleId argument must be either a variable or completely ground.')
+         throw(error(instantiation_error,
+                     context(compile_sdcl_clause/2,
+                             'RuleId argument must be either a variable or completely ground.')))
         ),
          
         tr_sdcl_clause(Clause, TrClause),

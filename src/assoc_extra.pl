@@ -3,6 +3,14 @@
 %% ----------------------------------------------------------------------
 %% Auxiliary predicates over associations with numbers as values.
 %%
+
+:- module(assoc_extra,
+          [add_assocs/4,
+           scalar_multiply_assoc/3,
+           map_keys/3,
+           constant_assoc/3
+          ]).
+
 %% add_assocs(V, Assoc1, +Assoc2, -AssocOut)
 %%
 %% AssocOut is the union of Assoc1 and Assoc2 with addition and
