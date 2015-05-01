@@ -1,6 +1,21 @@
 %% learn.pl
 %% author: Eyal Dechter
 
+:- module(learn,
+          [run_batch_vbem/1,
+           run_batch_vbem/2,
+
+           variational_em_single_iteration/3,
+           variational_em_single_iteration/4,
+
+           prove_goals/2,
+           prove_goals/3
+           
+           
+           
+           ]).
+
+:- use_module(library(record)).
 :- use_module(library(real)).
 :- use_module(library(assoc)).
 :- use_module(library(debug)).
@@ -10,8 +25,8 @@
 :- r(source("learn.r")).
 :- r(library("matrixStats")).
 
-:- [sdcl].
-:- [assoc_extra].
+:- use_module(sdcl).
+:- use_module(assoc_extra).
 
 
 %% ----------------------------------------------------------------------

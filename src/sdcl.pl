@@ -22,6 +22,29 @@
            normalize_rule_group/1,
            normalize_rules/0,
 
+           sdcl_rule_id/2,
+           sdcl_rule_head/2,
+           sdcl_rule_body/2,
+           sdcl_rule_prob/2,
+           sdcl_rule_alpha/2, 
+           sdcl_rule_group/2,
+          
+           set_id_of_sdcl_rule/2,
+           set_id_of_sdcl_rule/3,
+           set_head_of_sdcl_rule/2,
+           set_head_of_sdcl_rule/3,
+           set_body_of_sdcl_rule/2,
+           set_body_of_sdcl_rule/3,
+           set_prob_of_sdcl_rule/2,
+           set_prob_of_sdcl_rule/3,
+           set_alpha_of_sdcl_rule/2, 
+           set_alpha_of_sdcl_rule/3,
+           set_group_of_sdcl_rule/2,
+           set_group_of_sdcl_rule/3,
+           
+
+           
+
            mi_best_first/3,
            mi_best_first/4,
 
@@ -89,8 +112,8 @@
                     body,
                     prob,
                     alpha, 
-                    group
-                    ).
+                    group).
+
 
 find_rule_by_id(RuleId, Rule) :-
         make_sdcl_rule([id(RuleId)], Rule),
