@@ -16,6 +16,7 @@
 :- use_module(library(option)).
 :- use_module(library(gensym)).
 :- use_module(library(real)).
+:- use_module(library(settings)).
 
 
 :- r(library("matrixStats")).
@@ -35,9 +36,8 @@
 %% limit for each branch of the derivation search below. Given a time
 %% limit in seconds, we calculate an inference limit for use with
 %% call_with_inference_limit/3.
-:- dynamic lips_estimate/1.
-lips_estimate(1e6).
-%% TODO: make this into setting
+:- setting(lips_estimate, number, 1e6,
+           'Estimate of number of logical inferences per second.').
 
 %% ----------------------------------------------------------------------
 %% sdcl_rule record
@@ -392,9 +392,9 @@ mi_best_first(Goal, Score, DGraph, Options) :-
 %% time_limit_inference_limit(+TimeLimit, -InferenceLimit) TimeLimit is
 %% a number of seconds, and InferenceLimit is the approximate number
 %% of inferences that can be made in that amount of time. The estimate
-%% is made using the the value of lips_estimate/1. 
+%% is made using the  value of lips_estimate setting.
 time_limit_inference_limit(TimeLimit, InferenceLimit) :-
-        lips_estimate(Lips), 
+        setting(lips_estimate, Lips),
         InferenceLimit is floor(TimeLimit * Lips).
         
         
