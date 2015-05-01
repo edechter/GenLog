@@ -2,11 +2,7 @@
 %% author: Eyal Dechter
 
 
-%% TODO: Enable maximum number of solutions, so that if there are very
-%% large number, the system doesn't choke.
-%% TODO: Use the module system.
-%% TODO: Change name to GenLog instead of sdcl.
-%% TODO: VBEM should should report the change in FreeEnergy between each iteration instead of the absolute magnitude.
+
 
 
 
