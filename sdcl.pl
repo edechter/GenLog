@@ -7,7 +7,6 @@
 %% TODO: VBEM should do something graceful if there are observations it can't answer.
 
 
-% :- module(sdcl).
 
 :- use_module(library(record)).
 :- use_module(library(lists)).

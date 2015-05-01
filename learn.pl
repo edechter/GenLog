@@ -381,7 +381,6 @@ update_hyperparams(ExpectedCounts, HyperParams) :-
 %%      [dsearch_results(OrigGoal, Count, deriv(ResultGoal, DGraph, CondProb))|...]
 %%      - Options are shared with mi_best_first/3
 %%
-%%      Description: 
 
 prove_goals(Goals, Derivations) :-
         prove_goals(Goals, Derivations, []).
