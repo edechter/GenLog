@@ -4,7 +4,7 @@
 :- use_module(library(real)).
 :- use_module(library(assoc)).
 :- use_module(library(debug)).
-
+:- use_module(library(settings)).
 :- nodebug(real).
 
 :- r(source("learn.r")).
@@ -13,6 +13,14 @@
 :- [sdcl].
 :- [assoc_extra].
 
+
+%% ----------------------------------------------------------------------
+%%      Settings
+
+% This is the loglikelihood assigned to goals that cannot be proven,
+% and it should be smaller than any loglikelihood assigned to found
+% derivation of a goal.
+:- setting(min_loglikelihood, number, -9e9, 'Most negative loglikelihood possible.').
 
 %% ----------------------------------------------------------------------
 %%      run_batch_vbem(+Goals)
@@ -178,9 +186,8 @@ loglikelihood(dsearch_result(_, Count, Derivations), MultinomialWeights, Loglike
         (
          %% If there are no derivations we just assign a very low
          %% loglikelihood
-         %% TODO: This should be set globally somewhere
          Ls1 = [] ->
-         Loglikelihood = 0 %%9e9
+         setting(min_loglikelihood, Loglikelihood)
         ;
          Loglikelihood <- logSumExp(Ls1)
         ).
