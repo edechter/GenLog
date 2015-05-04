@@ -108,7 +108,9 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy) :-
         variational_em_single_iteration(Goals, HyperParams, FreeEnergy, []).
 
 variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
+        writeln(prove_goals(Goals, DSearchResults, Options)),
         prove_goals(Goals, DSearchResults, Options),
+        writeln(done),
         expected_rule_counts(DSearchResults, ExpectedCounts, Options),
         debug_expected_rule_counts(ExpectedCounts, Msg1),
         debug(learning,Msg1, []),
@@ -414,7 +416,10 @@ prove_goals(Goals, Derivations, Options) :-
 prove_goals([], DsIn, DsIn, _).
 prove_goals([count(Goal, Count) | Goals], DsIn, DsOut, Options) :-
         !,
+        writeln(Options), 
         mi_best_first_all(Goal, Derivations, _, Options),
+        length(Derivations, N), 
+        debug(expl_search, "Num derivs found for ~w: ~w", [Goal, N]), 
         DsTmp = [dsearch_result(Goal, Count, Derivations) | DsIn],
         prove_goals(Goals, DsTmp, DsOut, Options).
 prove_goals([Goal|Goals], DsIn, DsOut, Options) :-

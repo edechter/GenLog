@@ -12,7 +12,10 @@
            pprint_rule_map/2,
            pprint_rule_map/3
            ]).
+
 :- use_module(library(pairs)).
+
+:- use_module(sdcl). 
 
 %% ----------------------------------------------------------------------
 %% pretty print sdcl_terms and corresponding rules

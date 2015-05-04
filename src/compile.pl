@@ -16,6 +16,12 @@
 
 :- use_module(pprint).
 
+:- add_import_module(compile,
+                      user, end).
+
+:- op(1000, xfy, --->).
+
+:- op(1200, xfy, ::).
 %% ----------------------------------------------------------------------
 :- dynamic sdcl_rule/6.
 
@@ -23,49 +29,130 @@
 %% compile SDCL syntax to prolog syntax
 %%
 %%
-compile_sdcl_file(File) :-
-        open(File, read, ID),
-        retractall(sdcl_rule(_, _, _, _, _, _)),
-        reset_gensym, 
+%% TODO: use load_file with the stream(Input) option to get the input directly from a stream.
+%% Generate a stream by reading from a file and only writing out to the stream things that are not in bettween the genlog directives. Lines inbetween the directives should be directed to a list of clauses, and those can then be used  with compile_sdcl_file. Or we can just have two files.
+
+%% split_gl_file(+File, +PrologStream, +GenLogStream)
+%%
+%% Send regular prolog clauses into the prolog stream and anything
+%% inside a genlog block into the genlog stream.
+split_gl_file(File, PTmp, GLTmp) :-
+       open(File, read, FileId),
+       PTmp = './.__genlog_tmp_pl',
+       GLTmp = './.__genlog_tmp_gl', 
+       open(PTmp, write, PrologStream),
+       open(GLTmp, write, GenLogStream),
+       Mode0 = prolog,
+       split_gl_file(FileId, Mode0, PrologStream, GenLogStream).
+
+split_gl_file(FileId, Mode, PrologStream, GenLogStream) :-
+        read_term(FileId, Clause, [module(compile)]),
+        split_gl_file_go(Clause, FileId, Mode, PrologStream, GenLogStream).
+
+split_gl_file_go(end_of_file, FileId, _, PrologStream, GenLogStream) :-
+        !, 
+        close(FileId),
+        close(PrologStream),
+        close(GenLogStream).
+split_gl_file_go((:- begin(genlog)), FileId, prolog, PrologStream, GenLogStream) :-
+         !,
+         split_gl_file(FileId, genlog, PrologStream, GenLogStream).
+split_gl_file_go(Clause, FileId, prolog, PrologStream, GenLogStream) :- 
+        !,
+        write_canonical(PrologStream, Clause), write(PrologStream, '.\n'), 
+        split_gl_file(FileId, prolog, PrologStream, GenLogStream).
+split_gl_file_go((:- end(genlog)), FileId, genlog, PrologStream, GenLogStream) :-
+        !, 
+        split_gl_file(FileId, prolog, PrologStream, GenLogStream).
+split_gl_file_go(Clause, FileId, genlog, PrologStream, GenLogStream) :-
+        !, 
+        write_canonical(GenLogStream, Clause), write(GenLogStream, '.\n'), 
+        split_gl_file(FileId, genlog, PrologStream, GenLogStream).
+split_gl_file_go(_, FileId,_,PrologStream,GenLogStream) :-
+        close(FileId),
+        close(PrologStream),
+        close(GenLogStream),
+        throw(error(evaluation_error, context(split_gl_file/3, 'Cannot parse gl file.'))).
+        
+%%
+compile_gl(File) :-
+        open(File, read, FileId),
+        retract_all_rules,
+        reset_gensym,
         !,
         repeat,
-        read_clause(ID, Clause, []),        
+        read_clause(FileId, Clause, []),
+        (Clause = end_of_file ->
+         true
+        ; 
+         compile_sdcl_clause(Clause),
+         fail
+        )
+        ;
+        true.
+       
+
+compile_sdcl_file(File) :-
+        split_gl_file(File, PTmp, GLTmp),
+        load_files([PTmp], [module(compile)]),
+        compile_gl(GLTmp).
+
+
+% compile_sdcl_file/3.
+% worker predicate
+compile_sdcl_file(File, FileId, Mode) :-
+        read_clause(FileId, Clause, []),
         (
          Clause = end_of_file -> 
-         close(ID), !
+         close(FileId), !
         ;
-         Clause = macro(Macro) ->
-         expand_macro(Macro, Rules),
-         compile_sdcl_clauses(_, Rules),
-         fail
+         Clause = (:- begin(genlog)) ->
+         compile_sdcl_file(File, FileId, genlog), !
         ;
-         compile_sdcl_clause(_, Clause),
-         fail
+         Clause = (:- end(genlog)) ->
+         compile_sdcl_file(File, FileId, prolog), !
+        ;         
+         Mode = prolog ->
+         (Clause = (:-G) ->
+          call(G),
+          writeln(call(G)),
+          compile_sdcl_file(File, FileId, prolog)
+         ;
+          writeln(assert(Clause)),
+          
+          assert(Clause),         
+          compile_sdcl_file(File, FileId, prolog)
+         )
+        ;
+         Mode = genlog ->
+         compile_sdcl_clause(Clause),
+         compile_sdcl_file(File, FileId, genlog)
         ),
         normalize_rules.
-
-compile_sdcl_clauses(RuleIds, Clauses) :-
-        findall(RuleId,
-                (member(Clause, Clauses),
-                 compile_sdcl_clause(RuleId, Clause)),
-                RuleIds).        
-
-compile_sdcl_clause(RuleId, Clause) :-
-        (var(RuleId) -> 
+                  
+compile_sdcl_clause(macro(Macro)) :-
+        !,
+        expand_macro(Macro, Rules),
+        compile_sdcl_clauses(Rules).
+compile_sdcl_clause(Clause) :-
+        (
          gensym('', RuleNum),
          atom_number(RuleNum, RuleNum1),
          RuleId = r(RuleNum1)
-        ;
-         ground(RuleId) -> true
-        ;
-         throw(error(instantiation_error,
-                     context(compile_sdcl_clause/2,
-                             'RuleId argument must be either a variable or completely ground.')))
         ),
          
         tr_sdcl_clause(Clause, TrClause),
         TrClause = sdcl_rule(RuleId, _, _, _, _, _),
         assert(TrClause).
+
+
+compile_sdcl_clauses(Clauses) :-
+        findall(_,
+                (member(Clause, Clauses),
+                 compile_sdcl_clause(Clause)),
+                _).        
+
+
 
 retract_all_rules :-
         retractall(sdcl_rule(_, _, _, _, _, _)).
@@ -90,10 +177,11 @@ show_rules :-
 test(compile_sdcl_clause1,
      [setup(retract_all_rules),
       cleanup(retract_all_rules),
-      true(AClause =@= TClause)]) :- 
+      true(AClause =@= TClause)]) :-
+        reset_gensym,
         Clause = (s(_X, _Y | [boy], _Y)),
-        compile_sdcl_clause(r(2), Clause),
-        TClause = sdcl_rule(r(2), sdcl_term(s/4, [_X1, _Y1], [[boy], _Y1]),
+        compile_sdcl_clause(Clause),
+        TClause = sdcl_rule(r(1), sdcl_term(s/4, [_X1, _Y1], [[boy], _Y1]),
                      true, 1.0, 1.0, rule_group(s/4, [[boy], '$VAR'(0)])),
         call(TClause),
         AClause = sdcl_rule(_, _, _, _, _, _),
@@ -331,14 +419,6 @@ replace_qvars_with_vars(AssocIn, A, AssocOut, AOut) :-
         !,
         AssocIn = AssocOut,
         A = AOut.
-% if Term is a compound term with :- as the functor
-replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
-        compound(Term),
-        Term =.. [F|As],
-        (F=(:-) ; predicate_property(Term, built_in)),
-        !,
-        replace_qvars_with_vars(AssocIn, As, AssocOut, AsOut),
-        TermOut =.. [F|AsOut].
 % if Term is an explicit compound term
 replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
         compound(Term),
@@ -346,12 +426,21 @@ replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
         !,
         replace_qvars_with_vars(AssocIn, As, AssocOut, AsOut),
         TermOut =.. ['$COMP'|AsOut].
+% if it has a qvar as a functor
+replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
+        compound(Term),
+        Term =.. [F|As],
+        is_qvar(F),
+        !,
+        Term1 = '$COMP'(F,As),
+        replace_qvars_with_vars(AssocIn, Term1, AssocOut, TermOut).
+% if it is any other compound term
 replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
         compound(Term),
         Term =.. [F|As],
         !,
-        Term1 = '$COMP'(F,As),
-        replace_qvars_with_vars(AssocIn, Term1, AssocOut, TermOut).
+        replace_qvars_with_vars(AssocIn, As, AssocOut, AsOut),
+        TermOut =.. [F|AsOut].
 
 %% comp_to_term(+CompTerm, -Term) translates between an explicit
 %% compound term '$COMP'(Functor, Args) and a Prolog compound term
@@ -381,6 +470,11 @@ comp_to_term(X, X).
 %% call_comp(+CompTerm) is a meta_interpreter that evaluates explicit
 %% compound terms as generated by expand_macro; it evalutes an
 %% explicit compound if present, otherwise just calls
+% :- meta_predicate
+%         call_comp(0,:)
+        
+
+% :- add_import_module(compile, genlog, start).
 call_comp('$COMP'(F,As)) :-
         !,
         T =.. [F|As],

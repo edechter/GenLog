@@ -1,6 +1,25 @@
 %% kinship.pl
 %% sdcl for kinship relations
 %% ----------------------------------------------------------------------
+
+
+:- ['../src/number_words.pl'].
+
+number_lexicon(L) :-
+        findall(W,
+               (between(1, 100, N),
+                number_word(N, Xs),
+                member(W, Xs)),
+                Ws),
+        sort(Ws, L).
+
+number_lex(W) :-
+        number_lexicon(L),
+        member(W, L).
+
+
+:- Begin(genlog).
+
 %%
 %% Why do you hear Brenda is Susanna's mother? Because we are talking
 %% about Susanna. And because you want to communicate to me the
@@ -67,9 +86,4 @@ decade([seventy|X], X).
 decade([eighty|X], X).
 decade([ninety|X], X).
 
-
-
-
-
-
-
+:- end(genlog).

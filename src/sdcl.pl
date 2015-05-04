@@ -666,10 +666,10 @@ match(Goal, BodyList, RuleId, Prob) :-
         Rule=sdcl_rule(RuleId, _, _, _, _, _),
         Rule,
         %% Debug
-        pprint_term(Goal, GString), 
-        pprint_rule(Rule, RString), 
-        debug(match,
-              "Matching ~w against rule ~w", [GString, RString]),
+        % pprint_term(Goal, GString), 
+        % pprint_rule(Rule, RString), 
+        % debug(match,
+              % "Matching ~w against rule ~w", [GString, RString]),
         %% End Debug
         copy_term(Rule, RuleCopy),
         RuleCopy = sdcl_rule(RuleId, Goal, Body, P0, _, _),
@@ -677,13 +677,13 @@ match(Goal, BodyList, RuleId, Prob) :-
         Prob is P0/Z,
         
         % NB: sdcl probabilities should be normalized at this point
-        and_to_list(Body, BodyList),
+        and_to_list(Body, BodyList).
         
         %% Debug
-        maplist(pprint_term, BodyList, BodyStrings),
-        atomic_list_concat(BodyStrings, ', ', BodyString), 
-        debug(match,
-              "Result: ~w", [BodyString]).
+        % maplist(pprint_term, BodyList, BodyStrings),
+        % atomic_list_concat(BodyStrings, ', ', BodyString), 
+        % debug(match,
+              % "Result: ~w", [BodyString]).
         %% End Debug
 
 
