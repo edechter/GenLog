@@ -93,14 +93,18 @@ compile_gl(File) :-
        
 
 compile_sdcl_file(File) :-
+        debug(compile, "Compiling rules in file ~w...", [File]),
+              
         split_gl_file(File, PTmp, GLTmp),
         load_files([PTmp], [module(compile)]),
-        compile_gl(GLTmp).
+        compile_gl(GLTmp),
+        
+        debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
 
 
 % compile_sdcl_file/3.
 % worker predicate
-compile_sdcl_file(File, FileId, Mode) :-
+compile_sdcl_file(File, FileId, Mode) :-        
         read_clause(FileId, Clause, []),
         (
          Clause = end_of_file -> 
@@ -314,6 +318,7 @@ tr_split_args([A|In], [A|Vars], Conds, vars) :-
         tr_split_args(In, Vars, Conds, vars).
 tr_split_args([A|In], Vars, [A|Conds], conds) :-
         tr_split_args(In, Vars, Conds, conds).
+
 
          
 % rule_repr(Rule, RuleRepr) :-

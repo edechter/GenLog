@@ -8,12 +8,16 @@
            pprint_derivs/1,
            pprint_derivs/2,
            pprint_rule_probs/0,
+           pprint_rule_probs/1,
            pprint_rule_map/1,
            pprint_rule_map/2,
-           pprint_rule_map/3
+           pprint_rule_map/3,
+
+           pprint_pairs/1
            ]).
 
 :- use_module(library(pairs)).
+:- use_module(library(option)).
 
 :- use_module(sdcl). 
 
@@ -106,30 +110,43 @@ pprint_derivs(Derivs, Options) :-
 
 %% FIXME: do we need options here? if so, implement them.
 
-pprint_rule_probs :-
+pprint_rule_probs_def_options([thresh(0)]).
+
+pprint_rule_probs:-
+        pprint_rule_probs([]).
+
+pprint_rule_probs(Options) :-
         get_rule_probs(Assoc),
-        pprint_rule_map(Assoc). 
+        pprint_rule_map(Assoc, Options).
 
 pprint_rule_map(Assoc) :-
         pprint_rule_map(Assoc, []).
 
 pprint_rule_map(Assoc, Options) :-
-        pprint_rule_map(Assoc, Out, Options),
+        pprint_rule_probs_def_options(DefOptions),
+        merge_options(Options, DefOptions, Options1), 
+        pprint_rule_map(Assoc, Out, Options1),
         write(Out).
 
 pprint_rule_map(Assoc, Out, Options) :-
         rule_groups(RuleGroups),
-        maplist(call(pprint_rule_map_in_rule_group, Assoc), RuleGroups, Xs),
-        atomic_list_concat(Xs, '\n\n', Out).
+        maplist(call(pprint_rule_map_in_rule_group, Options, Assoc), RuleGroups, Xs),
+        findall(X,
+                (member(X, Xs),
+                 X \= ''),
+                Ys),
+        atomic_list_concat(Ys, '\n\n', Out).
 
 % worker predicate
-pprint_rule_map_in_rule_group(Assoc, RuleGroup, Out) :-
+pprint_rule_map_in_rule_group(Options, Assoc, RuleGroup, Out) :-
         rule_group_rules(RuleGroup, RuleIds),
         maplist(pprint_rule, RuleIds, Xs),
         pairs_keys_values(Pairs, RuleIds, Xs),
+        option(thresh(Thresh), Options), 
         findall(Line,
                 (member(RuleId-String, Pairs),
-                 get_assoc(RuleId, Assoc, Val), 
+                 get_assoc(RuleId, Assoc, Val),
+                 Val > Thresh,
                  format(atom(Line), "~|~w: ~10+~|~w ~`.t ~60+~g\n", [RuleId, String, Val])),
                 Lines),
         atomic_list_concat(Lines, Out).
@@ -171,3 +188,10 @@ pprint_vars_conds(Vars, Conds, Out) :-
 copy_and_numbervars(In, Out) :-
         copy_term(In, Out),
         numbervars(Out).
+
+%% ----------------------------------------------------------------------
+pprint_pairs([]).
+pprint_pairs([K-V|KVs]) :-
+        format("~w :~w\n", [K, V]),
+        pprint_pairs(KVs).
+        

@@ -1,0 +1,138 @@
+
+
+%% four types of predicates
+%% A(X).
+%% A(X|Y).
+%% A(X|Y, Z).
+
+
+%% rules types
+%% A(XY) <- A(X), A(Y)
+%% A(XY) <- A(X), A(Y|X)
+%% A(XY) <- A(Y), A(X|Y)
+%% A(lex).
+
+%% A(XY|Z) <- A(X|Z), A(Y|Z)
+%% A(XY|Z) <- A(X|Z), A(Y|X)
+%% A(XY|Z) <- A(Y|Z), A(X|Y)
+%% A(lex|lex).
+
+%%
+% hear(XY) <- number(X), count(Y|X).
+% hear(null).
+
+% count(XY|Z) <- next(X|Z), count(Y|X, Z).
+
+:- ['number_words.pl'].
+
+number_lexicon(L) :-
+        findall(W,
+               (between(1, 100, N),
+                number_word(N, Xs),
+                member(W, Xs)),
+                Ws),
+        sort(Ws, L).
+
+number_lex(W) :-
+        number_lexicon(L),
+        member(W, L).
+
+number_lex_dl([W|Z]-Z) :-
+        number_lex(W).
+number_lex_dl(Z-Z).
+       
+
+num_preds(3).
+
+pred(Type, Index, Pred) :-
+        member(Type, [1, 2, 3]), 
+        num_preds(N), 
+        between(1, N, Index),
+        format(atom(Pred), "A(~w, ~w)", [Type, Index]).
+
+pred(Pred) :- pred(_, _, Pred).
+
+pred(Type, Pred) :- pred(Type, _, Pred).
+
+preds(Preds) :-
+        findall(P, pred(_, _, P), Preds).
+
+:- begin(genlog).
+
+hear(X) ---> 'A(1, 1)'(X).
+
+
+macro(
+      ('?A'(Xi-Xf) ---> '?B'(Xi-Xm), '?C'(Xm-Xf))
+     :-
+     (pred(1, '?A'),
+      pred(1, '?B'),
+      pred(1, '?C'))
+     ).
+
+
+macro(
+      ('?A'(Xi-Xf) ---> '?B'(Xi-Xm), '?C'(Xm-Xf | Xi-Xm))
+     :-
+     (pred(1, '?A'),
+      pred(1, '?B'),
+      pred(2, '?C'))
+     ).
+
+macro(
+      ('?A'(Xi-Xf) ---> '?B'(Xm-Xf), '?C'(Xi-Xf | Xm-Xf))
+     :-
+     (pred(1, '?A'),
+      pred(1, '?B'),
+      pred(2, '?C'))
+     ).
+
+macro(
+      ('?A'(X))
+     :-
+     (pred(1, '?A'),
+      number_lex_dl(X))
+      ).
+
+%% conditional
+
+macro(
+      ('?A'(Xi-Xf | Z ) ---> '?B'(Xi-Xm | Z), '?C'(Xm-Xf | Z))
+     :-
+     (pred(2, '?A'),
+      pred(2, '?B'),
+      pred(2, '?C'))
+     ).
+
+
+macro(
+      ('?A'(Xi-Xf | Z) ---> '?B'(Xi-Xm | Z), '?C'(Xm-Xf | Xi-Xm))
+     :-
+     (pred(2, '?A'),
+      pred(2, '?B'),
+      pred(2, '?C'))
+     ).
+
+macro(
+      ('?A'(Xi-Xf | Z) ---> '?B'(Xm-Xf | Z), '?C'(Xi-Xf | Xm-Xf))
+     :-
+     (pred(2, '?A'),
+      pred(2, '?B'),
+      pred(2, '?C'))
+     ).
+
+macro(
+      ('?A'(X | Y))
+     :-
+     (pred(2, '?A'),
+      number_lex_dl(X),
+      number_lex_dl(Y))
+      ).
+
+:- end(genlog).
+                            
+                           
+        
+        
+        
+

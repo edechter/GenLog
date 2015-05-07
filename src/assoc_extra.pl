@@ -8,7 +8,9 @@
           [add_assocs/4,
            scalar_multiply_assoc/3,
            map_keys/3,
-           constant_assoc/3
+           constant_assoc/3,
+           add_to_assoc/4,
+           pprint_assoc/1
           ]).
 
 %% add_assocs(V, Assoc1, +Assoc2, -AssocOut)
@@ -29,6 +31,34 @@ add_assocs1(V0, [K-V|Rest], AssocIn, AssocOut) :-
         V2 is V1 + V,
         put_assoc(K, AssocIn, V2, AssocTmp),
         add_assocs1(V0, Rest, AssocTmp, AssocOut).
+
+add_to_assoc(Key, Value, AssocIn, AssocOut) :-
+        (
+         get_assoc(Key, AssocIn, V0), !
+        ;
+         V0 = 0
+        ),
+        V is Value + V0,
+        put_assoc(Key, AssocIn, V, AssocOut).
+
+
+:- begin_tests(assoc_extra).
+
+test(add_to_assoc_default,
+     [true(V=1)]) :-
+        empty_assoc(Empty),
+        add_to_assoc(a, 1, Empty, Assoc),
+        get_assoc(a, Assoc, V).
+
+
+test(add_to_assoc_existing_key,
+     [true(V=2)]) :-
+        list_to_assoc([a-1, b-2], AssocIn),
+        add_to_assoc(a, 1, AssocIn, AssocOut),
+        get_assoc(a, AssocOut, V).
+
+:- end_tests(assoc_extra).
+
 
 %% scalar_multiply_assoc(+V, +AssocIn, -AssocOut)
 %% multiplies each value of AssocIn by V
@@ -70,6 +100,17 @@ constant_assoc(Keys, Value, Assoc) :-
                 
 
 
+%% pprint_assoc(Assoc)
+pprint_assoc(Assoc) :-
+        assoc_to_list(Assoc, KVs),
+        !,
+        (member(K-V, KVs),
+         format("~w : ~w\n", [K, V]),
+         fail
+        ;
+         true
+        ).
+          
 :- begin_tests(assoc_extra). 
 
 test(add_assocs,

@@ -4,7 +4,7 @@
 
 number_lexicon(L) :-
         findall(W,
-               (between(1, 10, N),
+               (between(1, 100, N),
                 number_word(N, Xs),
                 member(W, Xs)),
                 Ws),
