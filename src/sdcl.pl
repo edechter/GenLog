@@ -684,15 +684,6 @@ collect_prefix_masses(_, _, [], MassesIn, MassesOut) :-
         !,
         MassesIn = MassesOut.
 collect_prefix_masses(CurrentGoal, TargetGoal, [P-M|PMs], MassesIn, MassesOut) :-
-        %% we want to count all prefixes that are not more general
-        % tr_sdcl_term(CurrentGoal, G),
-        % tr_sdcl_term(P, P1),
-        % tr_sdcl_term(TargetGoal, T),
-        % format("current goal: ~w\n", [G]),
-        % format("target goal: ~w\n",  [T]),
-        % format("prefix goal: ~w\n",  [P1]),
-        % nl,
-        % nl,
         
         ((\+ subsumes_term(P, CurrentGoal) ; (P =@= CurrentGoal)) ->
          MassesTmp = [M|MassesIn]
@@ -700,28 +691,6 @@ collect_prefix_masses(CurrentGoal, TargetGoal, [P-M|PMs], MassesIn, MassesOut) :
          MassesTmp = MassesIn
         ),
         collect_prefix_masses(CurrentGoal, TargetGoal, PMs, MassesTmp, MassesOut).
-        % writeln(massesOut-MassesOut). 
-        
-        
-
-
-% :- begin_tests(insert_into_beam).
-
-% test(insert_extensions_into_empty_beam) :-
-%         X0 = s(a, b, A | c),
-%         X1 = s(a, b, B | c),
-%         X2 = s(a, C, D | c),
-%         maplist(tr_sdcl_term, [X0, X1, X2], [T1, T2, T3]),
-%         Exten
-        
-                
-        
-
-% :- end_tests(insert_into_beam).
-
-
-                 
-        
 
 %% ----------------------------------------------------------------------
 
