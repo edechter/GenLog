@@ -2,6 +2,8 @@
 %% simple sdcl for testing
 %% ----------------------------------------------------------------------
 
+:- begin(genlog).
+
 s(X, Y) --->
         num(Number),
         person(Person),
@@ -25,3 +27,5 @@ det(X, X | plural)   :: 1.
 person(first).
 person(second).
 person(third).
+
+:- end(genlog).
