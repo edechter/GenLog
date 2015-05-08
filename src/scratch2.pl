@@ -4,6 +4,8 @@
 :- use_module(compile).
 
 :- use_module(learn).
+:- use_module(pgen).
+:- use_module(pprint).
 :- [data_utils].
 :- ['number_words.pl'].
         
@@ -32,7 +34,7 @@ count_sentence(Lo, Hi, X) :-
         atomic_list_concat(Ws, ' ', X).
 
 number_sentences1(Xs) :-
-        findall(X-100,
+        findall(X-1,
                 (between(1, 10, N),
                  count_sentence(1, N, X)),
                 Xs).
@@ -50,10 +52,12 @@ goals(Goals) :-
         
 go :-
         compile_sdcl_file('test.gl'),
-        Options = [beam_width(100), time_limit_seconds(4)],
+        Options = [beam_width(100), time_limit_seconds(1)],
         set_rule_alphas(uniform),
         goals(Goals),
+        list_to_random_choice(Goals, GoalGen),
         % sentence_data_set(hear, Xs, Goals),
-        writeln(Goals),
-        run_batch_vbem(Goals, Options).
+        writeln(GoalGen),
+        run_online_vbem(GoalGen, Data, Options),        
+        writeln(Data).
   

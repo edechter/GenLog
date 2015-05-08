@@ -5,6 +5,9 @@
           [run_batch_vbem/1,
            run_batch_vbem/2,
 
+           run_online_vbem/2,
+           run_online_vbem/3,
+           
            variational_em_single_iteration/3,
            variational_em_single_iteration/4,
 
@@ -82,7 +85,7 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
          Iter1 is Iter + 1,
          run_batch_vbem(Goals, Iter1, FreeEnergy, Options)
         ).
-    
+
         
 %% options and defaults for vbem
 :- record vbem_options(max_iter = 1000, % maximum number of iterations to run vbem
@@ -96,6 +99,73 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
                       ).
 
 %% ----------------------------------------------------------------------
+%%      run_online_vbem(+GoalGen, -Data)
+%%      run_online_vbem(+GoalGen, -Data, +Options)
+%%
+%%      Run the onling VBEM algorithm for Goals from goal generator GoalGen.
+%%
+%%      - GoalGen: a generator of goals.
+run_online_vbem(GoalGen, Data) :-
+        run_online_vbem(GoalGen, Data, []).
+
+run_online_vbem(GoalGen, Data, Options) :-
+        debug(learning, "Online VBEM: Running ...", []),
+        debug(learning, "Online VBEM: User Options: ~w", [Options]),
+        
+        %% initiate loop
+        run_online_vbem(GoalGen, 1, Data, Options).
+        
+
+run_online_vbem(GoalGen, Iter, DataOut, Options) :-
+
+        make_online_vbem_options(Options, OptRecord, _), 
+        % debug(learning, "Online VBEM: Merging with default options: ~w", [OptRecord]),
+
+
+        debug(learning, "Online VBEM: Iter ~w...\n", [Iter]),
+        
+        %% get next goal
+        (yield(GoalGen, Goal, GoalGen1) -> true
+        ;
+         debug(learning, "No more goals from goal generator. Finishing.", []),
+         fail,
+         !
+        ), 
+
+        debug(learning, "Online VBEM: Goal -- ~w", [Goal]),
+        time(
+             variational_em_single_iteration([Goal], HyperParams, FreeEnergy, Options),
+             CPU_time,
+             _Wall_time), 
+        debug(learning, "Online VBEM: Iter ~w complete: ~2f s \n", [Iter, CPU_time]),
+
+
+        set_rule_alphas(HyperParams),
+        
+        online_vbem_options_max_iter(OptRecord, MaxIter),
+        (Iter >= MaxIter ->
+         debug(learning, "OnlineVBEM: Maximum iteration reached. Finished.\n", [])
+        ;
+         Iter1 is Iter + 1,
+         DataOut = [Goal-FreeEnergy|DataOut1], 
+         run_online_vbem(GoalGen1, Iter1, DataOut1, Options)
+        ).
+
+
+
+
+         
+         
+
+%% options and defaults for online vbem
+:- record online_vbem_options(max_iter = 1000, % maximum number of iterations to run vbem
+                       
+                       % how to initialize the hyperparameters
+                       % normal(+Mean, +StdDev) samples randomly from a
+                       % normal distribution with Mean and StdDev provided.   
+                       init_params = normal(0.1, 0.001)
+                      ).
+
 
 %% ----------------------------------------------------------------------
 %%      variational_em_single_iteration(+Goals, -HyperParams, -FreeEnergy)
@@ -111,21 +181,31 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
         writeln(prove_goals(Goals, DSearchResults, Options)),
         prove_goals(Goals, DSearchResults, Options),
         writeln(done),
-        expected_rule_counts(DSearchResults, ExpectedCounts, Options),
-        debug_expected_rule_counts(ExpectedCounts, Msg1),
-        debug(learning,Msg1, []),
-        update_hyperparams(ExpectedCounts, HyperParams),
-        compute_variational_weights(HyperParams, NewWeights),
-        debug_new_rule_weights(NewWeights, Msg2),
-        debug(learning, Msg2, []), 
-        set_rule_probs(NewWeights),
-        get_rule_alphas(PriorHyperParams), 
-        free_energy(PriorHyperParams,
-                    HyperParams,
-                    NewWeights,
-                    DSearchResults,
-                    _LogLikelihood,
-                    FreeEnergy).
+
+        findall(L,
+                (member(dsearch_result(_Goal, _Count, D), DSearchResults),
+                 length(D, L)),
+                Ls),
+        sum_list(Ls, NResults),
+        (NResults > 0 -> 
+         expected_rule_counts(DSearchResults, ExpectedCounts, Options),
+                                % debug_expected_rule_counts(ExpectedCounts, Msg1),
+                                % debug(learning,Msg1, []),
+         update_hyperparams(ExpectedCounts, HyperParams),
+         compute_variational_weights(HyperParams, NewWeights),
+                                % debug_new_rule_weights(NewWeights, Msg2),
+                                % debug(learning, Msg2, []), 
+         set_rule_probs(NewWeights),
+         get_rule_alphas(PriorHyperParams), 
+         free_energy(PriorHyperParams,
+                     HyperParams,
+                     NewWeights,
+                     DSearchResults,
+                     _LogLikelihood,
+                     FreeEnergy)
+        ;
+         format("VBEM: no derivation results found. Continuing without updating parameters\n.")
+        ).
 
                     
 
