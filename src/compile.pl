@@ -83,13 +83,13 @@ compile_gl(File) :-
         repeat,
         read_clause(FileId, Clause, []),
         (Clause = end_of_file ->
-         true
+         true, !
         ; 
          compile_sdcl_clause(Clause),
          fail
-        )
-        ;
-        true.
+        ).
+
+
        
 
 compile_sdcl_file(File) :-
@@ -139,6 +139,7 @@ compile_sdcl_clause(macro(Macro)) :-
         expand_macro(Macro, Rules),
         compile_sdcl_clauses(Rules).
 compile_sdcl_clause(Clause) :-
+        !, 
         (
          gensym('', RuleNum),
          atom_number(RuleNum, RuleNum1),
