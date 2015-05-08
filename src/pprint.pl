@@ -119,8 +119,18 @@ pprint_rule_probs(Options) :-
         get_rule_probs(Assoc),
         pprint_rule_map(Assoc, Options).
 
+pprint_rule_alphas_def_options([thresh(0)]).
+
+pprint_rule_alphas:-
+        pprint_rule_alphas([]).
+
+pprint_rule_alphas(Options) :-
+        get_rule_alphas(Assoc),
+        pprint_rule_map(Assoc, Options).
+
 pprint_rule_map(Assoc) :-
         pprint_rule_map(Assoc, []).
+
 
 pprint_rule_map(Assoc, Options) :-
         pprint_rule_probs_def_options(DefOptions),
