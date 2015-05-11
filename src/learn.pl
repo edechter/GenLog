@@ -54,6 +54,12 @@ run_batch_vbem(Goals) :-
         run_batch_vbem(Goals, []).
 
 run_batch_vbem(Goals, Options) :-
+        make_vbem_options(Options, OptRecord, _), 
+
+        %% initialize the alpha hyperparams
+        vbem_options_init_params(OptRecord, InitParams), 
+        set_rule_alphas(InitParams),        
+
         FreeEnergy0 = 9e10, % ~infinity
         run_batch_vbem(Goals, 1, FreeEnergy0, Options).
 
