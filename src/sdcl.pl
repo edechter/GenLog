@@ -950,7 +950,11 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
                   ConditionalProb is exp(Score - LogP)
                  ),
                  Results)
-        ).
+        ),
+        findall(Cond,
+                member(deriv(_, _, Cond), Results),
+                Conds),
+        writeln(condProbs-Conds).
 
         
 %% ----------------------------------------------------------------------
