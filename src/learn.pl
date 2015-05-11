@@ -113,18 +113,22 @@ run_online_vbem(GoalGen, Data) :-
 run_online_vbem(GoalGen, Data, Options) :-
         debug(learning, "Online VBEM: Running ...", []),
         debug(learning, "Online VBEM: User Options: ~w", [Options]),
+
+        make_online_vbem_options(Options, OptRecord, _), 
+
+        %% initialize the alpha hyperparams
+        online_vbem_options_init_params(OptRecord, InitParams), 
+        set_rule_alphas(InitParams),        
         
         %% initiate loop
         run_online_vbem(GoalGen, 1, Data, Options).
         
 
 run_online_vbem(GoalGen, Iter, DataOut, Options) :-
+        
+        debug(learning, "Online VBEM: Iter ~w...\n", [Iter]),
 
         make_online_vbem_options(Options, OptRecord, _), 
-        % debug(learning, "Online VBEM: Merging with default options: ~w", [OptRecord]),
-
-
-        debug(learning, "Online VBEM: Iter ~w...\n", [Iter]),
         
         %% get next goal
         (yield(GoalGen, Goal, GoalGen1) -> true

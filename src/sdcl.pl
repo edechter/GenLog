@@ -218,6 +218,20 @@ set_rule_alphas(uniform(K)) :-
                  constant_assoc(RuleIds, Alpha, AlphaAssoc),
                  set_rule_alphas(AlphaAssoc)),
                 _).
+
+set_rule_alphas(normal(Mean, StdDev)) :-
+        !,
+        assertion(Mean > 0),
+        assertion(StdDev > 0),
+
+        rules(RuleIds),
+        length(RuleIds, NRules),
+        Alphas <- rnorm(NRules, Mean, StdDev), 
+        pairs_keys_values(RAs, RuleIds, Alphas),
+        list_to_assoc(RAs, AlphasAssoc), 
+        set_rule_alphas(AlphasAssoc).
+                
+                
                  
 set_rule_alphas(Assoc) :-
         is_assoc(Assoc), !,
