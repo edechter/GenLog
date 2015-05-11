@@ -22,7 +22,6 @@
 :- use_module(genlog(data_utils)).
 :- use_module(genlog(number_words)).
 
-
 %% this file
 :- absolute_file_name('./runner01.pl', Abs),
    set_setting(experiment:runner, Abs).
@@ -30,10 +29,6 @@
 %% experiment data directory
 :- set_setting(experiment:root, '../data').
 
-
-        
-        
-              
 
 number_sentences(Xs) :-
         Xs = [
@@ -57,9 +52,10 @@ count_sentence(Lo, Hi, X) :-
         atomic_list_concat(Ws, ' ', X).
 
 number_sentences1(Xs) :-
-        findall(X-1,
-                (between(1, 10, N),
-                 count_sentence(1, N, X)),
+        findall(X-W,
+                (between(1, 5, N),
+                 count_sentence(1, N, X),
+                 W is 1 / N),
                 Xs).
         
 goal(Goal) :-
@@ -67,19 +63,19 @@ goal(Goal) :-
         member(X-C, Xs),
         atomic_list_concat(Ws, ' ', X),
         T = hear(Ws-[]),
-        Goal = count(T,C).
+        Goal = count(T,1)-C.
                       
 goals(Goals) :-
         findall(G, goal(G),
                  Goals).
         
 main :-
-        experiment:setup_experiment,
+        % experiment:setup_experiment,
         compile_sdcl_file('../gls/test.gl'),
-        Options = [beam_width(100), time_limit_seconds(1)],
+        Options = [beam_width(100), time_limit_seconds(4)],
         set_rule_alphas(uniform),
         goals(Goals),
-        list_to_random_choice(Goals, GoalGen),
+        list_to_categorical(Goals, GoalGen),
         writeln(GoalGen),
         run_online_vbem(GoalGen, Data, Options),        
         writeln(Data).
