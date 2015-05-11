@@ -5,9 +5,19 @@
            retract_all_rules/0,
            tr_sdcl_term/2,
            tr_sdcl_clause/2,
-           sdcl_rule/6
+           sdcl_rule/6,
+           
+           save_gl/0,
+           save_gl/1,
+           save_gl/2,
+           save_gl/3,
+
+           load_gl/1
+          
            ]).
-        
+
+
+
 :- use_module(library(varnumbers)).
 :- use_module(library(gensym)).
 :- use_module(library(debug)).
@@ -16,8 +26,8 @@
 
 :- use_module(pprint).
 
-:- add_import_module(compile,
-                      user, end).
+% :- add_import_module(compile,
+                      % user, end).
 
 :- op(1000, xfy, --->).
 
@@ -494,11 +504,64 @@ call_comp(X) :- call(X).
         
 
 
-:- begin_tests(name).
+%% ----------------------------------------------------------------------
+%%      save_gl(+File).
+%%      save_gl(+File, +Options).
 
-test()
+%% default location to save gl files
+'*default_gl_save_dir*'('.').
+'*default_gl_prefix*'('gl_'). 
 
-:- end_tests(name).
+save_gl :-
+        '*default_gl_save_dir*'(Dir),
+        '*default_gl_prefix*'(Prefix),
+        save_gl(Dir, Prefix, []).
+
+save_gl(File) :-
+        save_gl(File, []).
+
+save_gl(File, Options) :-
+        (
+         exists_file(File) ->
+           throw(evaulation_error(save_gl/2, 'file already exists'))
+        ;
+         !,
+         tell(File),
+         listing(compile:_),
+         told
+        ).
+
+save_gl(Dir, Prefix, Options) :-
+        %% assuming no more than 1e6 GLs of the same prefix.
+        between(1, 1000, I),
+        format(atom(File), "~w~|~`0t~d~4+.gl", [Prefix, I]),
+        directory_file_path(Dir, File, Path),
+        (
+         exists_file(Path) -> fail
+        ;
+         !,
+         tell(Path),
+         listing(compile:sdcl_rule/6),
+         told
+        ).
+        
+
+
+
+        
+
+
+%% ----------------------------------------------------------------------
+%%      load_gl(+File).
+
+load_gl(File) :-
+        \+ exists_file(File),
+        !,
+        format(atom(Msg), "Cannot find file ~w", [File]),
+        throw(evaluation_error(load_gl/1, Msg)).
+load_gl(File) :-
+        consult(File). 
+
 
         
         

@@ -25,7 +25,9 @@
 :- use_module(library(settings)).
 :- nodebug(real).
 
-:- r(source("learn.r")).
+:- getenv('GENLOG_DIR', Dir),
+   atomic_list_concat([Dir, 'learn.r'], Learn_R_Path),
+   r(source(+Learn_R_Path)).
 :- r(library("matrixStats")).
 
 :- use_module(sdcl).

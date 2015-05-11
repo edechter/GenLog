@@ -87,7 +87,7 @@
 :- use_module(pprint).
 
 
-:- r(library("matrixStats")).
+% :- r(library("matrixStats")).
 
 :- op(1000, xfy, --->).
 
@@ -929,7 +929,7 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
          LogP = 0, 
          Results = []
          ;
-         LogP <- logSumExp(Scores),
+         log_sum_exp(Scores, LogP),
          findall(deriv(Goal, DGraph, ConditionalProb), 
                  (
                   member(deriv(Goal, DGraph, Score), Derivations),

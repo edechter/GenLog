@@ -1,3 +1,7 @@
+
+:- module(number_words,
+          [number_word/2]).
+
 number_word(N, W, english) :- number_word(N, W). 
 
 number_word(1, [one]).
