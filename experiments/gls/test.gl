@@ -41,7 +41,6 @@ number_lex_dl([W|Z]-Z) :-
         number_lex(W).
 number_lex_dl(Z-Z).
        
-
 num_preds(3).
 
 pred(Type, Index, Pred) :-
@@ -61,6 +60,7 @@ preds(Preds) :-
 
 hear(X) ---> 'A(1, 1)'(X).
 
+next(Xb-Xc | Xa-Xb) ---> 'A(1, 2)'(X-Xc).
 
 macro(
       ('?A'(Xi-Xf) ---> '?B'(Xi-Xm), '?C'(Xm-Xf))
