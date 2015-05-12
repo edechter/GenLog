@@ -151,6 +151,19 @@ set_rule_prob(RuleId, P) :-
         retractall(Rule),
         assert(NewRule).
 
+
+set_rule_probs(normal(Mean, StdDev)) :-
+        !,
+        assertion(Mean > 0),
+        assertion(StdDev > 0),
+
+        rules(RuleIds),
+        length(RuleIds, NRules),
+        Ps <- rnorm(NRules, Mean, StdDev), 
+        pairs_keys_values(RPs, RuleIds, Ps),
+        list_to_assoc(RPs, PAssoc), 
+        set_rule_probs(PAssoc).
+
 set_rule_probs(RuleIdProbAssoc) :-
         rule(RuleId),
         get_assoc(RuleId, RuleIdProbAssoc, W),
