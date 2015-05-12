@@ -32,6 +32,7 @@
 
 :- use_module(sdcl).
 :- use_module(assoc_extra).
+:- use_module(pprint).
 
 
 %% ----------------------------------------------------------------------
@@ -201,12 +202,10 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
         sum_list(Ls, NResults),
         (NResults > 0 -> 
          expected_rule_counts(DSearchResults, ExpectedCounts, Options),
-                                % debug_expected_rule_counts(ExpectedCounts, Msg1),
-                                % debug(learning,Msg1, []),
-         update_hyperparams(ExpectedCounts, HyperParams),
+         increment_alphas_by(ExpectedCounts), 
+         % update_hyperparams(ExpectedCounts, HyperParams),
+         get_rule_alphas(HyperParams),
          compute_variational_weights(HyperParams, NewWeights),
-                                % debug_new_rule_weights(NewWeights, Msg2),
-                                % debug(learning, Msg2, []), 
          set_rule_probs(NewWeights),
          get_rule_alphas(PriorHyperParams), 
          free_energy(PriorHyperParams,
@@ -216,7 +215,9 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
                      _LogLikelihood,
                      FreeEnergy)
         ;
-         format("VBEM: no derivation results found. Continuing without updating parameters\n.")
+         format("VBEM: no derivation results found. Continuing without updating parameters\n."),
+         get_rule_alphas(PriorHyperParams),
+         HyperParams = PriorHyperParams
         ).
 
                     
@@ -465,7 +466,26 @@ test(sum_rule_assoc_across_rule_groups,
 
 
 %% ----------------------------------------------------------------------
+%%     increment_alphas_by(+Assoc)
+%%
+%%     Assoc is an assoc from RuleIds to Values. This predicate
+%%     increments the corresponding alpha values of these rules by the
+%%     associated value.
 
+increment_alphas_by(Assoc) :-
+        assoc_to_list(Assoc, RVs),
+        !,
+        (member(RuleId-V, RVs),
+         get_rule_alpha(RuleId, Alpha0),
+         Alpha is Alpha0 + V,
+         set_rule_alpha(RuleId, Alpha),
+         fail
+        ;
+         true
+        ).
+        
+         
+        
 
 
 %% ----------------------------------------------------------------------
