@@ -4,6 +4,11 @@
 %% This module provides convenience predicates for processing data
 %% into SDCL goals.
 
+:- module(data_utils,
+          [atom_split_list/2,
+           sentence_data_set/3
+           ]).
+
 %% ----------------------------------------------------------------------
 %%      atom_split_list(?Atom, ?List)
 %%
