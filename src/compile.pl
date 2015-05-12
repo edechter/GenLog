@@ -2,10 +2,13 @@
 
 :- module(compile,
           [compile_sdcl_file/1,
-           retract_all_rules/0,
-           tr_sdcl_term/2,
-           tr_sdcl_clause/2,
-           sdcl_rule/6,
+           
+           remove_rule/1,
+           remove_all_rules/0,
+           
+           translate_to_gl_term/2,
+           translate_to_gl_rule/3,
+           gl_rule/4,
            
            save_gl/0,
            save_gl/1,
@@ -33,14 +36,34 @@
 
 :- op(1200, xfy, ::).
 %% ----------------------------------------------------------------------
-:- dynamic sdcl_rule/6.
+/*
+  gl_rule/4.
+
+  A genlog rule is a structure of the form gl_rule(RuleId, RuleHead, RuleBody, RuleGroup).
+  
+  RuleId:       r(Int) for integer Int. This is a unique key for genlog rules.
+  RuleHead:     a gl_term/3 structure representing the head of the rule.
+  RuleBody:     a conjunction of gl_term/3 structures representing the body of the rule.
+  RuleGroup:    a rule_group/2 structure representing the group of alternative rules to which this rule belongs.
+
+  For each genlog rule, we maintain global variables gl_rule_prob(RuleId) and
+  a gl_rule_alpha(RuleId). Because these need to be modified
+  frequently, these are maintained in the record database.
+
+*/
+:- dynamic gl_rule/4.
+
 
 %% ----------------------------------------------------------------------
-%% compile SDCL syntax to prolog syntax
+%% compile GenLog syntax to prolog syntax
 %%
 %%
-%% TODO: use load_file with the stream(Input) option to get the input directly from a stream.
-%% Generate a stream by reading from a file and only writing out to the stream things that are not in bettween the genlog directives. Lines inbetween the directives should be directed to a list of clauses, and those can then be used  with compile_sdcl_file. Or we can just have two files.
+%% TODO: use load_file with the stream(Input) option to get the input
+%% directly from a stream.  Generate a stream by reading from a file
+%% and only writing out to the stream things that are not in bettween
+%% the genlog directives. Lines inbetween the directives should be
+%% directed to a list of clauses, and those can then be used with
+%% compile_sdcl_file. Or we can just have two files.
 
 %% split_gl_file(+File, +PrologStream, +GenLogStream)
 %%
@@ -87,7 +110,7 @@ split_gl_file_go(_, FileId,_,PrologStream,GenLogStream) :-
 %%
 compile_gl(File) :-
         open(File, read, FileId),
-        retract_all_rules,
+        remove_all_rules,
         reset_gensym,
         !,
         repeat,
@@ -156,9 +179,13 @@ compile_sdcl_clause(Clause) :-
          RuleId = r(RuleNum1)
         ),
          
-        tr_sdcl_clause(Clause, TrClause),
-        TrClause = sdcl_rule(RuleId, _, _, _, _, _),
-        assert(TrClause).
+        translate_to_gl_rule(Clause, TrClause, Prob),
+        TrClause = gl_rule(RuleId, _, _, _),
+        assert(TrClause),
+        term_to_atom(gl_rule_prob(RuleId), NameP),
+        term_to_atom(gl_rule_alpha(RuleId), NameA),
+        nb_setval(NameP, Prob),
+        nb_setval(NameA, 1.0).
 
 
 compile_sdcl_clauses(Clauses) :-
@@ -169,13 +196,26 @@ compile_sdcl_clauses(Clauses) :-
 
 
 
-retract_all_rules :-
-        retractall(sdcl_rule(_, _, _, _, _, _)).
+remove_rule(RuleId) :-
+        term_to_atom(gl_rule_prob(RuleId), NameP),
+        term_to_atom(gl_rule_alpha(RuleId), NameA),
+        nb_delete(NameP),
+        nb_delete(NameA),
+        retractall(gl_rule(RuleId, _, _, _)).
+
+remove_all_rules :-
+        gl_rule(RuleId, _, _, _),
+        remove_rule(RuleId),
+        fail
+        ;
+        true.
+        
 
 %% display compiled rules
 show_rules :-
         findall(Id-W, 
-                sdcl_rule(Id, _, _, W, _, _),
+                (gl_rule(Id, _, _, _),
+                 get_rule_prob(Id, W)), 
                 Assoc),
         keysort(Assoc,AssocSorted),
         !,
@@ -190,61 +230,71 @@ show_rules :-
 :- begin_tests(compile).
 
 test(compile_sdcl_clause1,
-     [setup(retract_all_rules),
-      cleanup(retract_all_rules),
+     [setup(remove_all_rules),
+      cleanup(remove_all_rules),
       true(AClause =@= TClause)]) :-
         reset_gensym,
         Clause = (s(_X, _Y | [boy], _Y)),
         compile_sdcl_clause(Clause),
-        TClause = sdcl_rule(r(1), sdcl_term(s/4, [_X1, _Y1], [[boy], _Y1]),
-                     true, 1.0, 1.0, rule_group(s/4, [[boy], '$VAR'(0)])),
+        TClause = gl_rule(r(1), gl_term(s/4, [_X1, _Y1], [[boy], _Y1]),
+                     true, rule_group(s/4, [[boy], '$VAR'(0)])),
         call(TClause),
-        AClause = sdcl_rule(_, _, _, _, _, _),
+        AClause = gl_rule(_, _, _, _),
         call(AClause).
 :- end_tests(compile).
 
 
 %% ----------------------------------------------------------------------
-%% translate SDCL syntax to structure representation
+%%        translating
 %%
-%% an SDCL term is of the form
-%% sdcl_term(Functor/Arity, Vars, Conds
-%% tr_sdcl_term(+TermIn, -TermOut) is det.
-%% TermIn is a sdcl term, e.g., s(X, Y | Y, G)
-%% TermOut is structured representation, e.g. sdcl_term(s/4, [X, Y], [Y, G]).
-tr_sdcl_term(TermIn, TermOut) :-
+%% translate GenLog syntax to structure representation
+%%
+%% an GenLog term is of the form
+%% gl_term(Functor/Arity, Vars, Conds)
+
+%%        translate_to_gl_term(+TermIn, -TermOut) is det.
+%%
+%% - TermIn is a term in genlog syntax, e.g., s(X, Y | Y, G)
+%% - TermOut is a gl_term/3 structure, e.g. gl_term(s/4, [X, Y], [Y, G]).
+
+translate_to_gl_term(TermIn, TermOut) :-
         copy_term(TermIn, TermInCopy), 
         numbervars(TermInCopy),
-        tr_numbered_sdcl_term(TermInCopy, TermTmp),
+        tr_numbered_gl_term(TermInCopy, TermTmp),
         varnumbers(TermTmp, TermOut),
         term_variables(TermOut, VsOut),
         term_variables(TermIn, VsIn),
         VsIn = VsOut.
 
-:- begin_tests('translate sdcl terms').
+:- begin_tests('translate genlog terms').
 
-test(tr_sdcl_term1,
-     [true(TermOut =@= sdcl_term(s/4, [_A, B],  [B, _C]))]
+test(translate_to_gl_term1,
+     [true(TermOut =@= gl_term(s/4, [_A, B],  [B, _C]))]
     ) :- 
         TermIn  = s(_X, Y | Y, _Z),
-        tr_sdcl_term(TermIn, TermOut).
+        translate_to_gl_term(TermIn, TermOut).
 
-test(tr_sdcl_term2,
-     [true(TermOut =@= sdcl_term(s/4, [[_A], B],  [B, _C]))]
+test(translate_to_gl_term2,
+     [true(TermOut =@= gl_term(s/4, [[_A], B],  [B, _C]))]
     ) :- 
         TermIn  = s([_X], Y | Y, _Z),
-        tr_sdcl_term(TermIn, TermOut).
+        translate_to_gl_term(TermIn, TermOut).
         
-:- end_tests('translate sdcl terms').
+:- end_tests('translate genlog terms').
 
-%% tr_sdcl_clause(Clause, sdcl_rule(RuleId, RuleHead,
-%% RuleBody, RuleWeight, RuleGroup).  RuleId is not bound here, can be bound
-%% later to provide unique Id to the rule.
-tr_sdcl_clause(Clause, Rule) :-
+%%         translate_to_gl_rule(+Clause, -GenLogRule, -RuleWeight)
+%%
+%% - Clause is a prolog clause in GenLog syntax.
+%% - GenLog is the corresponding gl_rule/4 term.
+%% - RuleWeight is the probability value extracted from the rule (or a default of 1).
+%%
+%% Note: RuleId is not bound here. It must be bound later to provide
+%% unique id to the rule.
+translate_to_gl_rule(Clause, Rule, RuleWeight) :-
         \+ var(Clause),
         copy_term(Clause, ClauseCopy), 
         numbervars(ClauseCopy), 
-        Rule = sdcl_rule(_, RuleHead, RuleBody, RuleWeight, RuleAlpha, RuleGroup),
+        Rule = gl_rule(_, RuleHead, RuleBody, RuleGroup),
         % strip rule weight if present
         (
          ClauseCopy = (Clause1 :: RuleWeight)
@@ -261,16 +311,16 @@ tr_sdcl_clause(Clause, Rule) :-
         % we always set default alpha value to 1
         RuleAlpha = 1.0,
         and_to_list(B, BList),
-        maplist(tr_numbered_sdcl_term, BList, BList1),
+        maplist(tr_numbered_gl_term, BList, BList1),
         list_to_and(BList1, RuleBody0), 
-        tr_numbered_sdcl_term(H, RuleHead0),
+        tr_numbered_gl_term(H, RuleHead0),
         % unnumber the variables NB: both head and body are unnumbered
         % at once so that we preserve the correspondence between variables
         varnumbers((RuleHead0, RuleBody0), (RuleHead, RuleBody)),
         goal_to_rule_group(RuleHead, RuleGroup),
         !.
 
-goal_to_rule_group(sdcl_term(F/A, _, Args), RuleGroup) :-
+goal_to_rule_group(gl_term(F/A, _, Args), RuleGroup) :-
         copy_term(Args, Args1),
         numbervars(Args1), 
         RuleGroup = rule_group(F/A, Args1).
@@ -278,35 +328,38 @@ goal_to_rule_group(sdcl_term(F/A, _, Args), RuleGroup) :-
         
         
 
-:- begin_tests('translate sdcl rules').
+:- begin_tests('translate gl rules').
 
-test('translate sdcl rule (no weight)',
+test('translate gl rule (no weight)',
      [
-      true(TermOut =@= sdcl_rule(_, Head, Body, Weight, Alpha, RuleGroup))]
+      true(TermOut =@= gl_rule(_, Head, Body, RuleGroup))
+     ]
     ) :- 
         RuleIn  = (s(X, Y | Y, Z) ---> a(X | Y), b(Y)),
-        tr_sdcl_clause(RuleIn, TermOut),
-        Head = sdcl_term(s/4, [X, Y], [Y, Z]),
-        Body = (sdcl_term(a/2, [X], [Y]), sdcl_term(b/1, [Y], [])),
+        translate_to_gl_rule(RuleIn, TermOut, RuleWeight),
+        Head = gl_term(s/4, [X, Y], [Y, Z]),
+        Body = (gl_term(a/2, [X], [Y]), gl_term(b/1, [Y], [])),
         Weight = 1.0,
         Alpha = 1.0, 
-        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)]).
+        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)]),
+        assertion(RuleWiehgt = Weight).
 
-test('translate sdcl rule (with weight)',
-     [true(TermOut =@= sdcl_rule(_, Head, Body, Weight, Alpha, RuleGroup))]
+test('translate gl rule (with weight)',
+     [true(TermOut =@= gl_rule(_, Head, Body, RuleGroup))]
     ) :- 
         RuleIn  = (s(X, Y | Y, Z) ---> a(X | Y), b(Y) :: 3.2),
-        tr_sdcl_clause(RuleIn, TermOut),
-        Head = sdcl_term(s/4, [X, Y], [Y, Z]),
-        Body = (sdcl_term(a/2, [X], [Y]), sdcl_term(b/1, [Y], [])),
+        translate_to_gl_rule(RuleIn, TermOut, Weight),
+        Head = gl_term(s/4, [X, Y], [Y, Z]),
+        Body = (gl_term(a/2, [X], [Y]), gl_term(b/1, [Y], [])),
         Weight = 3.2,
         Alpha = 1.0,
-        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)]).
+        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)]),
+        assertion(Weight=RuleWeight).
                         
-:- end_tests('translate sdcl rules').
+:- end_tests('translate gl rules').
 
 
-tr_numbered_sdcl_term(TIn, sdcl_term(Functor/Arity, Vars, Conds)) :-
+tr_numbered_gl_term(TIn, gl_term(Functor/Arity, Vars, Conds)) :-
         functor(TIn, Functor, _),
         TIn =.. [_|Args],
         tr_split_args(Args, Vars, Conds),
@@ -541,7 +594,8 @@ save_gl(Dir, Prefix, Options) :-
         ;
          !,
          tell(Path),
-         listing(compile:sdcl_rule/6),
+         listing(compile:gl_rule/4),
+         %% FIXME: This needs to save the global variables gl_rule_prob and gl_rule_alpha
          told
         ).
         
