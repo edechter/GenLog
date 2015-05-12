@@ -203,7 +203,7 @@ set_rule_alpha(RuleId, A) :-
         find_rule_by_id(RuleId, Rule),
         set_alpha_of_sdcl_rule(A, Rule, NewRule),
         retractall(Rule),
-        assert(NewRule).
+        asserta(NewRule).
 
 
 
@@ -523,18 +523,12 @@ test(mi_best_first,
 %%
 %% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, PrefixMassList, +OptionsRecord) 
 mi_best_first_go(PQ, _, _, _, _, _) :-
-        %% --- DEBUG
-        % print_current_frame,
-        %% ---
 
         % if PQ is empty, fail.
         PQ=pq(_, 0, _),
         !,
         fail.
 mi_best_first_go(PQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
-        %% --- DEBUG
-        % print_current_frame,
-        %% ---
 
         % Solution is found, return goal.
         % Continue to next goal on backtracking.
@@ -550,9 +544,6 @@ mi_best_first_go(PQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsReco
         ).
         
 mi_best_first_go(PQ, OrigGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
-        %% --- DEBUG
-        % print_current_frame,
-        %% ---
 
         % If the next best is not a solution
         % get the best solution from priority queue
@@ -562,33 +553,16 @@ mi_best_first_go(PQ, OrigGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord
         % extend best solution
         % pprint_assoc(PrefixMassAssoc),         
         extend(Elem, Extensions),
-        % findall(_,
-        %         (member(deriv_info(Gs-Unbound, _, _), Extensions),
-        %          findall(X-Y,
-        %                  (member(goal(_, G0, U0), Gs),
-        %                   pprint_term(G0, X),
-        %                   pprint_term(U0, Y)),
-        %                  Gs1),
-        %          % maplist(pprint_term, Gs, Gs1), 
-        %          format("Extension: ~w -- ~w\n", [Gs1, Unbound])),
-        %         _),
                         
         % update the prefix mass assoc
         update_prefix_mass_list(Extensions, PrefixMassList, PrefixMassList1),
         % pprint_pairs(PrefixMassList1),
         % nl, 
 
-        % %% if any of the generated elements is a solution, return
-        % %% these immediately
-        % (
-        %  member(deriv_info([]-OrigGoal, LogProb, DGraphOut), Extensions)
-        % ;
-         insert_extensions_into_beam(Extensions, OrigGoal, PrefixMassList1, Beam, NewBeam, OptionsRecord),
-         % nl, 
-         % writeln('BEAM:'),
-         % pq_show(NewBeam), 
-         mi_best_first_go(NewBeam, OrigGoal, LogProb, DGraphOut, PrefixMassList1, OptionsRecord).
-        % ).
+        insert_extensions_into_beam(Extensions, OrigGoal, PrefixMassList1,
+                                    Beam, NewBeam, OptionsRecord),
+
+        mi_best_first_go(NewBeam, OrigGoal, LogProb, DGraphOut, PrefixMassList1, OptionsRecord).
 
 %% ----------------------------------------------------------------------
 %%      update_prefix_mass_list(DerivInfos, ListIn, ListOut)
@@ -854,7 +828,7 @@ match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
         
         Prob is P0/Z,
         
-        % NB: sdcl probabilities should be normalized at this point
+                                % NB: sdcl probabilities should be normalized at this point
         and_to_list(Body, TargetBodyList),
         and_to_list(UnBoundBody, UnBoundBodyList),
         pairs_keys_values(BodyList, TargetBodyList, UnBoundBodyList).

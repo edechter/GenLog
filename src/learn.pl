@@ -99,8 +99,8 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
 :- record vbem_options(max_iter = 1000, % maximum number of iterations to run vbem
                        epsilon  = 1e-3, % stop when improvement is in
                                         % variational lower bound is less than epsilon
-                       
-                       % how to initialize the hyperparameters
+
+                       % how to initialize the variational parameters
                        % normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.   
                        init_params = normal(0.1, 0.001)
@@ -151,8 +151,8 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
              _Wall_time), 
         debug(learning, "Online VBEM: Iter ~w complete: ~2f s \n", [Iter, CPU_time]),
 
-
         set_rule_alphas(HyperParams),
+
         
         online_vbem_options_max_iter(OptRecord, MaxIter),
         (Iter >= MaxIter ->
