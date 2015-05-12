@@ -53,16 +53,17 @@ count_sentence(Lo, Hi, X) :-
 
 number_sentences1(Xs) :-
         findall(X-W,
-                (between(1, 5, N),
+                (member(N, [5]),
                  count_sentence(1, N, X),
-                 W is 1 / N),
+                 W is 1),
                 Xs).
         
 goal(Goal) :-
         number_sentences1(Xs),
         member(X-C, Xs),
         atomic_list_concat(Ws, ' ', X),
-        T = hear(Ws-[]),
+        append(Ws, Z, Ws1), 
+        T = hear(Ws1-[]),
         Goal = count(T,1)-C.
                       
 goals(Goals) :-
@@ -72,7 +73,7 @@ goals(Goals) :-
 main :-
         % experiment:setup_experiment,
         compile_sdcl_file('../gls/test.gl'),
-        Options = [beam_width(100), time_limit_seconds(4)],
+        Options = [beam_width(500), time_limit_seconds(4)],
         set_rule_alphas(uniform),
         goals(Goals),
         list_to_categorical(Goals, GoalGen),
