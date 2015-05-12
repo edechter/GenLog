@@ -411,7 +411,7 @@ normalize_variational_weights(VariationalWeightsNum, %% numerator
                 (
                  member(RuleId, RuleIds),
                  get_assoc(RuleId, VariationalWeightsNum, VNum),
-                 sdcl_rule(RuleId, _, _, _, _, RuleGroup),
+                 gl_rule(RuleId, _, _, RuleGroup),
                  get_assoc(RuleGroup, VariationalWeightsDen, VDen),
                  VariationalWeight <- exp(VNum - digamma(VDen))
                  ),
@@ -430,7 +430,7 @@ sum_rule_assoc_across_rule_groups_go(RuleVals, RuleGroupAssoc) :-
 sum_rule_assoc_across_rule_groups_go([], AssocIn, AssocOut) :- !, AssocIn = AssocOut.
 sum_rule_assoc_across_rule_groups_go([RuleId-Val|Rest], AssocIn, AssocOut) :-
         find_rule_by_id(RuleId, Rule),
-        sdcl_rule_group(Rule, RuleGroup),
+        gl_rule_group(Rule, RuleGroup),
         (
          get_assoc(RuleGroup, AssocIn, V_Old, AssocTmp, V_New) -> 
          V_New is V_Old + Val

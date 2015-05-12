@@ -22,17 +22,17 @@
 :- use_module(sdcl). 
 
 %% ----------------------------------------------------------------------
-%% pretty print sdcl_terms and corresponding rules
+%% pretty print gl_terms and corresponding rules
 
 pprint_rule(r(RuleN), Out) :-
         find_rule_by_id(r(RuleN), Rule),
         pprint_rule(Rule, Out).
-pprint_rule(sdcl_rule(_, Head, Body, _, _,  _), Out) :-
+pprint_rule(gl_rule(_, Head, Body, _), Out) :-
         pprint_rule(Head, Body, Out).
 
 pprint_rule(Head, Body, Out) :-
         copy_and_numbervars((Head, Body), (HeadN, BodyN)), 
-        HeadN = sdcl_term(_, _, _),
+        HeadN = gl_term(_, _, _),
         pprint_term(HeadN, HeadString),
         (\+ is_list(BodyN) -> 
          and_to_list(BodyN, BodyList)
@@ -40,7 +40,7 @@ pprint_rule(Head, Body, Out) :-
          BodyN = BodyList
         ), 
         (
-         BodyList = [sdcl_term(_, _, _)|_] ->
+         BodyList = [gl_term(_, _, _)|_] ->
          maplist(pprint_term, BodyList, BodyStrings),
          maplist(call(atomic_concat, '     '), BodyStrings, BodyStrings1), 
          atomic_list_concat(BodyStrings1, ',\n', BodyString),
@@ -55,7 +55,7 @@ pprint_rule(R) :-
         write(Out).
 
 
-pprint_term(sdcl_term(F/_, Vars, Conds), Out) :-
+pprint_term(gl_term(F/_, Vars, Conds), Out) :-
         % copy_and_numbervars((Vars, Conds), (VarsN, CondsN)),
         pprint_vars_conds(Vars, Conds, VarConds),
         format(atom(Out), "~w(~w)", [F, VarConds]).
@@ -163,7 +163,7 @@ pprint_rule_map_in_rule_group(Options, Assoc, RuleGroup, Out) :-
          
 % show_rules :-
 %         findall(Id-W, 
-%                 sdcl_rule(Id, _, _, W, _),
+%                 gl_rule(Id, _, _, W, _),
 %                 Assoc),
 %         keysort(Assoc,AssocSorted),
 %         !,

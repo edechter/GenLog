@@ -26,25 +26,17 @@
            normalize_rule_group/1,
            normalize_rules/0,
 
-           sdcl_rule_id/2,
-           sdcl_rule_head/2,
-           sdcl_rule_body/2,
-           sdcl_rule_prob/2,
-           sdcl_rule_alpha/2, 
-           sdcl_rule_group/2,
+           gl_rule_id/2,
+           gl_rule_head/2,
+           gl_rule_body/2,
+           gl_rule_group/2,
           
-           set_id_of_sdcl_rule/2,
-           set_id_of_sdcl_rule/3,
-           set_head_of_sdcl_rule/2,
-           set_head_of_sdcl_rule/3,
-           set_body_of_sdcl_rule/2,
-           set_body_of_sdcl_rule/3,
-           set_prob_of_sdcl_rule/2,
-           set_prob_of_sdcl_rule/3,
-           set_alpha_of_sdcl_rule/2, 
-           set_alpha_of_sdcl_rule/3,
-           set_group_of_sdcl_rule/2,
-           set_group_of_sdcl_rule/3,
+           set_id_of_gl_rule/2,
+           set_id_of_gl_rule/3,
+           set_head_of_gl_rule/2,
+           set_head_of_gl_rule/3,
+           set_body_of_gl_rule/2,
+           set_body_of_gl_rule/3,
            
            mi_best_first/3,
            mi_best_first/4,
@@ -104,53 +96,31 @@
            'Estimate of number of logical inferences per second.').
 
 %% ----------------------------------------------------------------------
-%% sdcl_rule record
+%% gl_rule record
 
-:- record sdcl_rule(id,
-                    head,
-                    body,
-                    prob,
-                    alpha, 
-                    group).
+:- record gl_rule(id,
+                  head,
+                  body,
+                  group).
 
 
 find_rule_by_id(RuleId, Rule) :-
-        make_sdcl_rule([id(RuleId)], Rule),
+        make_gl_rule([id(RuleId)], Rule),
         call(Rule), !
         ;
-        throw(error(domain_error(sdcl_rule, Rule),
+        throw(error(domain_error(gl_rule, Rule),
                     find_rule_by_id(RuleId, Rule))).
-
-% :- begin_tests('sdcl_rule record').
-
-% test('find_rule_by_id',
-%      [
-%       setup(setup_trivial_sdcl),
-%       forall((setup_trivial_sdcl, rules(Rules), member(RuleId, Rules))),
-%       true(Rule1 =@= Rule),
-%       cleanup(cleanup_trivial_sdcl)
-%      ]) :-
-%         find_rule_by_id(RuleId, Rule1),
-%         Rule = sdcl_rule(RuleId, _, _, _, _, _),
-%         call(Rule),
-%         !.
         
        
 
-% :- end_tests('sdcl_rule record').
-
 % accessors and setters for rule probability values
 get_rule_prob(RuleId, P) :-
-        find_rule_by_id(RuleId, Rule),
-        sdcl_rule_prob(Rule, P).
-                 
+        term_to_atom(gl_rule_prob(RuleId), Name),
+        nb_getval(Name, P).
 
 set_rule_prob(RuleId, P) :-
-        find_rule_by_id(RuleId, Rule),
-        set_prob_of_sdcl_rule(P, Rule, NewRule),
-        retractall(Rule),
-        assert(NewRule).
-
+        term_to_atom(gl_rule_prob(RuleId), Name),
+        nb_setval(Name, P).
 
 set_rule_probs(normal(Mean, StdDev)) :-
         !,
@@ -181,9 +151,8 @@ get_rule_probs(RuleIdProbAssoc) :-
 
 % accessors and setters for rule alpha values
 get_rule_alpha(RuleId, Alpha) :-
-        find_rule_by_id(RuleId, Rule),
-        sdcl_rule_alpha(Rule, Alpha).
-
+        term_to_atom(gl_rule_alpha(RuleId), Name), 
+        nb_getval(Name, Alpha).
 
 get_rule_alphas(AlphaAssoc) :-
         findall(RuleId-Alpha,
@@ -200,12 +169,8 @@ set_rule_alpha(RuleId, A) :-
         assertion(number(A)),
         assertion(A>0),
         !,
-        find_rule_by_id(RuleId, Rule),
-        set_alpha_of_sdcl_rule(A, Rule, NewRule),
-        retractall(Rule),
-        asserta(NewRule).
-
-
+        term_to_atom(gl_rule_alpha(RuleId), Name),
+        nb_setval(Name, A).
 
 set_rule_alphas(default) :-
         !,
@@ -243,8 +208,6 @@ set_rule_alphas(normal(Mean, StdDev)) :-
         pairs_keys_values(RAs, RuleIds, Alphas),
         list_to_assoc(RAs, AlphasAssoc), 
         set_rule_alphas(AlphasAssoc).
-                
-                
                  
 set_rule_alphas(Assoc) :-
         is_assoc(Assoc), !,
@@ -266,7 +229,7 @@ test(set_default_rule_alpha,
         rule(RuleId),
         find_rule_by_id(RuleId, Rule),
         set_rule_alpha(RuleId, default),
-        sdcl_rule_alpha(Rule, Alpha).
+        get_rule_alpha(RuleId, Alpha).
 
 test(set_default_rule_alphas,
      [setup(setup_trivial_sdcl),
@@ -274,8 +237,7 @@ test(set_default_rule_alphas,
       all(Alpha=[1.0, 1.0])]) :-
         set_rule_alphas(default),
         rule(RuleId),
-        find_rule_by_id(RuleId, Rule),
-        sdcl_rule_alpha(Rule, Alpha).
+        get_rule_alpha(RuleId, Alpha).
 
 test(set_uniform_rule_alpha,
      [setup(setup_sdcl('../example/trivial_2.gl')),
@@ -309,9 +271,9 @@ test(set_uniform_k_rule_alpha,
 
         
 rules(RuleIds) :-
-        make_sdcl_rule([], Rule),
+        make_gl_rule([], Rule),
         findall(RuleId, (call(Rule),
-                         sdcl_rule_id(Rule, RuleId)),
+                         gl_rule_id(Rule, RuleId)),
                 RuleIds).
 
 rule(RuleId) :-
@@ -321,15 +283,15 @@ rule(RuleId) :-
 
 rule_functor(RuleId, Functor/Arity) :-
         find_rule_by_id(RuleId, Rule),
-        sdcl_rule_head(Rule, sdcl_term(Functor/Arity, _, _)).
+        gl_rule_head(Rule, gl_term(Functor/Arity, _, _)).
 
 functor_rules(Functor/Arity, RuleIds) :-
         FA = Functor/Arity,
         findall(RuleId,
               (
-               make_sdcl_rule([id(RuleId)], R),
+               make_gl_rule([id(RuleId)], R),
                call(R),
-               sdcl_rule_head(R, sdcl_term(FA, _, _))
+               gl_rule_head(R, gl_term(FA, _, _))
                 ),
               RuleIds).
 
@@ -342,14 +304,14 @@ functors(Functors) :-
 
 rule_group_rules(RuleGroup, RuleIds) :-
         findall(RuleId,
-                sdcl_rule(RuleId, _, _, _, _, RuleGroup),
+                gl_rule(RuleId, _, _, RuleGroup),
                 RuleIds).
 
 %% rule_groups(-RuleGroups) is det.
 %% RuleGroups is a list of rule groups present in the current rule set. 
 rule_groups(RuleGroups) :-
         findall(RuleGroup,
-                sdcl_rule(_, _, _, _, _, RuleGroup),
+                gl_rule(_, _, _, RuleGroup),
                 RuleGroups0),
         sort(RuleGroups0, RuleGroups).
 
@@ -454,7 +416,7 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         writeln(options-OptionsRecord), 
 
         % translate goal
-        tr_sdcl_term(Goal, GoalTr),
+        translate_to_gl_term(Goal, GoalTr),
         
         % unbind the head variables from initial goal,
         % so that we can keep track of generalized prefix
@@ -620,9 +582,9 @@ test(inserts_into_list_by_variant,
 %% ----------------------------------------------------------------------
 %%      unbind_sdcl_head_vars(Goal, UnboundGoal)
 %%
-%%      Given a goal of the form sdcl_term(F/A, [A1, ..., An], [B1, ..., Bn]), replace
+%%      Given a goal of the form gl_term(F/A, [A1, ..., An], [B1, ..., Bn]), replace
 %%      all the A's that are not variables, with fresh variables.
-unbind_sdcl_head_vars(sdcl_term(F/A, Hs, Cs), sdcl_term(F/A, Hs1, Cs)) :-
+unbind_sdcl_head_vars(gl_term(F/A, Hs, Cs), gl_term(F/A, Hs1, Cs)) :-
         unbind_sdcl_head_vars_go(Hs, Hs1).
 
 unbind_sdcl_head_vars_go([], []) :- !.
@@ -701,7 +663,7 @@ test(extend,
       true(Next=2)]
      ) :-
     X = s(_, _),
-    tr_sdcl_term(X, T),
+    translate_to_gl_term(X, T),
     G = goal(1, T, T), 
     
     DInfo = deriv_info([G]-G, 0, dgraph(_, [1], [])),
@@ -805,15 +767,16 @@ gen_node_id(Id) :-
 %% match(Goal-UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
 match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
         % find all matching rules for the current conditioner
-        Goal = sdcl_term(F/A, _, Conds),
-        Head = sdcl_term(F/A, _, Conds),
+        Goal = gl_term(F/A, _, Conds),
+        Head = gl_term(F/A, _, Conds),
         findall(P,
-                sdcl_rule(RuleId, Head, _, P, _, _),
+                (gl_rule(RuleId, Head, _, _),
+                 get_rule_prob(RuleId, P)),
                 Ps),
         sum_list(Ps, Z),
         !,
         % find a matching rule for the goal in the db
-        Rule=sdcl_rule(RuleId, _, _, _, _, _),
+        Rule=gl_rule(RuleId, _, _, _),
         Rule,
         %% Debug
         % pprint_term(Goal, GString), 
@@ -822,9 +785,10 @@ match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
               % "Matching ~w against rule ~w", [GString, RString]),
         %% End Debug
         copy_term(Rule, RuleCopy),
-        unify_with_occurs_check(RuleCopy, sdcl_rule(RuleId, Goal, Body, P0, _, _)), 
+        unify_with_occurs_check(RuleCopy, gl_rule(RuleId, Goal, Body, _)),
+        get_rule_prob(RuleId, P0),
         copy_term(Rule, RuleCopy2),
-        RuleCopy2 = sdcl_rule(RuleId, UnBoundGoal, UnBoundBody, _, _, _), 
+        RuleCopy2 = gl_rule(RuleId, UnBoundGoal, UnBoundBody, _), 
         
         Prob is P0/Z,
         
@@ -848,7 +812,7 @@ test(match,
       true(NMatch=2)]
      ) :-
     X = s(_, _),
-    tr_sdcl_term(X, G),
+    translate_to_gl_term(X, G),
     
     findall(RuleId, 
             match(G-G, RuleId, _, _),
@@ -1303,19 +1267,19 @@ print_current_frame :-
 trivial_sdcl_file('../example/trivial.gl').
 
 setup_trivial_sdcl :-
-        retractall(sdcl_rule(_, _, _, _, _, _)),
+        remove_all_rules,
         trivial_sdcl_file(File), 
         compile_sdcl_file(File).
 
 cleanup_trivial_sdcl :-
-        retractall(sdcl_rule(_, _, _, _, _, _)).
+        remove_all_rules.
 
 setup_sdcl(File) :-
-        retractall(sdcl_rule(_, _, _, _, _, _)),
+        remove_all_rules, 
         compile_sdcl_file(File).
 
 cleanup_sdcl :-
-        retractall(sdcl_rule(_, _, _, _, _, _)).
+        remove_all_rules.
 
 
 log_sum_exp(Xs, Y) :-
