@@ -191,6 +191,10 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy) :-
         variational_em_single_iteration(Goals, HyperParams, FreeEnergy, []).
 
 variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
+        get_rule_alphas(PriorHyperParams),
+        compute_variational_weights(PriorHyperParams, Weights),
+        set_rule_probs(Weights),
+
         writeln(prove_goals(Goals, DSearchResults, Options)),
         prove_goals(Goals, DSearchResults, Options),
         writeln(done),
@@ -203,11 +207,8 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
         (NResults > 0 -> 
          expected_rule_counts(DSearchResults, ExpectedCounts, Options),
          increment_alphas_by(ExpectedCounts), 
-         % update_hyperparams(ExpectedCounts, HyperParams),
          get_rule_alphas(HyperParams),
          compute_variational_weights(HyperParams, NewWeights),
-         set_rule_probs(NewWeights),
-         get_rule_alphas(PriorHyperParams), 
          free_energy(PriorHyperParams,
                      HyperParams,
                      NewWeights,
@@ -406,13 +407,11 @@ compute_variational_weights(VariationalParams, VariationalWeights) :-
 normalize_variational_weights(VariationalWeightsNum, %% numerator
                               VariationalWeightsDen,  %% denominator
                               VariationalWeights) :-
-        rules(RuleIds), 
         findall(RuleId-VariationalWeight,
-                (
-                 member(RuleId, RuleIds),
-                 get_assoc(RuleId, VariationalWeightsNum, VNum),
+                ( 
                  gl_rule(RuleId, _, _, RuleGroup),
-                 get_assoc(RuleGroup, VariationalWeightsDen, VDen),
+                 get_assoc(RuleId, VariationalWeightsNum, VNum), 
+                 get_assoc(RuleGroup, VariationalWeightsDen, VDen), 
                  VariationalWeight <- exp(VNum - digamma(VDen))
                  ),
                 RVs),
@@ -429,8 +428,7 @@ sum_rule_assoc_across_rule_groups_go(RuleVals, RuleGroupAssoc) :-
 
 sum_rule_assoc_across_rule_groups_go([], AssocIn, AssocOut) :- !, AssocIn = AssocOut.
 sum_rule_assoc_across_rule_groups_go([RuleId-Val|Rest], AssocIn, AssocOut) :-
-        find_rule_by_id(RuleId, Rule),
-        gl_rule_group(Rule, RuleGroup),
+        gl_rule(RuleId, _, _, RuleGroup), 
         (
          get_assoc(RuleGroup, AssocIn, V_Old, AssocTmp, V_New) -> 
          V_New is V_Old + Val
