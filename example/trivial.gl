@@ -8,5 +8,6 @@
 
 s(X, Y) ---> s(X, Z), s(Z, Y) :: 0.4.
 s([a|X], X).
+s([b|X], X).
   
 :- end(genlog).
