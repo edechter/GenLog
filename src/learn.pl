@@ -26,8 +26,9 @@
 :- nodebug(real).
 
 :- getenv('GENLOG_DIR', Dir),
-   atomic_list_concat([Dir, 'learn.r'], Learn_R_Path),
-   r(source(+Learn_R_Path)).
+   atomic_list_concat([Dir, '/', 'learn.r'], Learn_R_Path),
+   prolog_to_os_filename(Learn_R_Path, Learn_R_Path2),
+   r(source(+Learn_R_Path2)).
 :- r(library("matrixStats")).
 
 :- use_module(sdcl).
@@ -56,7 +57,9 @@ run_batch_vbem(Goals) :-
         run_batch_vbem(Goals, []).
 
 run_batch_vbem(Goals, Options) :-
-        make_vbem_options(Options, OptRecord, _), 
+        make_vbem_options(Options, OptRecord, _),
+
+        print_message(informational, batch_vbem(start(OptRecord))),
 
         %% initialize the alpha hyperparams
         vbem_options_init_params(OptRecord, InitParams), 
@@ -68,13 +71,14 @@ run_batch_vbem(Goals, Options) :-
 % worker predicate
 % * FreeEnergy0: the value of the variational free energy on the last
 % iteration.
+
 run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
-        debug(learning, "Batch VBEM: Iter ~w...\n", [Iter]),
+        print_message(informational, batch_vbem(start_iter(Iter))),
         time(
              variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options),
              CPU_time,
              _Wall_time), 
-        debug(learning, "Batch VBEM: Iter ~w complete: ~2f s \n", [Iter, CPU_time]),
+        print_message(informational, batch_vbem(end_iter(Iter, CPU_time))),
 
         DeltaFreeEnergy is FreeEnergy - FreeEnergy0,
         
@@ -90,8 +94,7 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
          vbem_options_epsilon(OptRecord, Eps),
          abs(FreeEnergy0 - FreeEnergy) < Eps ->
          debug(learning, "Batch VBEM: Converged ... Finished. \n", [])
-        ;
-         
+        ;         
          Iter1 is Iter + 1,
          run_batch_vbem(Goals, Iter1, FreeEnergy, Options)
         ).
@@ -119,10 +122,9 @@ run_online_vbem(GoalGen, Data) :-
         run_online_vbem(GoalGen, Data, []).
 
 run_online_vbem(GoalGen, Data, Options) :-
-        debug(learning, "Online VBEM: Running ...", []),
-        debug(learning, "Online VBEM: User Options: ~w", [Options]),
+        make_online_vbem_options(Options, OptRecord, _),
 
-        make_online_vbem_options(Options, OptRecord, _), 
+        print_message(informational, online_vbem(start(OptRecord))),
 
         %% initialize the alpha hyperparams
         online_vbem_options_init_params(OptRecord, InitParams), 
@@ -133,25 +135,26 @@ run_online_vbem(GoalGen, Data, Options) :-
         
 
 run_online_vbem(GoalGen, Iter, DataOut, Options) :-
-        
-        debug(learning, "Online VBEM: Iter ~w...\n", [Iter]),
+
+        print_message(informational, online_vbem(start_iter(Iter))),
 
         make_online_vbem_options(Options, OptRecord, _), 
         
         %% get next goal
         (yield(GoalGen, Goal, GoalGen1) -> true
         ;
-         debug(learning, "No more goals from goal generator. Finishing.", []),
+         print_message(informational, online_vbem(no_more_goals)),
          fail,
          !
         ), 
-
-        debug(learning, "Online VBEM: Goal -- ~w", [Goal]),
+        print_message(informational, online_vbem(goal(Goal))),
         time(
              variational_em_single_iteration([Goal], HyperParams, FreeEnergy, Options),
              CPU_time,
-             _Wall_time), 
-        debug(learning, "Online VBEM: Iter ~w complete: ~2f s \n", [Iter, CPU_time]),
+             _Wall_time),
+
+        print_message(informational, online_vbem(end_iter(Iter, CPU_time))),
+                      
 
         set_rule_alphas(HyperParams),
 
@@ -196,9 +199,8 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
         compute_variational_weights(PriorHyperParams, Weights),
         set_rule_probs(Weights),
 
-        writeln(prove_goals(Goals, DSearchResults, Options)),
+
         prove_goals(Goals, DSearchResults, Options),
-        writeln(done),
 
         findall(L,
                 (member(dsearch_result(_Goal, _Count, D), DSearchResults),
@@ -217,7 +219,7 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
                      _LogLikelihood,
                      FreeEnergy)
         ;
-         format("VBEM: no derivation results found. Continuing without updating parameters\n."),
+         print_message(informational, online_vbem(no_derivations_found)),
          get_rule_alphas(PriorHyperParams),
          HyperParams = PriorHyperParams
         ).
@@ -527,10 +529,8 @@ prove_goals(Goals, Derivations, Options) :-
 prove_goals([], DsIn, DsIn, _).
 prove_goals([count(Goal, Count) | Goals], DsIn, DsOut, Options) :-
         !,
-        writeln(Options), 
         mi_best_first_all(Goal, Derivations, _, Options),
-        length(Derivations, N), 
-        debug(expl_search, "Num derivs found for ~w: ~w", [Goal, N]), 
+        length(Derivations, N),
         DsTmp = [dsearch_result(Goal, Count, Derivations) | DsIn],
         prove_goals(Goals, DsTmp, DsOut, Options).
 prove_goals([Goal|Goals], DsIn, DsOut, Options) :-
@@ -738,4 +738,58 @@ time(Goal, CPU, Wall) :-
 	get_time(T1),
 	Wall is T1-T0,
 	CPU is CPU1-CPU0.
+
+
+%% ----------------------------------------------------------------------
+%%
+%%      Messages
+%%
+
+:- multifile
+	prolog:message//1.
+
+batch_vbem_prefix --> ['Batch VBEM:     ' -[]].
+
+prolog:message(batch_vbem(start(OptionsRecord))) -->
+        batch_vbem_prefix, ['Initializing with options: '-[]], [nl],
+        batch_vbem_prefix, ["~w" -[OptionsRecord]], [nl],
+        batch_vbem_prefix, [nl],
+        batch_vbem_prefix, ['Running ...'-[]], [nl].
+
+
+prolog:message(batch_vbem(start_iter(I))) -->
+        ['Batch VBEM: Iter ~w ...' - [I]],
+        [nl].
+prolog:message(batch_vbem(end_iter(I, Time))) -->
+        ['Batch VBEM: Iter ~w complete.' - [I]],
+        ['Batch VBEM: Time elpased: ~2f sec' - [Time]], [nl], 
+        [nl].
+
+
+online_vbem_prefix -->
+        ['Online VBEM:     ' -[]].
+
+prolog:message(online_vbem(start(OptionsRecord))) -->
+        online_vbem_prefix, ['Initializing with options: '-[]], [nl],
+        online_vbem_prefix, ["~w" -[OptionsRecord]], [nl],
+        online_vbem_prefix, [nl],
+        online_vbem_prefix, ['Running ...'], [nl].
+        
+prolog:message(online_vbem(start_iter(I))) -->
+        online_vbem_prefix, ['Iter ~w ...' - [I]],
+        [nl].
+prolog:message(online_vbem(end_iter(I, Time))) -->
+        online_vbem_prefix, ['Iter ~w complete.' - [I]], [nl],
+        online_vbem_prefix, ['Time elpased: ~2f sec' - [Time]], [nl] ,
+        [nl].
+prolog:message(online_vbem(no_derivations_found)) -->
+        online_vbem_prefix, 
+        ['No derivation results found.'-[]], [nl].
+
+
+prolog:message(online_vbem(no_more_goals)) -->
+        online_vbem_prefix, ['No more goals.'-[]], [nl].
+prolog:message(online_vbem(goal(Goal))) -->
+        online_vbem_prefix, ['current goal: ~w'-[Goal]], [nl].
+        
 

@@ -414,7 +414,8 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         mi_best_first_options_default(DefaultOptions),
         merge_options(Options, DefaultOptions, AllOptions),
         make_bf_options(AllOptions, OptionsRecord, _RestOptions),
-        writeln(options-OptionsRecord), 
+
+        print_message(informational, expl_search(start(OptionsRecord))), 
 
         % translate goal
         translate_to_gl_term(Goal, GoalTr),
@@ -429,7 +430,6 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         GoalList = [goal(NodeId, GoalTr, UnBoundGoalTr)],
 
         bf_options_beam_width(OptionsRecord, BeamWidth),
-        writeln(beam-width-BeamWidth), 
 
         % initialize priority queue. Each element of priority queue is
         % of the form deriv_info(CurrentGoalList-OrigGoal, DerivationGraph)
@@ -635,13 +635,10 @@ insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList, BeamIn, Beam
                   log_sum_exp(Masses, LogZ)
                  ),
                  Score is LogProb-LogZ
-                 % writeln(OrigGoal-Score/logprob-LogProb/logz-LogZ/masses-Masses)
                 ), 
                 PqElems),
-        % writeln(pqelems-PqElems),
         bf_options_beam_width(OptionsRecord, BeamWidth),
         list_to_pq(PqElems, BeamWidth, BeamOut).
-        % pq_show(BeamOut).
 
 collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, Masses) :-
         collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, [], Masses).
@@ -854,7 +851,6 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
                  TimeLimit, 
                  (mi_best_first(Goal, Score, DGraph, Options),
                   assertz(mi_best_first_all_derivation(deriv(Goal, DGraph, Score))),
-                  % writeln(assertz(deriv(Goal, DGraph, Score))),
                   fail 
                  ;
                   true
@@ -873,7 +869,8 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
                 Scores),
 
 
-        writeln(scores-Scores), 
+
+        
         (Scores=[] -> % failed to find any derivations,
          LogP = 0, 
          Results = []
@@ -886,10 +883,12 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
                  ),
                  Results)
         ),
+
         findall(Cond,
                 member(deriv(_, _, Cond), Results),
                 Conds),
-        writeln(condProbs-Conds).
+        
+        print_message(information, expl_search(scores(Scores, Conds))).
 
         
 %% ----------------------------------------------------------------------
@@ -1278,7 +1277,42 @@ log_sum_exp(Xs, Y) :-
 
 log_sum_exp_go(Xm, X, Y) :-
         Y is exp(X-Xm).
-        
+
+
+
+%% ----------------------------------------------------------------------
+%%
+%%      Messages
+%%
+
+:- multifile
+	prolog:message//1.
+
+
+expl_search_prefix -->
+        ['Expl Search:     ' -[]].
+
+prolog:message(expl_search(start(OptionsRecord))) -->
+        expl_search_prefix, ['Initializing with options: '-[]], [nl],
+        expl_search_prefix, ["~w" -[OptionsRecord]], [nl],
+        expl_search_prefix, [nl],
+        expl_search_prefix, ['Running ...'-[]], [nl].
+
+prolog:message(expl_search(scores(Scores, Conds))) -->
+        {pairs_keys_values(Pairs, Scores, Conds)},
+        {keysort(Pairs, Pairs0)},
+        {reverse(Pairs0, PairsSorted)},
+        {length(PairsSorted, N)}, 
+        expl_search_prefix, ['Derivation Scores:'], [nl],
+        expl_search_prefix, ['Number: ~d'-[N]], [nl], 
+        print_scores_go_(PairsSorted). 
+
+print_scores_go_([]) --> expl_search_prefix, [nl].
+print_scores_go_([S-C|Ss]) -->
+        expl_search_prefix,
+        ['score: ~2f ; cond prob: ~2f'-[S, C]], [nl],
+        print_scores_go_(Ss).
+
         
         
         
