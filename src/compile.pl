@@ -121,8 +121,6 @@ compile_gl(File) :-
          compile_sdcl_clause(Clause),
          fail
         ).
-
-
        
 
 compile_sdcl_file(File) :-
@@ -596,9 +594,18 @@ save_gl(Dir, Prefix, Options) :-
          !,
          tell(Path),
          listing(compile:gl_rule/4),
-         %% FIXME: This needs to save the global variables gl_rule_prob and gl_rule_alpha
+         write_global_vars_,
          told
         ).
+
+write_global_vars_ :-
+        nb_current(N, V),
+        format("global_var(~w, ~w).\n", [N, V]),
+        fail
+        ;
+        true.
+        
+
         
 
 
