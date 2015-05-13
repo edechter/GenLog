@@ -131,6 +131,7 @@ compile_sdcl_file(File) :-
         split_gl_file(File, PTmp, GLTmp),
         load_files([PTmp], [module(compile)]),
         compile_gl(GLTmp),
+        normalize_rules,
         
         debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
 
