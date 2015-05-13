@@ -26,6 +26,7 @@
 :- setting(git_hash, atom, 'NONE', 'The current git commit.').
 :- setting(runner, atom, 'gl_runner.pl', 'Path to the runner script for the experiment.').
 :- setting(datetime, compound, date(none), 'The time this experiment was run.').
+:- setting(genlog_file, atom, 'NONE', 'The .gl file.').
         
 %% ----------------------------------------------------------------------
 %%      run_experiment
