@@ -176,7 +176,7 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
                        % how to initialize the hyperparameters
                        % normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.   
-                       init_params = normal(0.1, 0.001)
+                       init_params = normal(0.1, 0.01)
                       ).
 
 
