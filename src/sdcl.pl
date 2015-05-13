@@ -26,6 +26,7 @@
            normalize_rule_group/1,
            normalize_rules/0,
 
+           
            gl_rule_id/2,
            gl_rule_head/2,
            gl_rule_body/2,
@@ -495,7 +496,7 @@ mi_best_first_go(PQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsReco
         % Solution is found, return goal.
         % Continue to next goal on backtracking.
         pq_find_max(PQ, deriv_info([]-OrigGoal, LogProbMax, DGraph), Score, NewPQ),
-         
+        !,  
         (
          TargetGoal = OrigGoal,
          LogProb=LogProbMax,
@@ -510,11 +511,12 @@ mi_best_first_go(PQ, OrigGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord
         % If the next best is not a solution
         % get the best solution from priority queue
         pq_find_max(PQ, Elem, _Score, Beam),
-
+        !, 
         
         % extend best solution
         % pprint_assoc(PrefixMassAssoc),         
         extend(Elem, Extensions),
+        !, 
                         
         % update the prefix mass assoc
         update_prefix_mass_list(Extensions, PrefixMassList, PrefixMassList1),
@@ -766,33 +768,15 @@ gen_node_id(Id) :-
 %% match goal against SDCL DB
 %% match(Goal-UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
 match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
-        % find all matching rules for the current conditioner
-        Goal = gl_term(F/A, _, Conds),
-        Head = gl_term(F/A, _, Conds),
-        findall(P,
-                (gl_rule(RuleId, Head, _, _),
-                 get_rule_prob(RuleId, P)),
-                Ps),
-        sum_list(Ps, Z),
-        !,
         % find a matching rule for the goal in the db
-        Rule=gl_rule(RuleId, _, _, _),
-        Rule,
-        %% Debug
-        % pprint_term(Goal, GString), 
-        % pprint_rule(Rule, RString), 
-        % debug(match,
-              % "Matching ~w against rule ~w", [GString, RString]),
-        %% End Debug
-        copy_term(Rule, RuleCopy),
-        unify_with_occurs_check(RuleCopy, gl_rule(RuleId, Goal, Body, _)),
-        get_rule_prob(RuleId, P0),
-        copy_term(Rule, RuleCopy2),
-        RuleCopy2 = gl_rule(RuleId, UnBoundGoal, UnBoundBody, _), 
+        Rule=gl_rule(RuleId, Goal, Body, _),
+        copy_term(Body, UnBoundBody), 
+        call(Rule),        
+        % unify_with_occurs_check(RuleCopy, gl_rule(RuleId, GoalCp, BodyCp, _)),
+        get_rule_prob(RuleId, Prob),
+        RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundBody, _),
+        call(RuleCopy),
         
-        Prob is P0/Z,
-        
-                                % NB: sdcl probabilities should be normalized at this point
         and_to_list(Body, TargetBodyList),
         and_to_list(UnBoundBody, UnBoundBodyList),
         pairs_keys_values(BodyList, TargetBodyList, UnBoundBodyList).
