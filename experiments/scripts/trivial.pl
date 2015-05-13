@@ -4,8 +4,7 @@
 
 :- getenv('GENLOG_DIR', Dir),
    asserta(file_search_path(genlog, Dir));
-   true.
-   
+   true. 
         
 %% ----------------------------------------------------------------------
 
@@ -25,8 +24,9 @@
 :- absolute_file_name('./trivial.pl', Abs),
    set_setting(experiment:runner, Abs).
 
-%% experiment data directory
-:- set_setting(experiment:root, '../data').
+%% experiment root directory
+:- absolute_file_name('/Users/edechter/Dropbox/Projects/SDCL/experiments/', Abs),
+   set_setting(experiment:root, Abs).
 
 %% genlog file 
 :- getenv('GENLOG_DIR', Dir),
@@ -44,17 +44,23 @@ goal( s([a,a]-[]) ).
 goals(Goals) :-
         findall(G, goal(G),
                  Goals).
+
+options([
+         beam_width(500),
+         time_limit_seconds(4),
+         save_dir(SaveDir)
+        ]) :-
+        setting(experiment:data_path, SaveDir).
         
 main :-
-        % experiment:setup_experiment,
+        experiment:setup_experiment,
         setting(experiment:genlog_file, GL_FILE), 
         compile_sdcl_file(GL_FILE),
-        Options = [beam_width(500), time_limit_seconds(4)],
         set_rule_alphas(uniform),
         goals(Goals),
         list_to_random_choice(Goals, GoalGen),
-        run_online_vbem(GoalGen, Data, Options),        
-        writeln(Data).
+        options(Options),
+        run_online_vbem(GoalGen, Data, Options).
   
 
         
