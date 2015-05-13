@@ -13,9 +13,7 @@
 
            prove_goals/2,
            prove_goals/3
-           
-           
-           
+          
            ]).
 
 :- use_module(library(record)).
@@ -108,7 +106,10 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
                        % how to initialize the variational parameters
                        % normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.   
-                       init_params = normal(0.1, 0.001)
+                       init_params = normal(0.1, 0.001),
+
+                       % where to save the genlog data files during learning
+                       save_dir    = './'
                       ).
 
 %% ----------------------------------------------------------------------
@@ -158,6 +159,9 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
 
         set_rule_alphas(HyperParams),
 
+        %% save data to file
+        online_vbem_options_save_dir(OptRecord, SaveDir), 
+        save_gl(SaveDir, 'ovbem_gl_', []),
         
         online_vbem_options_max_iter(OptRecord, MaxIter),
         (Iter >= MaxIter ->
@@ -169,18 +173,19 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         ).
 
 
-
-
          
-         
-
 %% options and defaults for online vbem
-:- record online_vbem_options(max_iter = 1000, % maximum number of iterations to run vbem
+:- record online_vbem_options(
+                       % maximum number of iterations to run vbem
+                       max_iter = 1000, 
                        
                        % how to initialize the hyperparameters
                        % normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.   
-                       init_params = normal(0.1, 0.01)
+                       init_params = normal(0.1, 0.01),
+
+                       % where to save the genlog data files during learning
+                       save_dir    = './'
                       ).
 
 
@@ -198,7 +203,6 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
         get_rule_alphas(PriorHyperParams),
         compute_variational_weights(PriorHyperParams, Weights),
         set_rule_probs(Weights),
-
 
         prove_goals(Goals, DSearchResults, Options),
 
@@ -530,7 +534,6 @@ prove_goals([], DsIn, DsIn, _).
 prove_goals([count(Goal, Count) | Goals], DsIn, DsOut, Options) :-
         !,
         mi_best_first_all(Goal, Derivations, _, Options),
-        length(Derivations, N),
         DsTmp = [dsearch_result(Goal, Count, Derivations) | DsIn],
         prove_goals(Goals, DsTmp, DsOut, Options).
 prove_goals([Goal|Goals], DsIn, DsOut, Options) :-

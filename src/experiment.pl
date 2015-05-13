@@ -22,11 +22,27 @@
 :- use_module(library(record)).
 :- use_module(library(settings)).
 
+
+%% ----------------------------------------------------------------------
+%%
+%%       Settings
+%%
+
 :- setting(root, atom,   '.', 'The root directory for experiment files and data.').
+
+:- setting(path, atom, 'NONE', 'The path to the experiment directory. Default: <root>/<time>').
+
+:- setting(data_path, atom, 'NONE', 'The path to the data directory. Default: <path>/data').
+
 :- setting(git_hash, atom, 'NONE', 'The current git commit.').
+
 :- setting(runner, atom, 'gl_runner.pl', 'Path to the runner script for the experiment.').
-:- setting(datetime, compound, date(none), 'The time this experiment was run.').
+
 :- setting(genlog_file, atom, 'NONE', 'The .gl file.').
+
+:- setting(datetime, compound, date(none), 'The time this experiment was run.').
+
+
         
 %% ----------------------------------------------------------------------
 %%      run_experiment
@@ -52,6 +68,7 @@ run_experiment(PATH_TO_RUNNER) :-
 run_experiment(PATH_TO_RUNNER) :-
         load_files([PATH_TO_RUNNER], [module(runner)]),
         setup_experiment,
+        print_message(informational, experiment(settings)),
         runner:main.
 
 setup_experiment :-
@@ -71,16 +88,19 @@ setup_experiment :-
         
         atomic_list_concat([ExperimentsRootAbs, '/', ExperimentDirectoryName], ExperimentPath0),
         prolog_to_os_filename(ExperimentPath0, ExperimentPath),
+
+        set_setting(path, ExperimentPath),
+       
         make_directory_path(ExperimentPath),
+        make_data_dir(ExperimentPath), 
         
         write_readme(ExperimentPath),
-        write_config(ExperimentPath).
+        write_config(ExperimentPath),
 
-
+        print_message(informational, experiment(settings)).
 
 write_readme(Directory) :-
         directory_file_path(Directory, 'README.txt', Path),
-        writeln(Path), 
         open(Path, write, Stream),
         format(Stream, "README.txt", []),
         close(Stream).
@@ -88,6 +108,15 @@ write_readme(Directory) :-
 write_config(Directory) :-
         directory_file_path(Directory, 'config.pl', Path),
         save_settings(Path).
+
+make_data_dir(Directory) :-
+        atomic_list_concat([Directory, '/', 'data'], DataPath0),
+        prolog_to_os_filename(DataPath0, DataPath),
+        set_setting(data_path, DataPath),
+        (exists_directory(DataPath) -> true
+        ;
+         make_directory(DataPath)
+        ).
 
 current_git_commit_hash(Hash) :-
         tmp_file('t', Tmp),
@@ -102,6 +131,32 @@ current_git_commit_hash(Hash) :-
         atom_codes(Hash, HashCodes).
 
 
+
+
+%% ----------------------------------------------------------------------
+%%
+%%      Messages
+%%
+
+:- multifile
+	prolog:message/1.
+
+exp_prefix --> ['Experiment Info:     ' -[]].
+
+prolog:message(experiment(settings)) -->
+        {findall(N-V,
+                (setting(Module:N, V),
+                 Module=experiment), 
+                NVs)}, 
+        exp_prefix, ['Experiment settings ~`.t~70|'-[]], [nl], 
+        exp_settings_go_(NVs),
+        exp_prefix, ['~`.t~70|'-[]], [nl].
+
+exp_settings_go_([]) --> [].
+exp_settings_go_([N-V|NVs]) -->
+        exp_prefix, ['~w: ~` t~40| ~w'-[N, V]], [nl],
+        exp_settings_go_(NVs).
+       
         
-        
-         
+
+
