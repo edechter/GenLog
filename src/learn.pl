@@ -31,6 +31,7 @@
 :- r(library("matrixStats")).
 
 :- use_module(sdcl).
+:- use_module(compile).
 :- use_module(assoc_extra).
 :- use_module(pprint).
 
