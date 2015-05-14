@@ -9,6 +9,12 @@
            pprint_derivs/2,
            pprint_rule_probs/0,
            pprint_rule_probs/1,
+           pprint_rule_probs/2,
+
+           pprint_rule_alphas/0,
+           pprint_rule_alphas/1,
+           pprint_rule_alphas/2,
+
            pprint_rule_map/1,
            pprint_rule_map/2,
            pprint_rule_map/3,
@@ -119,6 +125,10 @@ pprint_rule_probs(Options) :-
         get_rule_probs(Assoc),
         pprint_rule_map(Assoc, Options).
 
+pprint_rule_probs(Out, Options) :-
+        get_rule_probs(Assoc),
+        pprint_rule_map(Assoc, Out, Options).
+
 pprint_rule_alphas_def_options([thresh(0)]).
 
 pprint_rule_alphas:-
@@ -127,6 +137,10 @@ pprint_rule_alphas:-
 pprint_rule_alphas(Options) :-
         get_rule_alphas(Assoc),
         pprint_rule_map(Assoc, Options).
+
+pprint_rule_alphas(Out, Options) :-
+        get_rule_alphas(Assoc),
+        pprint_rule_map(Assoc, Out, Options).
 
 pprint_rule_map(Assoc) :-
         pprint_rule_map(Assoc, []).
