@@ -53,7 +53,7 @@ count_sentence(Lo, Hi, X) :-
 
 number_sentences1(Xs) :-
         findall(X-W,
-                (member(N, [5]),
+                (member(N, [1,2,3,4,5]),
                  count_sentence(1, N, X),
                  W is 1),
                 Xs).
@@ -70,15 +70,16 @@ goals(Goals) :-
         findall(G, goal(G),
                  Goals).
         
-main :-
+main(Options) :-
         % experiment:setup_experiment,
         compile_sdcl_file('../gls/test.gl'),
-        Options = [beam_width(500), time_limit_seconds(4)],
+        Options1 = [beam_width(10), time_limit_seconds(4)],
+        merge_options(Options1, Options, Options2), 
         set_rule_alphas(uniform),
         goals(Goals),
         list_to_categorical(Goals, GoalGen),
         writeln(GoalGen),
-        run_online_vbem(GoalGen, Data, Options),        
+        run_online_vbem(GoalGen, Data, Options2),        
         writeln(Data).
   
 

@@ -74,17 +74,18 @@ number_phone(Phone) :-
 
 gl_file('../../gls/number_morph.gl').
         
-main :-
+main(Options) :-
         % experiment:setup_experiment,
         gl_file(GlFile),
         compile_sdcl_file(GlFile),
-        Options = [beam_width(10), time_limit_seconds(4)],
+        Options0 = [beam_width(10), time_limit_seconds(4)],
+        merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        number_goals(1, 10, 1, Goals),
+        number_goals(1, 5, 2, Goals1),
+        number_goals(20, 25, 1, Goals2),
+        append(Goals1, Goals2, Goals),
         list_to_random_choice(Goals, GoalGen),
-        writeln(GoalGen),
-        run_online_vbem(GoalGen, Data, Options),        
-        writeln(Data).
+        run_online_vbem(GoalGen, Data, Options1).      
   
 
         
