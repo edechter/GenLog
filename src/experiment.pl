@@ -29,18 +29,86 @@
 %%
 
 :- setting(root, atom,   '.', 'The root directory for experiment files and data.').
+:- setting(runner, atom,   none, 'Script for running experiment').
 
-:- setting(path, atom, 'NONE', 'The path to the experiment directory. Default: <root>/<time>').
+%% ----------------------------------------------------------------------
+%%
+%%      Config
+%%
 
-:- setting(data_path, atom, 'NONE', 'The path to the data directory. Default: <path>/data').
+:- record config(
+                 %% The path to the experiment directory. Default: <root>/<time>.
+                 path:atom,
 
-:- setting(git_hash, atom, 'NONE', 'The current git commit.').
+                 %% Data directory, where data files will be saved.
+                 %% Default: <path>/data
+                 data_path:atom,
 
-:- setting(runner, atom, 'gl_runner.pl', 'Path to the runner script for the experiment.').
+                 %% The current git commit when experiment was run.
+                 git_hash:atom,
 
-:- setting(genlog_file, atom, 'NONE', 'The .gl file.').
+                 %% The datetime experiment was initiated.
+                 start_time,
 
-:- setting(datetime, compound, date(none), 'The time this experiment was run.').
+                 %% The random seed
+                 %% Default: the system's current random seed
+                 random_seed
+                 ).
+
+init_config(Fields, Config) :-
+        init_config_(Config0), 
+        set_config_fields(Fields, Config0, Config).
+
+init_config_(Config) :-
+        default_config(Config0), 
+        init_config_(Config0, Config).
+
+init_config_ -->
+        {current_datetime(DateTime)}, 
+        init_config_path(DateTime),
+        init_config_data_path,
+        init_config_git_hash,
+        init_config_start_time(DateTime),
+        init_config_random_seed.
+
+init_config_path(DateTime, Config, Config1) :-
+        timelabel(DateTime, TimeLabel),
+        atomic_list_concat(['exp_', TimeLabel], ExperimentDirectoryName),
+        
+        setting(root, ExperimentsRoot),
+        absolute_file_name(ExperimentsRoot, ExperimentsRootAbs),
+        
+        atomic_list_concat([ExperimentsRootAbs, '/', ExperimentDirectoryName], ExperimentPath0),
+        prolog_to_os_filename(ExperimentPath0, ExperimentPath),
+
+        set_path_of_config(ExperimentPath, Config, Config1).
+
+init_config_data_path(Config, Config1) :-
+        config_path(Config, Directory), 
+        atomic_list_concat([Directory, '/', 'data'], DataPath0),
+        prolog_to_os_filename(DataPath0, DataPath),
+        set_data_path_of_config(DataPath, Config, Config1).
+
+init_config_git_hash(Config, Config1) :-
+        current_git_commit_hash(Hash),
+        set_git_hash_of_config(Hash, Config, Config1).
+
+init_config_start_time(DateTime, Config, Config1) :-
+        set_start_time_of_config(DateTime, Config, Config1).
+
+init_config_random_seed(Config, Config1) :-
+        random_property(state(Seed)),
+        set_random_seed_of_config(Seed, Config, Config1).
+        
+require_runner :-
+        setting(runner, Runner),
+        (Runner = none ->
+         throw(error(existence_error, context(init_config/2, 'No runner script specified.')))
+        ;
+         true).
+         
+
+        
 
 
         
@@ -58,46 +126,49 @@
 %%      runner script predicate 'main/0'
 
 run_experiment :-
-        setting(runner, PATH_TO_RUNNER),
-        run_experiment(PATH_TO_RUNNER).
+        require_runner,
+        setting(runner, RUNNER), 
+        run_experiment(RUNNER).
 
 run_experiment(PATH_TO_RUNNER) :-
         \+ exists_file(PATH_TO_RUNNER),
         !,
         throw(error(argument_error, context(run_experiment/1, 'Cannot find experiment runner script'))).
 run_experiment(PATH_TO_RUNNER) :-
+        set_setting(runner, PATH_TO_RUNNER), 
         load_files([PATH_TO_RUNNER], [module(runner)]),
-        setup_experiment,
-        print_message(informational, experiment(settings)),
-        runner:main.
+        setup_experiment(Config),
 
-setup_experiment :-
+        config_data_path(Config, DataPath), 
+        Options = [save_dir(DataPath)],
+        call(runner:main, Options).
+
+current_datetime(DateTime) :- 
         get_time(Time),
-        stamp_date_time(Time, DateTime, 'local'),
-        format_time(atom(TimeLabel), "%F-%T", DateTime),
-        set_setting(datetime, DateTime),
+        stamp_date_time(Time, DateTime, 'local').
 
-        current_git_commit_hash(Hash),
-        set_setting(git_hash, Hash),
-        
-        atomic_list_concat(['exp_', TimeLabel], ExperimentDirectoryName),
-        
-        setting(root, ExperimentsRoot),
-        absolute_file_name(ExperimentsRoot, ExperimentsRootAbs),
-        set_setting(root, ExperimentsRootAbs),
-        
-        atomic_list_concat([ExperimentsRootAbs, '/', ExperimentDirectoryName], ExperimentPath0),
-        prolog_to_os_filename(ExperimentPath0, ExperimentPath),
+timelabel(DateTime, TimeLabel) :-
+        format_time(atom(TimeLabel), "%F-%H-%M-%S", DateTime).
 
-        set_setting(path, ExperimentPath),
+setup_experiment(Config) :-
+        setup_experiment([], Config).
+
+setup_experiment(Fields, Config) :-
+        require_runner,
+
+        init_config(Fields, Config),
+
+        config_path(Config, ExperimentPath),
+        config_data_path(Config, DataPath),
        
         make_directory_path(ExperimentPath),
-        make_data_dir(ExperimentPath), 
-        
-        write_readme(ExperimentPath),
-        write_config(ExperimentPath),
+        make_data_dir(DataPath), 
 
-        print_message(informational, experiment(settings)).
+        write_readme(ExperimentPath),
+        write_config(Config, ExperimentPath),
+
+        print_message(informational, experiment(settings)), 
+        print_message(informational, experiment(config(Config))).
 
 write_readme(Directory) :-
         directory_file_path(Directory, 'README.txt', Path),
@@ -105,14 +176,14 @@ write_readme(Directory) :-
         format(Stream, "README.txt", []),
         close(Stream).
 
-write_config(Directory) :-
-        directory_file_path(Directory, 'config.pl', Path),
-        save_settings(Path).
+write_config(Config, Directory) :-
+        directory_file_path(Directory, 'settings.pl', SettingsPath),
+        save_settings(SettingsPath),
+        directory_file_path(Directory, 'config.pl', ConfigPath),
+        save_config(Config, ConfigPath).
+        
 
-make_data_dir(Directory) :-
-        atomic_list_concat([Directory, '/', 'data'], DataPath0),
-        prolog_to_os_filename(DataPath0, DataPath),
-        set_setting(data_path, DataPath),
+make_data_dir(DataPath) :-
         (exists_directory(DataPath) -> true
         ;
          make_directory(DataPath)
@@ -130,6 +201,16 @@ current_git_commit_hash(Hash) :-
         close(StreamIn),
         atom_codes(Hash, HashCodes).
 
+save_config(Config, Path) :-
+        tell(Path),
+        findall(_,
+                (config_data(N, Config, V),
+                 T =.. [N, V],
+                portray_clause(T)),
+                _),
+        told.
+                 
+         
 
 
 
@@ -158,5 +239,28 @@ exp_settings_go_([N-V|NVs]) -->
         exp_settings_go_(NVs).
        
         
+prolog:message(experiment(config(Config))) -->
+        {findall(N-V,
+                config_data(N, Config, V), 
+                NVs)}, 
+        exp_prefix, ['Experiment config ~`.t~70|'-[]], [nl], 
+        exp_config_go_(NVs),
+        exp_prefix, ['~`.t~70|'-[]], [nl].
+
+exp_config_go_([]) --> [].
+exp_config_go_([random_seed-V|NVs]) -->
+        !, 
+        {random_seed_short_atom_(V, A)}, 
+        exp_prefix, ['random_seed: ~` t~40| ~w...'-[A]], [nl],
+        exp_config_go_(NVs).
+exp_config_go_([N-V|NVs]) -->
+        exp_prefix, ['~w: ~` t~40| ~w'-[N, V]], [nl],
+        exp_config_go_(NVs).
+
+random_seed_short_atom_(Seed, Atom) :-
+        number_codes(Seed, Codes),
+        length(Xs, 8), 
+        append(Xs, _, Codes),
+        atom_codes(Atom, Xs).
 
 
