@@ -155,7 +155,8 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
              _Wall_time),
 
         print_message(informational, online_vbem(end_iter(Iter, CPU_time))),
-                      
+
+        print_message(informational, alphas(1)),
 
         set_rule_alphas(HyperParams),
 
@@ -794,5 +795,19 @@ prolog:message(online_vbem(no_more_goals)) -->
         online_vbem_prefix, ['No more goals.'-[]], [nl].
 prolog:message(online_vbem(goal(Goal))) -->
         online_vbem_prefix, ['current goal: ~w'-[Goal]], [nl].
+
+
+rule_alpha_prefix --> ['Rule alpha map: '].
+prolog:message(alphas(Thresh)) -->
+        {pprint_rule_alphas(Out, [thresh(Thresh)])},
+        {atomic_list_concat(As, '\n', Out)},
+        ['---- Rule Alpha Map ----'], [nl],
+        message_alpha_go_(As),
+        ['---- End Rule Alpha Map ----'], [nl].
+
+message_alpha_go_([]) --> [].
+message_alpha_go_([A|As]) -->
+        rule_alpha_prefix, [A-[]], [nl],
+        message_alpha_go_(As).
         
 

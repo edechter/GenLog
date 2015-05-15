@@ -48,9 +48,9 @@ pprint_rule(Head, Body, Out) :-
         (
          BodyList = [gl_term(_, _, _)|_] ->
          maplist(pprint_term, BodyList, BodyStrings),
-         maplist(call(atomic_concat, '     '), BodyStrings, BodyStrings1), 
-         atomic_list_concat(BodyStrings1, ',\n', BodyString),
-         format(atom(Out), "~w ---> \n~w", [HeadString, BodyString])
+         maplist(call(atomic_concat, ''), BodyStrings, BodyStrings1), 
+         atomic_list_concat(BodyStrings1, ', ', BodyString),
+         format(atom(Out), "~w ---> ~w", [HeadString, BodyString])
          ;
          BodyList = [] ->
          Out = HeadString
