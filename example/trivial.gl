@@ -7,6 +7,6 @@
 :- begin(genlog).
 
 s(X, Y) ---> s(X, Z), s(Z, Y) :: 0.4.
-s([a|X], X).
+s([a|X], X) :: 0.3.
   
 :- end(genlog).

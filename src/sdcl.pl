@@ -388,7 +388,14 @@ normalize_rules :-
 
 % a term is unconstrained if all of its arguments are variables.
 unconstrained(gl_term(_, Args, _)) :-
-        maplist(var, Args).
+        maplist(var, Args),
+        vars_all_different(Args).
+
+vars_all_different(List):-
+        term_variables(List, Vs),
+        length(List, N),
+        length(Vs, M),
+        N = M.
 
 
 :- begin_tests(unconstrained).
@@ -731,13 +738,7 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                  % find a matching rule for the current goal
                  G = goal(NodeId, Goal, UnBoundGoal),
                  match(Goal-UnBoundGoal, BodyList, RuleId, Prob),
-                 % find_rule_by_id(RuleId, Rule), 
-                 % pprint_rule(Rule, RuleString), 
-                 % format("Match ~w against rule ~w\n", [Goal, RuleString]),                 
-                 % format("NewGoals: ~w\n", [BodyList]), 
                  
-                 %% for each
-
                  (
                   bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
                         (
@@ -805,8 +806,8 @@ match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
         Rule=gl_rule(RuleId, Goal, Body, _),
         copy_term(Body, UnBoundBody), 
-        call(Rule),        
-        % unify_with_occurs_check(RuleCopy, gl_rule(RuleId, GoalCp, BodyCp, _)),
+        call(Rule),
+        acyclic_term(Goal), 
         get_rule_prob(RuleId, Prob),
         RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundBody, _),
         call(RuleCopy),
@@ -873,10 +874,14 @@ mi_best_first_all(Goal, Results, LogP) :-
         mi_best_first_all(Goal, Results, LogP, []).
 
 mi_best_first_all(Goal, Results, LogP, Options) :-
+        (is_list(Options) -> 
         % make options record
-        mi_best_first_options_default(DefaultOptions),
-        merge_options(Options, DefaultOptions, AllOptions),
-        make_bf_options(AllOptions, OptionsRecord, _RestOptions),
+         mi_best_first_options_default(DefaultOptions),
+         merge_options(Options, DefaultOptions, AllOptions),
+         make_bf_options(AllOptions, OptionsRecord, _RestOptions)
+        ;
+         OptionsRecord = Options
+        ),
         
         bf_options_time_limit_seconds(OptionsRecord, TimeLimit),
         time_limit_inference_limit(TimeLimit, InferenceLimit),
