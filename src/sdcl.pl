@@ -38,6 +38,8 @@
            set_head_of_gl_rule/3,
            set_body_of_gl_rule/2,
            set_body_of_gl_rule/3,
+
+           unconstrained/1, 
            
            mi_best_first/3,
            mi_best_first/4,
@@ -382,7 +384,26 @@ normalize_rules :-
         ;
         true
         ).
-        
+
+
+% a term is unconstrained if all of its arguments are variables.
+unconstrained(gl_term(_, Args, _)) :-
+        maplist(var, Args).
+
+
+:- begin_tests(unconstrained).
+
+test(unconstrained_is_true) :-
+        Term = gl_term(a/4, [X, Y], [1, Z]),
+        unconstrained(Term).
+
+test(unconstrained_is_false, [fail]) :-
+        Term = gl_term(a/4, [s(X), Y], [1, Z]),
+        unconstrained(Term).
+
+:- end_tests(unconstrained).
+
+
         
 %% ----------------------------------------------------------------------
 %%      meta_best_first(Goal)
@@ -484,7 +505,7 @@ test(mi_best_first,
 %% mi_best_first_go/6.
 %% main worker predicate for mi_best_first
 %%
-%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, PrefixMassList, +OptionsRecord) 
+%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, PrefixMassList, +OptionsRecord)
 mi_best_first_go(PQ, _, _, _, _, _) :-
 
         % if PQ is empty, fail.
@@ -505,7 +526,6 @@ mi_best_first_go(PQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsReco
         ;
          mi_best_first_go(NewPQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord)
         ).
-        
 mi_best_first_go(PQ, OrigGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
 
         % If the next best is not a solution
@@ -659,7 +679,7 @@ collect_prefix_masses(CurrentGoal, TargetGoal, [P-M|PMs], MassesIn, MassesOut) :
 :- begin_tests(extend).
 test(extend,
      [setup(setup_trivial_sdcl),
-      true(Next=2)]
+      true(Next=1)]
      ) :-
     X = s(_, _),
     translate_to_gl_term(X, T),
@@ -668,7 +688,19 @@ test(extend,
     DInfo = deriv_info([G]-G, 0, dgraph(_, [1], [])),
     extend(DInfo, Extensions),
     length(Extensions, Next).
-        
+
+test(extend2,
+     [setup(setup_trivial_sdcl),
+      true(Next=1)]
+     ) :-
+    X = s([a, a,a], []),
+    translate_to_gl_term(X, T),
+    G = goal(1, T, T), 
+    
+    DInfo = deriv_info([G]-G, 0, dgraph(_, [1], [])),
+    extend(DInfo, Extensions),
+    length(Extensions, Next).
+
 :- end_tests(extend). 
       
 
@@ -677,6 +709,12 @@ test(extend,
 %% - Goals is not empty
 %% - Goals is a list of structures of the form goal(GoalId, Goal, UnBoundGoal) where Goal is an sdcl_term/3.
 %% - Extensions is a list of deriv_info(Goals-OrigGoal, LogProb, DGraph) where LogProb is the unconditional probability of the derivation
+extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
+        G = goal(_, Goal, _),
+        unconstrained(Goal),
+        !, 
+        Extensions = [deriv_info(Rest-OrigGoal, LogProb, DGraph)].
+        
 extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
         
         % the current derivation graph
