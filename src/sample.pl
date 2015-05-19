@@ -40,6 +40,7 @@ sample_from_derivations_(Goal, Derivations, LogProb) :-
                 DPs),
         %% choose derivation
         sample_categorical(DPs, Derivation, Prob),
+         
         LogProb0 is log(Prob),
 
         %% for each unconstrained goal remaining in the derivation,
@@ -48,14 +49,15 @@ sample_from_derivations_(Goal, Derivations, LogProb) :-
         bagof(LogProb,
                 (member(goal(_, G, _), Nodes),
                  writeln(G),
-                 (unconstrained(G) -> 
+                 (unconstrained(G) ->
                   sample_unconstrained_(G, LogProb, OptRecord)
                  ;
                   LogProb = 0)
                 ),
                 LogProbs
                ),
-        !, 
+        !,
+        writeln(60-G), 
         sum_list(LogProbs, LogProb1), 
         LogProb is LogProb0 + LogProb1.
                            
@@ -75,16 +77,24 @@ sample_from_derivations_(Goal, Derivations, LogProb) :-
 sample_unconstrained_(true, LogProb, OptRecord) :- !,
         LogProb = 0.
 sample_unconstrained_((Goal, Rest), LogProb, OptRecord) :-
+        pprint_term(Goal, Out),
+        writeln(Out),
+
         !,
         sample_unconstrained_(Goal, LogProb0, OptRecord),
         sample_unconstrained_(Rest, LogProb1, OptRecord),
         LogProb is LogProb0 + LogProb1.
 sample_unconstrained_(Goal, LogProb, OptRecord) :-
+        pprint_term(Goal, Out),
+        writeln(Out),
+
+
         Goal = gl_term(_, _, _), !, 
         
         findall(RuleId-Prob,
                 (Rule = gl_rule(RuleId, Goal, Body, _),
                  call(Rule),
+                 acyclic_term(Goal),
                  get_rule_prob(RuleId, Prob)),
                 RuleDistribution),
         list_to_categorical(RuleDistribution, Gen),

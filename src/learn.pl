@@ -106,7 +106,7 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
                        % how to initialize the variational parameters
                        % normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.   
-                       init_params = normal(0.1, 0.001),
+                       init_params = normal(0.1, 0.01),
 
                        % where to save the genlog data files during learning
                        save_dir    = './'
@@ -205,6 +205,7 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
         compute_variational_weights(PriorHyperParams, Weights),
         set_rule_probs(Weights),
 
+        writeln(        prove_goals(Goals, DSearchResults, Options)), 
         prove_goals(Goals, DSearchResults, Options),
 
         findall(L,
