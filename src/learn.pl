@@ -106,7 +106,7 @@ run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
                        % how to initialize the variational parameters
                        % normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.   
-                       init_params = normal(0.1, 0.01),
+                       init_params = normal(0.1, 0.05),
 
                        % where to save the genlog data files during learning
                        save_dir    = './'
