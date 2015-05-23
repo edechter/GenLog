@@ -429,7 +429,7 @@ test(unconstrained_is_false, [fail]) :-
 
 mi_best_first_options_default(
       [
-       beam_width(1000),
+       beam_width(10),
        time_limit_seconds(1)
        ]).
 
@@ -475,7 +475,7 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         PrefixMassList = [], 
         
         mi_best_first_go(PQ, GoalTr-UnBoundGoalTr, Score,
-                         DGraph, PrefixMassList, OptionsRecord).
+                         DGraph, PrefixMassList, 0-PrunedMass, OptionsRecord).
 
 %% time_limit_inference_limit(+TimeLimit, -InferenceLimit) TimeLimit is
 %% a number of seconds, and InferenceLimit is the approximate number
@@ -510,18 +510,26 @@ test(mi_best_first,
                      time_limit_seconds=1
                     ).
 %% ----------------------------------------------------------------------
-%% mi_best_first_go/6.
+%% mi_best_first_go/7.
 %% main worker predicate for mi_best_first
 %%
-%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, PrefixMassList, +OptionsRecord)
-mi_best_first_go(PQ, _, _, _, _, _) :-
-
+%% mi_best_first_go(+PQ, OrigGoal, LogProb, DGraph, PrefixMassList,
+%% PrunedMass, +OptionsRecord)
+%%
+%% LogProb: the log probability of the deriviation under the current
+%% rule weights
+%%
+%% PrunedMass: an upper bound on the amount of pruned probability
+%% mass.
+mi_best_first_go(PQ, _, _, _, _, _, _) :-
         % if PQ is empty, fail.
         PQ=pq(_, 0, _),
         !,
         fail.
-mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
-
+mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
+                 DGraphOut, PrefixMassList,
+                 PrunedMassIn-PrunedMassOut,
+                 OptionsRecord) :-
         % Solution is found, return goal.
         % Continue to next goal on backtracking.
         pq_find_max(PQ, deriv_info([]-OrigGoal, LogProbMax, DGraph), Score, NewPQ),
@@ -529,15 +537,19 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb, DGraphOut, PrefixMassList
         (
          TargetGoal = OrigGoal,
          LogProb=LogProbMax,
-         DGraphOut = DGraph
-         
+         DGraphOut = DGraph,
+         PrunedMassOut = PrunedMassIn
         ;
          mi_best_first_go(NewPQ, TargetGoal-UbTargetGoal,
-                          LogProb, DGraphOut, PrefixMassList, OptionsRecord)
+                          LogProb, DGraphOut,
+                          PrefixMassList,
+                          PrunedMassIn-PrunedMassOut,
+                          OptionsRecord)
         ).
 mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
-                 DGraphOut, PrefixMassList, OptionsRecord) :-
-
+                 DGraphOut, PrefixMassList,
+                 PrunedMassIn-PrunedMassOut,
+                 OptionsRecord) :-
         % If the next best is not a solution
         % get the best solution from priority queue
         pq_find_max(PQ, Elem, _Score, Beam),
@@ -554,14 +566,14 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
         % nl, 
 
         insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList1,
-                                    Beam, NewBeam, OptionsRecord),
+                                    Beam, NewBeam, PrunedMass, OptionsRecord),
+        PrunedMassNew is PrunedMassIn + PrunedMass,
         
         print_message(informational, beam_size(NewBeam)),
         % print_message(informational, beam_terms(NewBeam)),
                       
-
         mi_best_first_go(NewBeam, TargetGoal-UbTargetGoal, LogProb,
-                         DGraphOut, PrefixMassList1, OptionsRecord).
+                         DGraphOut, PrefixMassList1, PrunedMassNew-PrunedMassOut, OptionsRecord).
 
 %% ----------------------------------------------------------------------
 %%      update_prefix_mass_list(DerivInfos, ListIn, ListOut)
@@ -637,7 +649,7 @@ unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
 
 %% ----------------------------------------------------------------------
 %%     insert_extensions_into_beam(+Extensions, +TargetGoal, +PrefixMassList,
-%%                                 +BeamIn, BeamOut, OptionsRecord)
+%%                                 +BeamIn, -BeamOut, -PrunedMass, OptionsRecord)
 %%
 %%     insert Extensions (each of the form deriv_info(Goals-OrigGoal,
 %%     LogProb, DGraph) into BeamIn by first computing for each
@@ -656,14 +668,13 @@ unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
 %%     *either* p does not subsume G *or* T subsumes P. This
 %%     collection is computed by collect_prefix_masses.
 insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList,
-                            BeamIn, BeamOut, OptionsRecord) :-
+                            BeamIn, BeamOut, PrunedMass, OptionsRecord) :-
         pq_keys(BeamIn, Ds),
         append(Extensions, Ds, DsNew),
         findall(D-Score,
                 (member(D, DsNew),
                  D = deriv_info(_ - CurrentGoal, LogProb, _),          
                  (collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, Masses) ->
-                  % print_message(informational, CurrentGoal),              
                   true
                  ;
                   throw(error(evaluation_error, masses_of_prefixes_must_succeed))
@@ -677,7 +688,17 @@ insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList,
                 ), 
                 PqElems),
         bf_options_beam_width(OptionsRecord, BeamWidth),
-        list_to_pq(PqElems, BeamWidth, BeamOut).
+        list_to_pq(PqElems, BeamWidth, BeamOut, RestElems),
+        findall(L,
+                (member(D-_,RestElems),
+                 D = deriv_info(_, L, _)),
+                Ls),
+        (Ls = [] ->
+         PrunedMass = 0
+        ;
+         log_sum_exp(Ls, PrunedMass)
+        ).
+                 
 
 collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, Masses) :-
         collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, [], Masses).
@@ -1018,9 +1039,28 @@ pq_inserts([Elem-Score|Pairs], PQ, NewPQ) :-
         pq_inserts(Pairs, PQ1, NewPQ).
 
 % list_to_pq(KVs, PqSize, PQ)
-list_to_pq(Elems, PqSize, PQ) :-
-        pq_empty(PqSize, Empty),
-        pq_inserts(Elems, Empty, PQ). 
+% list_to_pq(Elems, PqSize, PQ) :-
+        % pq_empty(PqSize, Empty),
+        % pq_inserts(Elems, Empty, PQ). 
+
+list_to_pq(Elems, PqSize, PQ, RestElems) :-
+        keysort(Elems, Elems1),
+        reverse(Elems1, Elems2),
+        length(Elems2, N),
+        (N =< PqSize ->
+         PqElems0=Elems2,
+         RestElems = [],
+         Size = N
+        ;
+         length(Elems3, PqSize),
+         append(Elems3, RestElems, Elems2),
+         PqElems0 = Elems3, 
+         Size = PqSize
+        ),
+        findall(pq_elem(Elem, Score),
+                member(Elem-Score, PqElems0),
+                PqElems),
+        PQ = pq(PqElems, Size, PqSize). 
 
 % pq_find_max(+PQ, -MaxElem, -Score, -NewPQ)
 %
