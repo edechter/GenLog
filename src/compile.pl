@@ -341,7 +341,7 @@ test('translate gl rule (no weight)',
         Weight = 1.0,
         Alpha = 1.0, 
         RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)]),
-        assertion(RuleWiehgt = Weight).
+        assertion(RuleWeight = Weight).
 
 test('translate gl rule (with weight)',
      [true(TermOut =@= gl_rule(_, Head, Body, RuleGroup))]
