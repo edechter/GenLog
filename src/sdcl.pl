@@ -474,7 +474,8 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         % initialize prefix mass list
         PrefixMassList = [], 
         
-        mi_best_first_go(PQ, GoalTr, Score, DGraph, PrefixMassList, OptionsRecord).
+        mi_best_first_go(PQ, GoalTr-UnBoundGoalTr, Score,
+                         DGraph, PrefixMassList, OptionsRecord).
 
 %% time_limit_inference_limit(+TimeLimit, -InferenceLimit) TimeLimit is
 %% a number of seconds, and InferenceLimit is the approximate number
@@ -519,7 +520,7 @@ mi_best_first_go(PQ, _, _, _, _, _) :-
         PQ=pq(_, 0, _),
         !,
         fail.
-mi_best_first_go(PQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
+mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
 
         % Solution is found, return goal.
         % Continue to next goal on backtracking.
@@ -531,9 +532,11 @@ mi_best_first_go(PQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsReco
          DGraphOut = DGraph
          
         ;
-         mi_best_first_go(NewPQ, TargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord)
+         mi_best_first_go(NewPQ, TargetGoal-UbTargetGoal,
+                          LogProb, DGraphOut, PrefixMassList, OptionsRecord)
         ).
-mi_best_first_go(PQ, OrigGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
+mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
+                 DGraphOut, PrefixMassList, OptionsRecord) :-
 
         % If the next best is not a solution
         % get the best solution from priority queue
@@ -550,23 +553,29 @@ mi_best_first_go(PQ, OrigGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord
         % pprint_pairs(PrefixMassList1),
         % nl, 
 
-        insert_extensions_into_beam(Extensions, OrigGoal, PrefixMassList1,
+        insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList1,
                                     Beam, NewBeam, OptionsRecord),
+        
+        print_message(informational, beam_size(NewBeam)),
+        % print_message(informational, beam_terms(NewBeam)),
+                      
 
-        mi_best_first_go(NewBeam, OrigGoal, LogProb, DGraphOut, PrefixMassList1, OptionsRecord).
+        mi_best_first_go(NewBeam, TargetGoal-UbTargetGoal, LogProb,
+                         DGraphOut, PrefixMassList1, OptionsRecord).
 
 %% ----------------------------------------------------------------------
 %%      update_prefix_mass_list(DerivInfos, ListIn, ListOut)
 %%
 %%      ListIn is a list of pairs sorted on its keys whose keys are
-%%      sdcl_terms and whose values are log probabilities. ListOut is
+%%      gl_terms and whose values are log probabilities. ListOut is
 %%      also sorted on its keys.
 %%
 update_prefix_mass_list(DerivInfos, ListIn, ListOut) :-
         findall(K-V,
                 member(deriv_info(_-K, V, _), DerivInfos),
                 KVs),
-        inserts_into_list_with_sum_by_variant(KVs, ListIn, ListOut).
+        inserts_into_list_with_sum_by_variant(KVs, ListIn, ListOut0),
+        keysort(ListOut0, ListOut).
 
 inserts_into_list_with_sum_by_variant([], ListIn, ListOut) :-
         !,
@@ -627,7 +636,8 @@ unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
         
 
 %% ----------------------------------------------------------------------
-%%     insert_extensions_into_beam(+Extensions, +TargetGoal, +PrefixMassList, +BeamIn, BeamOut, OptionsRecord)
+%%     insert_extensions_into_beam(+Extensions, +TargetGoal, +PrefixMassList,
+%%                                 +BeamIn, BeamOut, OptionsRecord)
 %%
 %%     insert Extensions (each of the form deriv_info(Goals-OrigGoal,
 %%     LogProb, DGraph) into BeamIn by first computing for each
@@ -635,7 +645,7 @@ unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
 %%     the conditional prefix probability) and then removing the
 %%     element with the smallest score. 
 %%
-%%     Since the score update step requires looking at every element
+%%     NB: Since the score update step requires looking at every element
 %%     on the beam, it doesn't make sense to use a priority queue data
 %%     structure here.
 %%
@@ -645,13 +655,15 @@ unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
 %%     goal T. We include the mass of prefix P in the denominator if
 %%     *either* p does not subsume G *or* T subsumes P. This
 %%     collection is computed by collect_prefix_masses.
-insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList, BeamIn, BeamOut, OptionsRecord) :-
+insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList,
+                            BeamIn, BeamOut, OptionsRecord) :-
         pq_keys(BeamIn, Ds),
         append(Extensions, Ds, DsNew),
         findall(D-Score,
                 (member(D, DsNew),
                  D = deriv_info(_ - CurrentGoal, LogProb, _),          
                  (collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, Masses) ->
+                  % print_message(informational, CurrentGoal),              
                   true
                  ;
                   throw(error(evaluation_error, masses_of_prefixes_must_succeed))
@@ -738,6 +750,9 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                  % find a matching rule for the current goal
                  G = goal(NodeId, Goal, UnBoundGoal),
                  match(Goal-UnBoundGoal, BodyList, RuleId, Prob),
+
+                 % pprint_rule(RuleId, Rstring), 
+                 % print_message(informational, Rstring),
                  
                  (
                   bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
@@ -1354,6 +1369,28 @@ print_scores_go_([S-C|Ss]) -->
         expl_search_prefix,
         ['score: ~2f ; cond prob: ~2f'-[S, C]], [nl],
         print_scores_go_(Ss).
+
+prolog:message(beam_size(Beam)) -->
+        {pq_size(Beam, Size)},
+        expl_search_prefix, ['Beam Size: ~d'-[Size]], [nl].
+
+
+prolog:message(beam_terms(Beam)) -->
+        {Beam=pq(Elems, _, _)},
+        beam_terms_go_(Elems).
+
+beam_terms_go_([]) --> expl_search_prefix, [nl].
+beam_terms_go_([pq_elem(deriv_info(Goals-_, _, _), W) | Es]) -->
+        {(Goals = [goal(_, T, _)|_] ->
+          pprint_term(T, TString)
+         ;
+          TString = finished
+         )
+         },
+         expl_search_prefix,
+         ["~w  ~2f"-[TString, W]], [nl],
+         beam_terms_go_(Es).
+
 
         
         

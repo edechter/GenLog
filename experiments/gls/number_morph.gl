@@ -1,48 +1,7 @@
 
-%% actual grammar
-/*
-  number(X) ---> below20(X) ; above20(X).
-  below20(X) --> one(X) ; ... ; nineteen(X).
-  above20(XY) --> decade(X), unit(Y).
-
-  next(X Y) --> number(X), next(Y | X).
-  next(XY|UV) --> eq(X|U), next1(Y|V).
-
-  next(X Y) --> decade(D), unit(U), number(X|D, U), next1(U'|U), number(X | D, U').
-*/
-
-
-%% four types of predicates
-%% A(X).
-%% A(X|Y).
-
-
-%% rules types
-%% A(XY) <- A(X), A(Y)
-%% A(XY) <- A(X), A(Y|X)
-%% A(XY) <- A(Y), A(X|Y)
-%% A(lex).
-
-%% A(XY|Z) <- A(X|Z), A(Y|Z)
-%% A(XY|Z) <- A(X|Z), A(Y|X)
-%% A(XY|Z) <- A(Y|Z), A(X|Y)
-%% A(lex|lex).
-
-%%
-% hear(XY) <- number(X), count(Y|X).
-% hear(null).
-
-% count(XY|Z) <- next(X|Z), count(Y|X, Z).
-
-number_phone_lex_dl([W|Z]-Z) :-
-        % member(W, [[a], [b], []]).
-        number_phone(W).
-number_phone_lex_dl(Z-Z).
-
-% num_preds(Category, TypeClass, Num).
-num_preds(phrase, 2).
-num_preds(word, 2).
-num_preds(syll, 1).
+num_preds(phrase, 5).
+num_preds(word, 5).
+num_preds(syll, 5).
 num_preds(cons, 1).
 num_preds(vow, 1).
 
@@ -52,17 +11,25 @@ pred(Category, Index, Pred) :-
         between(1, N, Index),
         format(atom(Pred), "A(~w, ~w)", [Category, Index]).
 
-% pred(Pred) :- pred(_, _, Pred).
-
 pred(Category, Pred) :- pred(Category, _, Pred).
 
-list_category(phrase).
-list_category(word).
+syntax_category(phrase).
+syntax_category(word).
+
+category(phrase).
+category(word).
+category(syll).
+
 
 from_cat(cons, X) :-
         consonant(X).
 from_cat(vow, X) :-
         vowel(X).
+
+lexeme(X) :-
+        from_cat(cons, X)
+        ;
+        from_cat(vow, X).
 
 :- begin(genlog).
 
@@ -75,32 +42,49 @@ macro(
      (pred(Cat, '?A'),
       pred(Cat, '?B'),
       pred(Cat, '?C'),
-      list_category(Cat)
+      syntax_category(Cat)
       )
      ).
 
-macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Yi-Yf | Z), '?C'(Xi-Yi | Yi-Yf))
-     :-
-     (pred(Cat, '?A'),
-      pred(Cat, '?B'),
-      pred(Cat, '?C'),
-      list_category(Cat)
-      )
-     ).
+% macro(
+%       ('?A'([A|Xi]-Yf|Z) ---> '?B'(Xi-Yf|Z))
+%      :-
+%      (category(Cat),
+%       category(Cat1),
+%       pred(Cat, '?A'),
+%       pred(Cat1, '?B'),
+%       lexeme(A))
+%      ).
+
+% macro(
+%       ('?A'(X-X|Z))
+%      :-
+%      (category(Cat),
+%       pred(Cat, '?A'))
+%      ).
+
+% macro(
+%       ('?A'(Xi-Yf|Z) ---> '?B'(Yi-Yf | Z), '?C'(Xi-Yi | Yi-Yf))
+%      :-
+%      (pred(Cat, '?A'),
+%       pred(Cat, '?B'),
+%       pred(Cat, '?C'),
+%       list_category(Cat)
+%       )
+%      ).
  
  
 %% phrase to word and word to syll rules
 %% we don't use conditionals to impose modularity
 macro(
-      ('?A'(X|Y) ---> '?B'(X|Y))
+      ('?A'(X-Z|Y) ---> '?B'(X-Z|Y))
      :-
      (pred(phrase, '?A'),
       pred(word, '?B'))
      ).
 
 macro(
-      ('?A'(X|Y) ---> '?B'(X|Y))
+      ('?A'(X-Z|Y) ---> '?B'(X-Z|Y))
      :-
      (pred(word, '?A'),
       pred(syll, '?B'))
@@ -151,83 +135,6 @@ macro(
       (consonant(A); vowel(A))
      )
      ).
-
-% %% consonant rules
-% macro(
-%       ('?A'(X | Y))
-%      :-
-%      (pred(cons, '?A'),
-%       consonant(X),
-%       (
-%        consonant(Y)
-%       ;
-%        vowel(Y)
-%       )
-%        )
-%      ).
-
-% %% vowel rules
-% macro(
-%       ('?A'(X | Y))
-%      :-
-%      (pred(vow, '?A'),
-%       vowel(X),
-%       (
-%        consonant(Y)
-%       ;
-%        vowel(Y)
-%       )
-%        )
-%      ).
-
-% %% conditional
-
-% macro(
-%       ('?A'(Xi-Xf | Type, Z ) ---> '?B'(Xi-Xm | Type, Z), '?C'(Xm-Xf | Type, Z))
-%      :-
-%      (pred(2, '?A'),
-%       pred(2, '?B'),
-%       pred(2, '?C'),
-%       pred_type(Type))
-%      ).
-
-
-% macro(
-%       ('?A'(Xi-Xf | Type, Z) ---> '?B'(Xi-Xm | Type, Z), '?C'(Xm-Xf | Type, Xi-Xm))
-%      :-
-%      (pred(2, '?A'),
-%       pred(2, '?B'),
-%       pred(2, '?C'),
-%       pred_type(Type))
-%      ).
-
-% macro(
-%       ('?A'(Xi-Xf | Type, Z) ---> '?B'(Xm-Xf | Type, Z), '?C'(Xi-Xf | Type, Xm-Xf))
-%      :-
-%      (pred(2, '?A'),
-%       pred(2, '?B'),
-%       pred(2, '?C'),
-%       pred_type(Type))
-%      ).
-
-
-% macro(
-%       ('?A'(X | Type, Y) ---> '?B'(X | Part, Y))
-%      :-
-%      (pred(2, '?A'),
-%       pred(2, '?B'),
-%       pred_type(Type),
-%       Type \= word,
-%       made_of(Type, Part))
-%       ).
-
-% % macro(
-% %       ('?A'(X | syll, Y))
-% %      :-
-% %      (pred(2, '?A'),
-% %       number_phone_lex_dl(X),
-% %       number_phone_lex_dl(Y))
-% %       ).
 
 
 :- end(genlog).

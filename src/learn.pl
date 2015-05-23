@@ -136,7 +136,9 @@ run_online_vbem(GoalGen, Data, Options) :-
         
 
 run_online_vbem(GoalGen, Iter, DataOut, Options) :-
-
+        prolog_current_frame(Frame),
+        print_message(information, frame(Frame)),
+        
         print_message(informational, online_vbem(start_iter(Iter))),
 
         make_online_vbem_options(Options, OptRecord, _), 
@@ -159,17 +161,20 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         print_message(informational, alphas(1)),
 
         set_rule_alphas(HyperParams),
+        
+        !,
 
         %% save data to file
         online_vbem_options_save_dir(OptRecord, SaveDir), 
         save_gl(SaveDir, 'ovbem_gl_', []),
         
-        online_vbem_options_max_iter(OptRecord, MaxIter),
+        online_vbem_options_max_iter(OptRecord, MaxIter),        
         (Iter >= MaxIter ->
          debug(learning, "OnlineVBEM: Maximum iteration reached. Finished.\n", [])
         ;
+
          Iter1 is Iter + 1,
-         DataOut = [Goal-FreeEnergy|DataOut1], 
+         DataOut = [Goal-FreeEnergy|DataOut1],
          run_online_vbem(GoalGen1, Iter1, DataOut1, Options)
         ).
 
