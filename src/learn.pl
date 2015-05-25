@@ -200,7 +200,7 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
 %%      variational_em_single_iteration(+Goals, -HyperParams, -FreeEnergy, +Options)
 %%
 %%      Execute a single iteration of Variational EM on the list of
-%%      Goals. See mi_best_first/4 for a list of Options. Updates the
+%%      Goals. See mi_best_first/5 for a list of Options. Updates the
 %%      global rules weights with new multinomial weights. 
 variational_em_single_iteration(Goals, HyperParams, FreeEnergy) :-
         variational_em_single_iteration(Goals, HyperParams, FreeEnergy, []).
@@ -210,7 +210,6 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
         compute_variational_weights(PriorHyperParams, Weights),
         set_rule_probs(Weights),
 
-        writeln(        prove_goals(Goals, DSearchResults, Options)), 
         prove_goals(Goals, DSearchResults, Options),
 
         findall(L,
@@ -528,7 +527,7 @@ update_hyperparams(ExpectedCounts, HyperParams) :-
 %%      goal or count(Goal, C).
 %%      - Derivations is a list of structures
 %%      [dsearch_results(OrigGoal, Count, deriv(ResultGoal, DGraph, CondProb))|...]
-%%      - Options are shared with mi_best_first/3
+%%      - Options are shared with mi_best_first/4
 %%
 
 prove_goals(Goals, Derivations) :-

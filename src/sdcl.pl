@@ -41,8 +41,8 @@
 
            unconstrained/1, 
            
-           mi_best_first/3,
            mi_best_first/4,
+           mi_best_first/5,
 
            mi_best_first_all/3,
            mi_best_first_all/4,
@@ -429,14 +429,14 @@ test(unconstrained_is_false, [fail]) :-
 
 mi_best_first_options_default(
       [
-       beam_width(10),
+       beam_width(1000),
        time_limit_seconds(1)
        ]).
 
-mi_best_first(Goal, Score, DGraph) :-
-        mi_best_first(Goal, Score, DGraph, []). 
+mi_best_first(Goal, Score, PrunedMass, DGraph) :-
+        mi_best_first(Goal, Score, PrunedMass, DGraph, []). 
 
-mi_best_first(Goal, Score, DGraph, Options) :-
+mi_best_first(Goal, Score, PrunedMass, DGraph, Options) :-
         
         % make options record
         mi_best_first_options_default(DefaultOptions),
@@ -473,9 +473,10 @@ mi_best_first(Goal, Score, DGraph, Options) :-
 
         % initialize prefix mass list
         PrefixMassList = [], 
-        
+
+        NegInfty = (-10e10),
         mi_best_first_go(PQ, GoalTr-UnBoundGoalTr, Score,
-                         DGraph, PrefixMassList, 0-PrunedMass, OptionsRecord).
+                         DGraph, PrefixMassList, NegInfty-PrunedMass, OptionsRecord).
 
 %% time_limit_inference_limit(+TimeLimit, -InferenceLimit) TimeLimit is
 %% a number of seconds, and InferenceLimit is the approximate number
@@ -496,7 +497,7 @@ test(mi_best_first,
       true(G=@= s([a], []))
      ]) :-
         G=s(_X, []), 
-        mi_best_first(G, _, _),
+        mi_best_first(G, _, _, _),
         !.
         
 
@@ -567,7 +568,9 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
 
         insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList1,
                                     Beam, NewBeam, PrunedMass, OptionsRecord),
-        PrunedMassNew is PrunedMassIn + PrunedMass,
+
+        log_sum_exp([PrunedMassIn, PrunedMass], PrunedMassNew),
+
         
         print_message(informational, beam_size(NewBeam)),
         % print_message(informational, beam_terms(NewBeam)),
@@ -694,7 +697,8 @@ insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList,
                  D = deriv_info(_, L, _)),
                 Ls),
         (Ls = [] ->
-         PrunedMass = 0
+         negInfty(NegInfty),
+         PrunedMass = NegInfty
         ;
          log_sum_exp(Ls, PrunedMass)
         ).
@@ -923,12 +927,15 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
         time_limit_inference_limit(TimeLimit, InferenceLimit),
 
         retractall(mi_best_first_all_derivation(_)),
+        NegInfty= -10e10,
+        nb_setval(pruned_mass, NegInfty),
 
         catch( 
                call_with_time_limit(
                  TimeLimit, 
-                 (mi_best_first(Goal, Score, DGraph, Options),
+                 (mi_best_first(Goal, Score, PrunedMass0, DGraph, Options),
                   assertz(mi_best_first_all_derivation(deriv(Goal, DGraph, Score))),
+                  nb_setval(pruned_mass, PrunedMass0),
                   fail 
                  ;
                   true
@@ -939,7 +946,10 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
                  
 
         findall(D, mi_best_first_all_derivation(D), Derivations),
+        nb_getval(pruned_mass, PrunedMass),
 
+        print_message(informational, pruned_mass(PrunedMass)),
+        
         % add conditional probability given Goal being true to each
         % derivation
         findall(Score,
@@ -953,11 +963,11 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
          LogP = 0, 
          Results = []
          ;
-         log_sum_exp(Scores, LogP),
+         log_sum_exp([PrunedMass|Scores], LogP),
          findall(deriv(Goal, DGraph, ConditionalProb), 
                  (
                   member(deriv(Goal, DGraph, Score), Derivations),
-                  ConditionalProb is exp(Score - LogP)
+                  ConditionalProb is exp(Score - LogP) 
                  ),
                  Results)
         ),
@@ -1041,20 +1051,26 @@ pq_inserts([Elem-Score|Pairs], PQ, NewPQ) :-
 % list_to_pq(KVs, PqSize, PQ)
 % list_to_pq(Elems, PqSize, PQ) :-
         % pq_empty(PqSize, Empty),
-        % pq_inserts(Elems, Empty, PQ). 
+        % pq_inserts(Elems, Empty, PQ).
+
+flip_pairs(KVs, VKs) :-
+        pairs_keys_values(KVs, Ks, Vs),
+        pairs_keys_values(VKs, Vs, Ks).
 
 list_to_pq(Elems, PqSize, PQ, RestElems) :-
-        keysort(Elems, Elems1),
-        reverse(Elems1, Elems2),
-        length(Elems2, N),
+        flip_pairs(Elems, Elems1),
+        keysort(Elems1, Elems2),
+        reverse(Elems2, Elems3),
+        flip_pairs(Elems3, Sorted), 
+        length(Sorted, N),
         (N =< PqSize ->
-         PqElems0=Elems2,
+         PqElems0=Sorted,
          RestElems = [],
          Size = N
         ;
-         length(Elems3, PqSize),
-         append(Elems3, RestElems, Elems2),
-         PqElems0 = Elems3, 
+         length(ElemsIn, PqSize),
+         append(ElemsIn, RestElems, Sorted),
+         PqElems0 = ElemsIn, 
          Size = PqSize
         ),
         findall(pq_elem(Elem, Score),
@@ -1431,6 +1447,8 @@ beam_terms_go_([pq_elem(deriv_info(Goals-_, _, _), W) | Es]) -->
          ["~w  ~2f"-[TString, W]], [nl],
          beam_terms_go_(Es).
 
+
+negInfty(-10e10).
 
         
         
