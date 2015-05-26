@@ -5,6 +5,8 @@
            
            remove_rule/1,
            remove_all_rules/0,
+
+           rule_group_rules/2,
            
            translate_to_gl_term/2,
            translate_to_gl_rule/3,
@@ -164,6 +166,7 @@ compile_sdcl_file(File, FileId, Mode) :-
          compile_sdcl_clause(Clause),
          compile_sdcl_file(File, FileId, genlog)
         ),
+        record_rule_groups, 
         normalize_rules.
                   
 compile_sdcl_clause(macro(Macro)) :-
@@ -194,20 +197,36 @@ compile_sdcl_clauses(Clauses) :-
                 _).        
 
 
-
-remove_rule(RuleId) :-
+remove_rule_params(RuleId) :- 
         term_to_atom(gl_rule_prob(RuleId), NameP),
         term_to_atom(gl_rule_alpha(RuleId), NameA),
         nb_delete(NameP),
-        nb_delete(NameA),
+        nb_delete(NameA).
+
+remove_rule(RuleId) :-
+        remove_rule_params(RuleId), 
         retractall(gl_rule(RuleId, _, _, _)).
 
+%% FIXME: This loops through each rule id and then does a retract only
+%% on that rule. This leads to an insane number of retracts, each of
+%% which takes, the same amount of times. We should call only one
+%% retractall(gl_rule(_, _, _, _). 
 remove_all_rules :-
-        gl_rule(RuleId, _, _, _),
-        remove_rule(RuleId),
-        fail
-        ;
-        true.
+        rules(RuleIds),
+        retractall(gl_rule(_, _, _, _)),
+        forall(member(RuleId, RuleIds),
+               remove_rule_params(RuleId)).
+
+record_rule_groups :-
+        retractall('*rule_group_rules*'(_, _)), 
+        forall(rule_group(G),
+               (get_rule_group_rules(G, RuleIds),
+                assert('*rule_group_rules*'(G, RuleIds)))).
+
+rule_group_rules(RuleGroup, Rules) :-
+        '*rule_group_rules*'(RuleGroup, Rules).
+        
+
         
 
 %% display compiled rules
