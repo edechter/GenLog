@@ -442,7 +442,8 @@ sum_rule_assoc_across_rule_groups_go(RuleVals, RuleGroupAssoc) :-
 
 sum_rule_assoc_across_rule_groups_go([], AssocIn, AssocOut) :- !, AssocIn = AssocOut.
 sum_rule_assoc_across_rule_groups_go([RuleId-Val|Rest], AssocIn, AssocOut) :-
-        gl_rule(RuleId, _, _, RuleGroup), 
+        gl_rule(RuleId, _, _, RuleGroup),
+        !,
         (
          get_assoc(RuleGroup, AssocIn, V_Old, AssocTmp, V_New) -> 
          V_New is V_Old + Val
@@ -462,9 +463,9 @@ test(sum_rule_assoc_across_rule_groups,
      [setup(setup_sdcl('../example/trivial_2.gl')),
       cleanup(cleanup_sdcl),
       set(Val = [1, 5])]) :-
-        RuleVals = [r(1)-1,
-                    r(2)-2,
-                    r(3)-3],
+        RuleVals = [1-1,
+                    2-2,
+                    3-3],
         list_to_assoc(RuleVals, RuleAssoc),
         sum_rule_assoc_across_rule_groups(RuleAssoc, RuleGroupAssoc),
         assoc_to_list(RuleGroupAssoc, RuleGroupVals),
@@ -604,8 +605,8 @@ test(expected_rule_counts,
        Goals = [s([a, a], [])],
        prove_goals(Goals, DSearchResults), 
        expected_rule_counts(DSearchResults, Assoc),
-       assertion(get_assoc(r(1), Assoc, 1.0)),
-       assertion(get_assoc(r(2), Assoc, 2.0)).
+       assertion(get_assoc(1, Assoc, 1.0)),
+       assertion(get_assoc(2, Assoc, 2.0)).
 
 :- end_tests(expected_rule_counts).
 
@@ -678,7 +679,7 @@ dgraph_rule_counts([hyperedge(_, RuleId, _)|Hs], W, AssocIn, AssocOut) :-
 :- begin_tests(learn).
 
 test(expected_rule_counts1,
-     [set(R-C=[r(1)-15.0, r(2)-5.0])]) :-
+     [set(R-C=[1-15.0, 2-5.0])]) :-
         test_dgraph(DGraph),
         Ds = [DGraph-3.0, DGraph-2.0],
         expected_rule_counts1(Ds, Assoc),
@@ -693,21 +694,21 @@ test_dgraph(dgraph(_,[goal(node_1, g1),
                       goal(node_4, g4),
                       goal(node_5, g5)], 
                    [
-                    hyperedge(node_1, r(1), [node_2, node_3]),
-                    hyperedge(node_2, r(1), [node_4]),
-                    hyperedge(node_3, r(2), []),
-                    hyperedge(node_4, r(1), [])
+                    hyperedge(node_1, 1, [node_2, node_3]),
+                    hyperedge(node_2, 1, [node_4]),
+                    hyperedge(node_3, 2, []),
+                    hyperedge(node_4, 1, [])
                     ])).
 
 test(dgraph_rule_counts,
-     [set(R-C=[r(1)-9.0, r(2)-3.0])]) :- 
+     [set(R-C=[1-9.0, 2-3.0])]) :- 
         test_dgraph(DGraph),
         dgraph_rule_counts(DGraph, 3.0, Assoc),
         assoc_to_list(Assoc, Counts),
         member(R-C, Counts).
 
 test(dgraph_rule_counts_unweighted,
-     [set(R-C=[r(1)-3, r(2)-1])]) :- 
+     [set(R-C=[1-3, 2-1])]) :- 
         test_dgraph(DGraph),
         dgraph_rule_counts(DGraph, Assoc),
         assoc_to_list(Assoc, Counts),

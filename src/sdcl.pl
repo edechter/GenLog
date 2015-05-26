@@ -306,6 +306,10 @@ functors(Functors) :-
                rule_functor(RuleId, F/A)),
               Functors).
 
+get_rule_rule_group(RuleId, RuleGroup) :-
+        gl_rule(RuleId, _, _, RuleGroup),
+        !.
+
 get_rule_group_rules(RuleGroup, RuleIds) :-
         findall(RuleId,
                 gl_rule(RuleId, _, _, RuleGroup),

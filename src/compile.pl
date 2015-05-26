@@ -43,7 +43,7 @@
 
   A genlog rule is a structure of the form gl_rule(RuleId, RuleHead, RuleBody, RuleGroup).
   
-  RuleId:       r(Int) for integer Int. This is a unique key for genlog rules.
+  RuleId:       Int for integer Int. This is a unique key for genlog rules.
   RuleHead:     a gl_term/3 structure representing the head of the rule.
   RuleBody:     a conjunction of gl_term/3 structures representing the body of the rule.
   RuleGroup:    a rule_group/2 structure representing the group of alternative rules to which this rule belongs.
@@ -178,7 +178,7 @@ compile_sdcl_clause(Clause) :-
         (
          gensym('', RuleNum),
          atom_number(RuleNum, RuleNum1),
-         RuleId = r(RuleNum1)
+         RuleId = RuleNum1
         ),
          
         translate_to_gl_rule(Clause, TrClause, Prob),
@@ -254,7 +254,7 @@ test(compile_sdcl_clause1,
         reset_gensym,
         Clause = (s(_X, _Y | [boy], _Y)),
         compile_sdcl_clause(Clause),
-        TClause = gl_rule(r(1), gl_term(s/4, [_X1, _Y1], [[boy], _Y1]),
+        TClause = gl_rule(1, gl_term(s/4, [_X1, _Y1], [[boy], _Y1]),
                      true, rule_group(s/4, [[boy], '$VAR'(0)])),
         call(TClause),
         AClause = gl_rule(_, _, _, _),
