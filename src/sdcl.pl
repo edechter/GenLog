@@ -24,6 +24,7 @@
            rule_group_norm/2,
            rule_group_norm/3,           
            rule_group_norms/1,
+           rule_group_norms/2,
            normalize_rule_group/3,
            normalize_rules/0,
 
@@ -389,13 +390,13 @@ rule_group_norms_([Id-RG|RuleIdValues], AssocIn, AssocOut) :-
 
 % %% Collapse rule assoc over rule group, summing the corresponding
 % %% values.
-% rule_group_norms(RuleAssoc, RuleGroupAssoc) :-
-%         rule_groups(RuleGroups),
-%         findall(RuleGroup-Z,
-%                 (member(RuleGroup, RuleGroups),
-%                  rule_group_norm(RuleGroup, RuleAssoc, Z)),
-%                 RuleGroupValList),
-%         list_to_assoc(RuleGroupValList, RuleGroupAssoc).
+rule_group_norms(RuleAssoc, RuleGroupAssoc) :-
+        rule_groups(RuleGroups),
+        findall(RuleGroup-Z,
+                (member(RuleGroup, RuleGroups),
+                 rule_group_norm(RuleGroup, RuleAssoc, Z)),
+                RuleGroupValList),
+        list_to_assoc(RuleGroupValList, RuleGroupAssoc).
 
                  
 
