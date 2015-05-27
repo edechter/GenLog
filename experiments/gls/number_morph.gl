@@ -1,9 +1,9 @@
 
-num_preds(phrase, 5).
-num_preds(word, 5).
-num_preds(syll, 5).
-num_preds(cons, 5).
-num_preds(vow, 5).
+num_preds(phrase, 3).
+num_preds(word, 3).
+num_preds(syll, 3).
+num_preds(cons, 3).
+num_preds(vow,  3).
 
 
 pred(Category, Index, Pred) :-
@@ -47,29 +47,10 @@ macro(
      ).
 
 % macro(
-%       ('?A'([A|Xi]-Yf|Z) ---> '?B'(Xi-Yf|Z))
-%      :-
-%      (category(Cat),
-%       category(Cat1),
-%       pred(Cat, '?A'),
-%       pred(Cat1, '?B'),
-%       lexeme(A))
-%      ).
-
-% macro(
 %       ('?A'(X-X|Z))
 %      :-
-%      (category(Cat),
-%       pred(Cat, '?A'))
-%      ).
-
-% macro(
-%       ('?A'(Xi-Yf|Z) ---> '?B'(Yi-Yf | Z), '?C'(Xi-Yi | Yi-Yf))
-%      :-
 %      (pred(Cat, '?A'),
-%       pred(Cat, '?B'),
-%       pred(Cat, '?C'),
-%       list_category(Cat)
+%       syntax_category(Cat)
 %       )
 %      ).
  
@@ -91,12 +72,12 @@ macro(
      ).
 %%
 
-%% syll rules
+% syll rules
 macro(
-      ('?A'([X, Y, Z|R] - R | C) --->
-       '?B'(X|C),
-       '?C'(Y|C),
-       '?D'(Z|C))
+      ('?A'([X, Y, Z|R] - R | C1-C2) --->
+       '?B'(X|C1-C2),
+       '?C'(Y|[X|C1]-C2),
+       '?D'(Z|[Y, X|C1]-C2))
      :-
      (pred(syll, '?A'),
       pred(cons, '?B'),
