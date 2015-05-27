@@ -30,11 +30,12 @@
 %% ----------------------------------------------------------------------
 %% pretty print gl_terms and corresponding rules
 
-pprint_rule(r(RuleN), Out) :-
-        find_rule_by_id(r(RuleN), Rule),
-        pprint_rule(Rule, Out).
 pprint_rule(gl_rule(_, Head, Body, _), Out) :-
+        !, 
         pprint_rule(Head, Body, Out).
+pprint_rule(RuleN, Out) :-
+        find_rule_by_id(RuleN, Rule),
+        pprint_rule(Rule, Out).
 
 pprint_rule(Head, Body, Out) :-
         copy_and_numbervars((Head, Body), (HeadN, BodyN)), 

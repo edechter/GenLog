@@ -131,6 +131,7 @@ compile_sdcl_file(File) :-
         split_gl_file(File, PTmp, GLTmp),
         load_files([PTmp], [module(compile)]),
         compile_gl(GLTmp),
+        record_rule_groups, 
         normalize_rules,
         
         debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
@@ -218,13 +219,22 @@ remove_all_rules :-
                remove_rule_params(RuleId)).
 
 record_rule_groups :-
-        retractall('*rule_group_rules*'(_, _)), 
-        forall(rule_group(G),
+        retractall('*rule_group_rules*'(_, _, _)),
+        rule_groups(Gs),
+        length(Gs, N),
+        findall(Id, between(1, N, Id),GroupIds),
+        pairs_keys_values(IdGroups, GroupIds, Gs),
+        forall(member(Id-G, IdGroups),
                (get_rule_group_rules(G, RuleIds),
-                assert('*rule_group_rules*'(G, RuleIds)))).
+                assert('*rule_group_rules*'(Id, G, RuleIds)))).
 
 rule_group_rules(RuleGroup, Rules) :-
-        '*rule_group_rules*'(RuleGroup, Rules).
+        '*rule_group_rules*'(_, RuleGroup, Rules),
+        !.
+
+rule_group_id_rules(RuleGroupId, Rules) :-
+        '*rule_group_rules*'(RuleGroupId, _, _),
+        !.
         
 
         
