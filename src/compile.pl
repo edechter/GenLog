@@ -136,39 +136,6 @@ compile_sdcl_file(File) :-
         
         debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
 
-
-% compile_sdcl_file/3.
-% worker predicate
-compile_sdcl_file(File, FileId, Mode) :-        
-        read_clause(FileId, Clause, []),
-        (
-         Clause = end_of_file -> 
-         close(FileId), !
-        ;
-         Clause = (:- begin(genlog)) ->
-         compile_sdcl_file(File, FileId, genlog), !
-        ;
-         Clause = (:- end(genlog)) ->
-         compile_sdcl_file(File, FileId, prolog), !
-        ;         
-         Mode = prolog ->
-         (Clause = (:-G) ->
-          call(G),
-          writeln(call(G)),
-          compile_sdcl_file(File, FileId, prolog)
-         ;
-          writeln(assert(Clause)),
-          
-          assert(Clause),         
-          compile_sdcl_file(File, FileId, prolog)
-         )
-        ;
-         Mode = genlog ->
-         compile_sdcl_clause(Clause),
-         compile_sdcl_file(File, FileId, genlog)
-        ),
-        record_rule_groups, 
-        normalize_rules.
                   
 compile_sdcl_clause(macro(Macro)) :-
         !,
@@ -208,10 +175,6 @@ remove_rule(RuleId) :-
         remove_rule_params(RuleId), 
         retractall(gl_rule(RuleId, _, _, _)).
 
-%% FIXME: This loops through each rule id and then does a retract only
-%% on that rule. This leads to an insane number of retracts, each of
-%% which takes, the same amount of times. We should call only one
-%% retractall(gl_rule(_, _, _, _). 
 remove_all_rules :-
         rules(RuleIds),
         retractall(gl_rule(_, _, _, _)),

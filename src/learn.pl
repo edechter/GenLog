@@ -34,6 +34,7 @@
 :- use_module(assoc_extra).
 :- use_module(pprint).
 
+:- use_foreign_library('libdigamma.dylib').
 
 %% ----------------------------------------------------------------------
 %%      Settings
@@ -336,8 +337,28 @@ loglikelihood([D|Ds], MultinomialWeights, LIn, LOut) :-
 % calls r to compute the actual loglikelihood
 multinomial_loglikelihood(MultinomialWeights, Counts, LogLikelihood) :-
         assoc_to_values(MultinomialWeights, Ws),
-        assoc_to_values(Counts, Cs), 
+        pad_counts_assoc_with_zeros(Counts, RCs),
+        pairs_keys_values(RCs, _, Cs), 
         LogLikelihood <- dmultinom(Cs, 'NULL', Ws, 'log=TRUE').
+
+pad_counts_assoc_with_zeros(CountsAssoc, CountsList) :-
+        rules(Rules),
+        length(Rules, N),
+        assoc_to_list(CountsAssoc, CountsList0),
+        pad_counts_assoc_with_zeros(1, CountsList0, N, CountsList).
+pad_counts_assoc_with_zeros(R, In, N, Out) :-
+        R > N,
+        !,
+        In = Out.
+pad_counts_assoc_with_zeros(R, [R-C|CountsList0], N, [R-C|CountsList]) :-
+        !,
+        R1 is R + 1, 
+        pad_counts_assoc_with_zeros(R1, CountsList0, N, CountsList).
+pad_counts_assoc_with_zeros(R, CountsList0, N, [R-0|CountsList]) :- 
+        R1 is R + 1, 
+        pad_counts_assoc_with_zeros(R1, CountsList0, N, CountsList).
+
+        
                           
 
 :- begin_tests(learning).
@@ -363,8 +384,8 @@ free_energy1(PriorHyperParams,
              FreeEnergy1) :-
         Mu_r = PriorHyperParams,
         Mu_r_Star = HyperParams,
-        rule_group_norms(PriorHyperParams, Mu_A),
-        rule_group_norms(HyperParams, Mu_A_Star),
+        sdcl:rule_group_norms(PriorHyperParams, Mu_A),
+        sdcl:rule_group_norms(HyperParams, Mu_A_Star),
         assoc_to_values(Mu_r, Mu_r_Vals),
         assoc_to_values(Mu_r_Star, Mu_r_Star_Vals),
         assoc_to_values(Mu_A, Mu_A_Vals),
@@ -411,7 +432,7 @@ free_energy2(PriorHyperParams,
 %%      
 
 compute_variational_weights(VariationalParams, VariationalWeights) :-
-        map_assoc(digamma_on_val, VariationalParams, VariationalWeightsNum),
+        map_assoc(digamma, VariationalParams, VariationalWeightsNum),
         sum_rule_assoc_across_rule_groups(VariationalParams,
                                           VariationalWeightsDen),
         normalize_variational_weights(VariationalWeightsNum,
@@ -422,11 +443,11 @@ normalize_variational_weights(VariationalWeightsNum, %% numerator
                               VariationalWeightsDen,  %% denominator
                               VariationalWeights) :-
         findall(RuleId-VariationalWeight,
-                ( 
+                (gen_assoc(RuleId, VariationalWeightsNum, VNum), 
                  gl_rule(RuleId, _, _, RuleGroup),
-                 get_assoc(RuleId, VariationalWeightsNum, VNum), 
-                 get_assoc(RuleGroup, VariationalWeightsDen, VDen), 
-                 VariationalWeight <- exp(VNum - digamma(VDen))
+                 get_assoc(RuleGroup, VariationalWeightsDen, VDen),
+                 digamma(VDen, DigamVDen), 
+                 VariationalWeight is exp(VNum - DigamVDen)
                  ),
                 RVs),
         list_to_assoc(RVs, VariationalWeights).
@@ -453,8 +474,6 @@ sum_rule_assoc_across_rule_groups_go([RuleId-Val|Rest], AssocIn, AssocOut) :-
         sum_rule_assoc_across_rule_groups_go(Rest, AssocTmp, AssocOut).
         
        
-digamma_on_val(V0, V1) :-
-        V1 <- digamma(V0), !.
 
 
 :- begin_tests(variational_weights).
@@ -637,9 +656,18 @@ expected_rule_counts1(Ds, Assoc) :-
 expected_rule_counts1([], AssocIn, AssocIn).
 expected_rule_counts1([DGraph-W|Ds], AssocIn, AssocOut) :-
         dgraph_rule_counts(DGraph, W, Assoc),
-        add_assocs(0, AssocIn, Assoc, AssocTmp),
+        assoc_to_list(Assoc, RVs),
+        expected_rule_insert_rules(RVs, AssocIn, AssocTmp),
         expected_rule_counts1(Ds, AssocTmp, AssocOut).
 
+expected_rule_insert_rules([], Assoc, Assoc).
+expected_rule_insert_rules([R-V|RVs], AssocIn, AssocOut) :-
+        (get_assoc(R, AssocIn, V_old, AssocTmp, V_new) -> 
+         V_new is V_old + V
+        ;
+         put_assoc(R, AssocIn, V, AssocTmp)
+        ),
+        expected_rule_insert_rules(RVs, AssocTmp, AssocOut).
 
 %% ----------------------------------------------------------------------
 %%     dgraph_rule_counts(+DGraph, -Assoc) is Det
@@ -659,27 +687,26 @@ dgraph_rule_counts(DGraph, Assoc) :-
 %%    - Returns an assoc of rule counts in the derivation graph,
 %%    weighted by W. 
 dgraph_rule_counts(DGraph, W, Assoc) :-
-        % this initializes the assoc to have a zero for each rule
-        empty_rules_assoc(Empty),
+        empty_assoc(Empty),
         DGraph=dgraph(_, _, Hs),
         dgraph_rule_counts(Hs, W, Empty, Assoc).
 
 dgraph_rule_counts([], _, AssocIn, AssocIn). 
 dgraph_rule_counts([hyperedge(_, RuleId, _)|Hs], W, AssocIn, AssocOut) :-
         (
-         get_assoc(RuleId, AssocIn, C), !
+         get_assoc(RuleId, AssocIn, C_old, AssocTmp, C_new) ->
+         C_new is C_old + W
         ;
-         C = 0
+         put_assoc(RuleId, AssocIn, W, AssocTmp)
         ),
-        C1 is C + W,
-        put_assoc(RuleId, AssocIn, C1, AssocTmp),
         dgraph_rule_counts(Hs, W, AssocTmp, AssocOut).
 
 
 :- begin_tests(learn).
 
 test(expected_rule_counts1,
-     [set(R-C=[1-15.0, 2-5.0])]) :-
+     [setup(setup_trivial_sdcl),
+      set(R-C=[1-15.0, 2-5.0])]) :-
         test_dgraph(DGraph),
         Ds = [DGraph-3.0, DGraph-2.0],
         expected_rule_counts1(Ds, Assoc),
@@ -749,6 +776,50 @@ time(Goal, CPU, Wall) :-
 	get_time(T1),
 	Wall is T1-T0,
 	CPU is CPU1-CPU0.
+
+
+% %% ----------------------------------------------------------------------
+% %% digamma function
+% %% taken from http://web.science.mq.edu.au/~mjohnson/code/digamma.c
+
+% /*
+%   double digamma(double x) {
+%   double result = 0, xx, xx2, xx4;
+%   assert(x > 0);
+%   for ( ; x < 7; ++x)
+%     result -= 1/x;
+%   x -= 1.0/2.0;
+%   xx = 1.0/x;
+%   xx2 = xx*xx;
+%   xx4 = xx2*xx2;
+%   result += log(x)+(1./24.)*xx2-(7.0/960.0)*xx4+(31.0/8064.0)*xx4*xx2-(127.0/30720.0)*xx4*xx4;
+%   return result;
+% }
+% */
+
+% digamma(X, Y) :-
+%         Y0 = 0,
+%         assertion(X > 0),
+%         digamma_loop(X, Y0, Y).
+% digamma_loop(X, Yin, Yout) :-
+%         X < 7,
+%         !,
+%         Ytmp is Yin - 1/X,
+%         X1 is X + 1, 
+%         digamma_loop(X1, Ytmp, Yout).
+% digamma_loop(X, Yin, Yout) :-
+%         X1 is X - 1/2, 
+%         XX is 1/X1,
+%         XX2 is XX * XX,
+%         XX4 is XX2 * XX2,
+%         Yout is Yin + log(X1) + (1/24) * XX2 - (7/960)*XX4 + (31/8064)*XX4*XX2 - (127/30720)*XX4*XX4.
+        
+        
+        
+        
+        
+
+
 
 
 %% ----------------------------------------------------------------------
