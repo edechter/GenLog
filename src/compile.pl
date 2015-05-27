@@ -182,21 +182,21 @@ remove_all_rules :-
                remove_rule_params(RuleId)).
 
 record_rule_groups :-
-        retractall('*rule_group_rules*'(_, _, _)),
+        retractall('gl_rule_group_rules'(_, _, _)),
         rule_groups(Gs),
         length(Gs, N),
         findall(Id, between(1, N, Id),GroupIds),
         pairs_keys_values(IdGroups, GroupIds, Gs),
         forall(member(Id-G, IdGroups),
                (get_rule_group_rules(G, RuleIds),
-                assert('*rule_group_rules*'(Id, G, RuleIds)))).
+                assert('gl_rule_group_rules'(Id, G, RuleIds)))).
 
 rule_group_rules(RuleGroup, Rules) :-
-        '*rule_group_rules*'(_, RuleGroup, Rules),
+        'gl_rule_group_rules'(_, RuleGroup, Rules),
         !.
 
 rule_group_id_rules(RuleGroupId, Rules) :-
-        '*rule_group_rules*'(RuleGroupId, _, _),
+        'gl_rule_group_rules'(RuleGroupId, _, _),
         !.
         
 
@@ -586,6 +586,7 @@ save_gl(Dir, Prefix, Options) :-
          !,
          tell(Path),
          listing(compile:gl_rule/4),
+         listing(compile:gl_rule_group_rules/3),
          write_global_vars_,
          told
         ).
@@ -614,7 +615,16 @@ load_gl(File) :-
         format(atom(Msg), "Cannot find file ~w", [File]),
         throw(evaluation_error(load_gl/1, Msg)).
 load_gl(File) :-
-        consult(File). 
+        style_check(-singleton), 
+        qcompile(File),
+        load_global_vars_,
+        style_check(+singleton).
+
+load_global_vars_ :-
+        forall(global_var(C, V),
+               (term_to_atom(C, T),
+                nb_setval(T, V))).
+        
 
 
         

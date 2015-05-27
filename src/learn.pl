@@ -8,8 +8,8 @@
            run_online_vbem/2,
            run_online_vbem/3,
            
+           variational_em_single_iteration/2,
            variational_em_single_iteration/3,
-           variational_em_single_iteration/4,
 
            prove_goals/2,
            prove_goals/3
@@ -34,7 +34,7 @@
 :- use_module(assoc_extra).
 :- use_module(pprint).
 
-:- use_foreign_library('libdigamma.dylib').
+:- use_foreign_library('digamma.so').
 
 %% ----------------------------------------------------------------------
 %%      Settings
@@ -153,7 +153,7 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         ), 
         print_message(informational, online_vbem(goal(Goal))),
         time(
-             variational_em_single_iteration([Goal], HyperParams, FreeEnergy, Options),
+             variational_em_single_iteration([Goal], HyperParams, Options),
              CPU_time,
              _Wall_time),
 
@@ -175,7 +175,7 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         ;
 
          Iter1 is Iter + 1,
-         DataOut = [Goal-FreeEnergy|DataOut1],
+         DataOut = [Goal|DataOut1],
          run_online_vbem(GoalGen1, Iter1, DataOut1, Options)
         ).
 
@@ -203,10 +203,10 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
 %%      Execute a single iteration of Variational EM on the list of
 %%      Goals. See mi_best_first/4 for a list of Options. Updates the
 %%      global rules weights with new multinomial weights. 
-variational_em_single_iteration(Goals, HyperParams, FreeEnergy) :-
-        variational_em_single_iteration(Goals, HyperParams, FreeEnergy, []).
+variational_em_single_iteration(Goals, HyperParams) :-
+        variational_em_single_iteration(Goals, HyperParams, []).
 
-variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
+variational_em_single_iteration(Goals, HyperParams, Options) :-
         get_rule_alphas(PriorHyperParams),
         compute_variational_weights(PriorHyperParams, Weights),
         set_rule_probs(Weights),
@@ -223,13 +223,7 @@ variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options) :-
          expected_rule_counts(DSearchResults, ExpectedCounts, Options),
          increment_alphas_by(ExpectedCounts), 
          get_rule_alphas(HyperParams),
-         compute_variational_weights(HyperParams, NewWeights),
-         free_energy(PriorHyperParams,
-                     HyperParams,
-                     NewWeights,
-                     DSearchResults,
-                     _LogLikelihood,
-                     FreeEnergy)
+         compute_variational_weights(HyperParams, NewWeights)
         ;
          print_message(informational, online_vbem(no_derivations_found)),
          get_rule_alphas(PriorHyperParams),

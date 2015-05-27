@@ -1,7 +1,8 @@
 
 
 :- module(pprint,
-          [pprint_rule/2,
+          [pprint_rule/1,
+           pprint_rule/2,
            pprint_term/2,
            pprint_deriv/1,
            pprint_deriv/2,

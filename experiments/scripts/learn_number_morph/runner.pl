@@ -83,7 +83,7 @@ main(Options) :-
         Options0 = [beam_width(100), time_limit_seconds(2)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        number_goals(1, 2, 1000, Goals1),
+        number_goals(1, 10, 1, Goals1),
         % number_goals(10, 20, 1, Goals2),
         append(Goals1, Goals2, Goals),
         list_to_random_choice(Goals, GoalGen),
