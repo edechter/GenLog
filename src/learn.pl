@@ -34,7 +34,8 @@
 :- use_module(assoc_extra).
 :- use_module(pprint).
 
-:- use_foreign_library('digamma.so').
+
+:- use_foreign_library('libdigamma.dylib').
 
 %% ----------------------------------------------------------------------
 %%      Settings

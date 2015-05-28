@@ -5,11 +5,11 @@
    c implementation of digamma function for use in swi prolog. 
 
    To compile on my machine: 
-   >> gcc -I/usr/local/Cellar/swi-prolog/7.1.32_1/libexec/lib/swipl-7.1.32/include \\
-   -L/usr/local/Cellar/swi-prolog/7.1.32_1/libexec/lib/swipl-7.1.32/lib/x86_64-darwin13.2.0 \\
+   >> gcc -I/usr/local/Cellar/swi-prolog/HEAD/libexec/lib/swipl-7.3.1/include \\
+   -L/usr/local/Cellar/swi-prolog/HEAD/libexec/lib/swipl-7.3.1/lib/x86_64-darwin13.2.0 \\
    -fPIC -c -v digamma.c
    >> gcc -v -shared -W1 -o libdigamma.dylib digamma.o \\
-   -L/usr/local/Cellar/swi-prolog/7.1.32_1/libexec/lib/swipl-7.1.32/lib/x86_64-darwin13.2.0 \\
+   -L/usr/local/Cellar/swi-prolog/HEAD/libexec/lib/swipl-7.3.1/lib/x86_64-darwin13.2.0 \\
    -lswipl
 
 
