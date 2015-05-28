@@ -8,8 +8,8 @@
            run_online_vbem/2,
            run_online_vbem/3,
            
+           variational_em_single_iteration/1,
            variational_em_single_iteration/2,
-           variational_em_single_iteration/3,
 
            prove_goals/2,
            prove_goals/3
@@ -27,6 +27,7 @@
    atomic_list_concat([Dir, '/', 'learn.r'], Learn_R_Path),
    prolog_to_os_filename(Learn_R_Path, Learn_R_Path2),
    r(source(+Learn_R_Path2)).
+
 :- r(library("matrixStats")).
 
 :- use_module(sdcl).
@@ -75,7 +76,7 @@ run_batch_vbem(Goals, Options) :-
 run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
         print_message(informational, batch_vbem(start_iter(Iter))),
         time(
-             variational_em_single_iteration(Goals, HyperParams, FreeEnergy, Options),
+             variational_em_single_iteration(Goals, Options),
              CPU_time,
              _Wall_time), 
         print_message(informational, batch_vbem(end_iter(Iter, CPU_time))),
@@ -154,15 +155,13 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         ), 
         print_message(informational, online_vbem(goal(Goal))),
         time(
-             variational_em_single_iteration([Goal], HyperParams, Options),
+             variational_em_single_iteration([Goal], Options),
              CPU_time,
              _Wall_time),
 
         print_message(informational, online_vbem(end_iter(Iter, CPU_time))),
 
         print_message(informational, alphas(1)),
-
-        set_rule_alphas(HyperParams),
         
         !,
 
@@ -198,37 +197,36 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
 
 
 %% ----------------------------------------------------------------------
-%%      variational_em_single_iteration(+Goals, -HyperParams, -FreeEnergy)
-%%      variational_em_single_iteration(+Goals, -HyperParams, -FreeEnergy, +Options)
+%%      variational_em_single_iteration(+Goals, -DSearchResults)
+%%      variational_em_single_iteration(+Goals, -DSearchResults, +Options)
 %%
 %%      Execute a single iteration of Variational EM on the list of
-%%      Goals. See mi_best_first/4 for a list of Options. Updates the
-%%      global rules weights with new multinomial weights. 
-variational_em_single_iteration(Goals, HyperParams) :-
-        variational_em_single_iteration(Goals, HyperParams, []).
+%%      Goals. See mi_best_first/4 for a list of Options.
+%%
+%%      Side-effect: - updates the global rules weights with new
+%%      multinomial weights and updates the global alpha values
+variational_em_single_iteration(Goals) :-
+        variational_em_single_iteration(Goals, []).
 
-variational_em_single_iteration(Goals, HyperParams, Options) :-
+variational_em_single_iteration(Goals, Options) :-
         get_rule_alphas(PriorHyperParams),
         compute_variational_weights(PriorHyperParams, Weights),
         set_rule_probs(Weights),
 
-        writeln(        prove_goals(Goals, DSearchResults, Options)), 
+        % get derivations for all goals
         prove_goals(Goals, DSearchResults, Options),
 
-        findall(L,
-                (member(dsearch_result(_Goal, _Count, D), DSearchResults),
-                 length(D, L)),
-                Ls),
-        sum_list(Ls, NResults),
-        (NResults > 0 -> 
+        % count the number of derivations found
+        aggregate_all(count,
+                      (member(dsearch_result(_Goal, _Count, Ds), DSearchResults),
+                       member(_D, Ds)),
+                      NResults),
+        
+        (NResults > 0 -> % if there are derivations
          expected_rule_counts(DSearchResults, ExpectedCounts, Options),
-         increment_alphas_by(ExpectedCounts), 
-         get_rule_alphas(HyperParams),
-         compute_variational_weights(HyperParams, NewWeights)
+         increment_alphas_by(ExpectedCounts)
         ;
-         print_message(informational, online_vbem(no_derivations_found)),
-         get_rule_alphas(PriorHyperParams),
-         HyperParams = PriorHyperParams
+         print_message(informational, online_vbem(no_derivations_found))
         ).
 
                     
