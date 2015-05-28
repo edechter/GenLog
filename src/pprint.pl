@@ -176,20 +176,6 @@ pprint_rule_map_in_rule_group(Options, Assoc, RuleGroup, Out) :-
                  format(atom(Line), "~|~w: ~10+~|~w ~`.t ~60+~g\n", [RuleId, String, Val])),
                 Lines),
         atomic_list_concat(Lines, Out).
-         
-% show_rules :-
-%         findall(Id-W, 
-%                 gl_rule(Id, _, _, W, _),
-%                 Assoc),
-%         keysort(Assoc,AssocSorted),
-%         !,
-%         member(Id-W, AssocSorted),
-%         pprint_rule(Id, RString), 
-%         format("~|~w: ~t ~10+~w  ~t ~65+:: ~2f\n", [Id, RString, W]),
-%         fail
-%         ;
-%         true.
-
 
 
 %% ----------------------------------------------------------------------

@@ -46,13 +46,13 @@ macro(
       )
      ).
 
-% macro(
-%       ('?A'(X-X|Z))
-%      :-
-%      (pred(Cat, '?A'),
-%       syntax_category(Cat)
-%       )
-%      ).
+macro(
+      ('?A'(X-X|Z))
+     :-
+     (pred(Cat, '?A'),
+      syntax_category(Cat)
+      )
+     ).
  
  
 %% phrase to word and word to syll rules
