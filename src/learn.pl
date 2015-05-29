@@ -12,7 +12,9 @@
            variational_em_single_iteration/2,
 
            prove_goals/2,
-           prove_goals/3
+           prove_goals/3,
+
+           loglikelihood/2
           
            ]).
 
@@ -37,6 +39,7 @@
 
 
 :- use_foreign_library('libdigamma.dylib').
+:- use_foreign_library('libmultinom.dylib').
 
 %% ----------------------------------------------------------------------
 %%      Settings
@@ -224,7 +227,17 @@ variational_em_single_iteration(Goals, Options) :-
         
         (NResults > 0 -> % if there are derivations
          expected_rule_counts(DSearchResults, ExpectedCounts, Options),
-         increment_alphas_by(ExpectedCounts)
+         increment_alphas_by(ExpectedCounts),
+         get_rule_probs(MultinomialWeights),
+         get_rule_alphas(Hyperparameters),
+         free_energy(PriorHyperParams,
+                     Hyperparameters,
+                     MultinomialWeights, 
+                     DSearchResults,
+                     Loglikelihood, 
+                     FreeEnergy),
+         format('Free Energy: ~g', [FreeEnergy])
+        
         ;
          print_message(informational, online_vbem(no_derivations_found))
         ).
@@ -247,6 +260,7 @@ debug_free_energy(DeltaFreeEnergy, Msg) :-
 
 
 %% ----------------------------------------------------------------------
+%% FIXME: This documentation is completely wrong.
 %%      free_energy(+ExpectedCounts, -VB_LowerBound) is det
 %%      free_energy(+ExpectedCounts, +RuleWeights, -VB_LowerBound) is det
 %%
@@ -266,6 +280,7 @@ free_energy(PriorHyperParams,
         loglikelihood(DSearchResults,
                       MultinomialWeights,
                       LogLikelihood),
+        assertion(LogLikelihood < 0),
         % terms 2 and 3 in Eq 8.
         free_energy1(PriorHyperParams,
                      HyperParams, 
@@ -276,7 +291,8 @@ free_energy(PriorHyperParams,
                      MultinomialWeights, 
                      FreeEnergy2
                      ),
-        FreeEnergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2.
+        FreeEnergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2,
+        writeln((freeenergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2)).
 
 %% ----------
 %%      loglikelihood(+DSearchResults, +MultinomialWeights, -Loglikelihood) is det
@@ -292,6 +308,10 @@ free_energy(PriorHyperParams,
 %%      weight.
 
 % loglikelihood/3
+loglikelihood(D, Loglikelihood) :-
+        get_rule_probs(Ws),
+        loglikelihood(D, Ws, Loglikelihood).
+
 loglikelihood([], _, 0) :- !.
 loglikelihood(Ds, MultinomialWeights, Loglikelihood) :-
         Ds = [_|_],  
@@ -329,28 +349,12 @@ loglikelihood([D|Ds], MultinomialWeights, LIn, LOut) :-
         
 % calls r to compute the actual loglikelihood
 multinomial_loglikelihood(MultinomialWeights, Counts, LogLikelihood) :-
-        assoc_to_values(MultinomialWeights, Ws),
-        pad_counts_assoc_with_zeros(Counts, RCs),
-        pairs_keys_values(RCs, _, Cs), 
-        LogLikelihood <- dmultinom(Cs, 'NULL', Ws, 'log=TRUE').
-
-pad_counts_assoc_with_zeros(CountsAssoc, CountsList) :-
-        rules(Rules),
-        length(Rules, N),
-        assoc_to_list(CountsAssoc, CountsList0),
-        pad_counts_assoc_with_zeros(1, CountsList0, N, CountsList).
-pad_counts_assoc_with_zeros(R, In, N, Out) :-
-        R > N,
-        !,
-        In = Out.
-pad_counts_assoc_with_zeros(R, [R-C|CountsList0], N, [R-C|CountsList]) :-
-        !,
-        R1 is R + 1, 
-        pad_counts_assoc_with_zeros(R1, CountsList0, N, CountsList).
-pad_counts_assoc_with_zeros(R, CountsList0, N, [R-0|CountsList]) :- 
-        R1 is R + 1, 
-        pad_counts_assoc_with_zeros(R1, CountsList0, N, CountsList).
-
+        findall(W-C,
+                (gen_assoc(Id, Counts, C),
+                 get_assoc(Id, MultinomialWeights, W)),
+                WCs),
+        pairs_keys_values(WCs, Ws, Cs),
+        multinomial_lnpdf(Cs, Ws, LogLikelihood).
         
                           
 

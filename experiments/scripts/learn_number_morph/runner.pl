@@ -87,7 +87,52 @@ main(Options) :-
         number_goals(10, 20, 1, Goals2),
         append(Goals1, Goals2, Goals),
         list_to_random_choice(Goals, GoalGen),
-        run_online_vbem(GoalGen, Data, Options1).      
+        run_online_vbem(GoalGen, Data, Options1).
+
+%% ----------------------------------------------------------------------
+%%    analyze
+analyze1(GlFile, Ls) :-
+        load_gl(GlFile),
+        number_goals(1, 1, 1, Goals),
+        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(0.5)]), 
+        findall(L,
+                (member(D, Ds), 
+                 loglikelihood(D, L)),
+                Ls).
+
+analyze(Dir, LoglikelihoodData) :-
+        absolute_file_name(Dir, Path),
+        directory_files(Path, Files),
+        findall(F, 
+                (member(F, Files),
+                 atom_prefix(F, 'ovbem_gl'),
+                 file_name_extension(_, 'gl', F)),
+                Files0),
+        length(Files1, 4), 
+        append(Files1, _, Files0),
+        writeln(Files1),
+        retractall(worked(_)),
+        findall(Ls,
+                (member(F, Files1),
+                 directory_file_path(Path, F, P),
+                 Ls=F,                 
+                 (analyze1(P, _) ->
+                  assert(worked(P))
+                 ;
+                  throw(error('FAIL'))
+                 )
+                ),
+                LoglikelihoodData),
+        length(LoglikelihoodData, N).
+        
+        
+        
+        
+        
+        
+        
+        
+        
   
 
 %% ----------------------------------------------------------------------

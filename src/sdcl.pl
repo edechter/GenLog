@@ -280,15 +280,13 @@ test(set_uniform_k_rule_alpha,
 
         
 rules(RuleIds) :-
-        make_gl_rule([], Rule),
-        findall(RuleId, (call(Rule),
-                         gl_rule_id(Rule, RuleId)),
+        findall(RuleId, (
+                         gl_rule(RuleId, _, _, _)),
                 RuleIds).
 
 rule(RuleId) :-
-        rules(RuleIds),
-        !,
-        member(RuleId, RuleIds).
+        gl_rule(RuleId, _, _, _).
+
 
 rule_functor(RuleId, Functor/Arity) :-
         find_rule_by_id(RuleId, Rule),
