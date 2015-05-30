@@ -83,7 +83,7 @@ main(Options) :-
         Options0 = [beam_width(100), time_limit_seconds(2)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        number_goals(1, 10, 2, Goals1),
+        number_goals(1, 10, 1, Goals1),
         number_goals(10, 20, 1, Goals2),
         append(Goals1, Goals2, Goals),
         list_to_random_choice(Goals, GoalGen),
@@ -93,8 +93,8 @@ main(Options) :-
 %%    analyze
 analyze1(GlFile, Ls) :-
         load_gl(GlFile),
-        number_goals(1, 1, 1, Goals),
-        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(0.5)]), 
+        number_goals(1, 20, 1, Goals),
+        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(1.0)]), 
         findall(L,
                 (member(D, Ds), 
                  loglikelihood(D, L)),
@@ -108,15 +108,14 @@ analyze(Dir, LoglikelihoodData) :-
                  atom_prefix(F, 'ovbem_gl'),
                  file_name_extension(_, 'gl', F)),
                 Files0),
-        length(Files1, 4), 
+        length(Files1, 50), 
         append(Files1, _, Files0),
         writeln(Files1),
         retractall(worked(_)),
         findall(Ls,
                 (member(F, Files1),
                  directory_file_path(Path, F, P),
-                 Ls=F,                 
-                 (analyze1(P, _) ->
+                 (analyze1(P, Ls) ->
                   assert(worked(P))
                  ;
                   throw(error('FAIL'))

@@ -1,9 +1,9 @@
 
-num_preds(phrase, 3).
-num_preds(word, 3).
-num_preds(syll, 3).
-num_preds(cons, 3).
-num_preds(vow,  3).
+num_preds(phrase, 2).
+num_preds(word, 2).
+num_preds(syll, 1).
+num_preds(cons, 2).
+num_preds(vow,  1).
 
 
 pred(Category, Index, Pred) :-
