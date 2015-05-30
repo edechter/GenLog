@@ -43,8 +43,8 @@
 
            unconstrained/1, 
            
-           mi_best_first/3,
            mi_best_first/4,
+           mi_best_first/5,
 
            mi_best_first_all/3,
            mi_best_first_all/4,
@@ -183,10 +183,8 @@ set_rule_alpha(RuleId, A) :-
 
 set_rule_alphas(default) :-
         !,
-        findall(_,
-                (rule(RuleId),
-                 set_rule_alpha(RuleId, 1.0)),
-                _).
+        forall(rule(RuleId),
+               set_rule_alpha(RuleId, 1.0)).
 
 set_rule_alphas(uniform) :-
         !,
@@ -473,10 +471,10 @@ mi_best_first_options_default(
        time_limit_seconds(1)
        ]).
 
-mi_best_first(Goal, Score, DGraph) :-
-        mi_best_first(Goal, Score, DGraph, []). 
+mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit) :-
+        mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, []). 
 
-mi_best_first(Goal, Score, DGraph, Options) :-
+mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
         
         % make options record
         mi_best_first_options_default(DefaultOptions),
@@ -515,7 +513,9 @@ mi_best_first(Goal, Score, DGraph, Options) :-
         PrefixMassList = [], 
         
         mi_best_first_go(PQ, GoalTr-UnBoundGoalTr, Score,
-                         DGraph, PrefixMassList, OptionsRecord).
+                         DGraph, PrefixMassList,
+                         StartTime-TimeLimit,
+                         OptionsRecord).
 
 %% time_limit_inference_limit(+TimeLimit, -InferenceLimit) TimeLimit is
 %% a number of seconds, and InferenceLimit is the approximate number
@@ -535,8 +535,10 @@ test(mi_best_first,
       cleanup(cleanup_trivial_sdcl),
       true(G=@= s([a], []))
      ]) :-
-        G=s(_X, []), 
-        mi_best_first(G, _, _),
+        G=s(_X, []),
+        get_time(StartTime),
+        TimeLimit=1, 
+        mi_best_first(G, _, _, StartTime-TimeLimit),
         !.
         
 
@@ -550,17 +552,22 @@ test(mi_best_first,
                      time_limit_seconds=1
                     ).
 %% ----------------------------------------------------------------------
-%% mi_best_first_go/6.
+%% mi_best_first_go/7.
 %% main worker predicate for mi_best_first
 %%
-%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, PrefixMassList, +OptionsRecord)
-mi_best_first_go(PQ, _, _, _, _, _) :-
+%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, PrefixMassList, StartTime-TimeLimit, +OptionsRecord)
+mi_best_first_go(_, _, _, _, _, StartTime-TimeLimit, _) :-
+        get_time(Now),
+        Now-StartTime >= TimeLimit,
+        !,
+        fail.
+mi_best_first_go(PQ, _, _, _, _, _, _) :-
 
         % if PQ is empty, fail.
         PQ=pq(_, 0, _),
         !,
         fail.
-mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb, DGraphOut, PrefixMassList, OptionsRecord) :-
+mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb, DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
 
         % Solution is found, return goal.
         % Continue to next goal on backtracking.
@@ -573,11 +580,10 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb, DGraphOut, PrefixMassList
          
         ;
          mi_best_first_go(NewPQ, TargetGoal-UbTargetGoal,
-                          LogProb, DGraphOut, PrefixMassList, OptionsRecord)
+                          LogProb, DGraphOut, PrefixMassList, TimeInfo, OptionsRecord)
         ).
 mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
-                 DGraphOut, PrefixMassList, OptionsRecord) :-
-
+                 DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
         % If the next best is not a solution
         % get the best solution from priority queue
         pq_find_max(PQ, Elem, _Score, Beam),
@@ -592,16 +598,16 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
         update_prefix_mass_list(Extensions, PrefixMassList, PrefixMassList1),
         % pprint_pairs(PrefixMassList1),
         % nl, 
-
+        !,
         insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList1,
                                     Beam, NewBeam, OptionsRecord),
-        
+        !, 
         print_message(informational, beam_size(NewBeam)),
         % print_message(informational, beam_terms(NewBeam)),
                       
 
         mi_best_first_go(NewBeam, TargetGoal-UbTargetGoal, LogProb,
-                         DGraphOut, PrefixMassList1, OptionsRecord).
+                         DGraphOut, PrefixMassList1, TimeInfo, OptionsRecord).
 
 %% ----------------------------------------------------------------------
 %%      update_prefix_mass_list(DerivInfos, ListIn, ListOut)
@@ -939,26 +945,13 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
         ),
         
         bf_options_time_limit_seconds(OptionsRecord, TimeLimit),
-        time_limit_inference_limit(TimeLimit, InferenceLimit),
 
+        get_time(StartTime),
         retractall(mi_best_first_all_derivation(_)),
-
-        catch( 
-               call_with_time_limit(
-                 TimeLimit, 
-                 (mi_best_first(Goal, Score, DGraph, Options),
-                  assertz(mi_best_first_all_derivation(deriv(Goal, DGraph, Score))),
-                  fail 
-                 ;
-                  true
-                 )),
-               time_limit_exceeded,
-               true
-               ),
-                 
-
+        % side-effect: populate mi_best_first_all_derivation/1.
+        mi_best_first_all_go(StartTime-TimeLimit, Goal, Options), 
         findall(D, mi_best_first_all_derivation(D), Derivations),
-
+        
         % add conditional probability given Goal being true to each
         % derivation
         findall(Score,
@@ -987,6 +980,21 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
         
         print_message(information, expl_search(scores(Scores, Conds))).
 
+
+mi_best_first_all_go(StartTime-TimeLimit, _, _) :-
+        get_time(Now),
+        Now-StartTime > TimeLimit,
+        !.
+mi_best_first_all_go(StartTime-TimeLimit, Goal, Options) :- 
+        (mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options),
+         Deriv = deriv(Goal, DGraph, Score),
+         assertz(mi_best_first_all_derivation(Deriv)),
+         fail
+        ;
+         true).
+
+     
+
         
 %% ----------------------------------------------------------------------
 %%      Log likelihood of data
@@ -1009,6 +1017,16 @@ log_likelihood(Goal, LogP, Options) :-
 %% MaxSize: the maximum length of the priority queue (default:
 %% infinity). Will reject adding an element worse equal to or worse
 %% than the current worse element.
+
+flip_pairs(In, Out) :-
+        pairs_keys_values(In, Ks, Vs),
+        pairs_keys_values(Out, Vs, Ks).
+
+pairs_sort_on_value(PairsIn, PairsOut) :-
+        flip_pairs(PairsIn, PairsFlipped),
+        keysort(PairsFlipped, SortedFlipped),
+        flip_pairs(SortedFlipped, PairsOut).
+        
 
 pq_singleton(Elem, Score, pq([pq_elem(Elem, Score)], 1, infinity)).
 pq_singleton(Elem, Score, MaxSize, pq([pq_elem(Elem, Score)], 1, MaxSize)).
@@ -1059,8 +1077,14 @@ pq_inserts([Elem-Score|Pairs], PQ, NewPQ) :-
 
 % list_to_pq(KVs, PqSize, PQ)
 list_to_pq(Elems, PqSize, PQ) :-
-        pq_empty(PqSize, Empty),
-        pq_inserts(Elems, Empty, PQ). 
+        pairs_sort_on_value(Elems, Sorted0),
+        reverse(Sorted0, Sorted),
+        findall(pq_elem(E, S),
+               member(E-S, Sorted),
+               PqElems0),
+        take(PqSize, PqElems0, PqElems),
+        length(PqElems, N),
+        PQ= pq(PqElems, N, PqSize).
 
 % pq_find_max(+PQ, -MaxElem, -Score, -NewPQ)
 %
