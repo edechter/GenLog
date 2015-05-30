@@ -874,15 +874,24 @@ prolog:message(online_vbem(goal(Goal))) -->
 
 rule_alpha_prefix --> ['Rule alpha map: '].
 prolog:message(alphas(Thresh)) -->
-        {pprint_rule_alphas(Out, [thresh(Thresh)])},
-        {atomic_list_concat(As, '\n', Out)},
+        {rules(RuleIds)},
+        % {pprint_rule_alphas(Out, [thresh(Thresh)])},
+        % {atomic_list_concat(As, '\n', Out)},
         ['---- Rule Alpha Map ----'], [nl],
-        message_alpha_go_(As),
+        message_alpha_go_(RuleIds, Thresh),
         ['---- End Rule Alpha Map ----'], [nl].
 
-message_alpha_go_([]) --> [].
-message_alpha_go_([A|As]) -->
-        rule_alpha_prefix, [A-[]], [nl],
-        message_alpha_go_(As).
+message_alpha_go_([], _) --> [].
+message_alpha_go_([Id|Ids], Thresh) -->
+        {pprint_rule(Id, RString)},
+        {get_rule_alpha(Id, Alpha)},
+        ({Alpha > Thresh} -> 
+         rule_alpha_prefix,
+         ["~|~w: ~10+~|~w ~`.t ~60+~g"-[Id, RString, Alpha]], [nl]
+        ;
+         {true}
+        ),
+        message_alpha_go_(Ids, Thresh).
+         
         
 
