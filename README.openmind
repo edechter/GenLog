@@ -1,0 +1,7 @@
+
+
+Getting GenLog to run on the openmind server. 
+----------------------------------------------------------------------
+
+>> ssh openmind.mit.edu
+>> cd /om/users/edechter
