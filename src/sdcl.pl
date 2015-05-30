@@ -96,15 +96,6 @@
 
 
 %% ----------------------------------------------------------------------
-%% lips_estimate(LIPS).  An estimate of the numeber of logical
-%% inferences per second. This is used to provide a computation time
-%% limit for each branch of the derivation search below. Given a time
-%% limit in seconds, we calculate an inference limit for use with
-%% call_with_inference_limit/3.
-:- setting(lips_estimate, number, 1e6,
-           'Estimate of number of logical inferences per second.').
-
-%% ----------------------------------------------------------------------
 %% gl_rule record
 
 :- record gl_rule(id,
@@ -400,8 +391,6 @@ rule_group_norms(RuleAssoc, RuleGroupAssoc) :-
 
                  
 
-%% FIXME: Pass in assoc of rulegroup to ruleids, so we only need to
-%% traverse all the rules once instead of once for each rulegroup
 normalize_rule_group(RuleGroup, RuleGroupRuleAssoc, RuleGroupNorms) :-
         get_assoc(RuleGroup, RuleGroupRuleAssoc, RuleIds),
         get_assoc(RuleGroup, RuleGroupNorms, Z),
@@ -506,8 +495,6 @@ mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
                      PQ),
 
         bf_options_time_limit_seconds(OptionsRecord, TimeLimit),
-        time_limit_inference_limit(TimeLimit, InferenceLimit),
-
 
         % initialize prefix mass list
         PrefixMassList = [], 
@@ -517,15 +504,6 @@ mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
                          StartTime-TimeLimit,
                          OptionsRecord).
 
-%% time_limit_inference_limit(+TimeLimit, -InferenceLimit) TimeLimit is
-%% a number of seconds, and InferenceLimit is the approximate number
-%% of inferences that can be made in that amount of time. The estimate
-%% is made using the  value of lips_estimate setting.
-time_limit_inference_limit(TimeLimit, InferenceLimit) :-
-        setting(lips_estimate, Lips),
-        InferenceLimit is floor(TimeLimit * Lips).
-        
-        
 :- begin_tests(mi_best_first).
 
 %% test that we get at least the first result correctly.
@@ -555,7 +533,8 @@ test(mi_best_first,
 %% mi_best_first_go/7.
 %% main worker predicate for mi_best_first
 %%
-%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph, PrefixMassList, StartTime-TimeLimit, +OptionsRecord)
+%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph,
+%%                   PrefixMassList, StartTime-TimeLimit, +OptionsRecord)
 mi_best_first_go(_, _, _, _, _, StartTime-TimeLimit, _) :-
         get_time(Now),
         Now-StartTime >= TimeLimit,
@@ -567,7 +546,8 @@ mi_best_first_go(PQ, _, _, _, _, _, _) :-
         PQ=pq(_, 0, _),
         !,
         fail.
-mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb, DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
+mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
+                 DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
 
         % Solution is found, return goal.
         % Continue to next goal on backtracking.
@@ -590,18 +570,16 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
         !, 
         
         % extend best solution
-        % pprint_assoc(PrefixMassAssoc),         
         extend(Elem, Extensions),
         !, 
                         
         % update the prefix mass assoc
         update_prefix_mass_list(Extensions, PrefixMassList, PrefixMassList1),
-        % pprint_pairs(PrefixMassList1),
-        % nl, 
+        
         !,
         insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList1,
                                     Beam, NewBeam, OptionsRecord),
-        !, 
+        
         print_message(informational, beam_size(NewBeam)),
         % print_message(informational, beam_terms(NewBeam)),
                       
@@ -1034,46 +1012,6 @@ pq_singleton(Elem, Score, MaxSize, pq([pq_elem(Elem, Score)], 1, MaxSize)).
 pq_empty(MaxSize, pq([], 0, MaxSize)).
 pq_empty(pq([], 0, infinity)).
 
-% pq_insert(+Elem, +Score, +PQ, -NewPQ) inserts a new Element with
-% Score into PQ.
-pq_insert(Elem, Score, pq(Elems, Size, MaxSize), pq(NewElems, SizeOut, MaxSize)) :-
-        Size1 is Size + 1,
-        pq_insert_sorted_list(Elem, Score, Elems, NewElems1),
-        
-        % if too many elements, take the first MaxSize elements
-        (
-         (MaxSize \= infinity, Size1 > MaxSize) ->
-         take(MaxSize, NewElems1, NewElems),
-         SizeOut = MaxSize
-        ;
-         NewElems = NewElems1, SizeOut = Size1
-        ).
-
-% pq_insert_sorted_list(Elem, Score, Sorted, NewSorted)
-%
-% inserts Elem with score Score into Sorted in ascending order
-% resulting in NewSorted.
-%
-% if Sorted is empty
-pq_insert_sorted_list(Elem, Score, [], [pq_elem(Elem, Score)]) :- !.
-% if Score is greater than or equal to score at head of list
-pq_insert_sorted_list(Elem, Score, [pq_elem(E, S)|Xs], [pq_elem(Elem, Score), pq_elem(E, S) | Xs]) :-
-        Score >= S, !.
-
-% if Score is less than score at head of list, recurse
-pq_insert_sorted_list(Elem, Score, [pq_elem(E, S)|Xs], [pq_elem(E, S) | Xs1]) :-
-        Score < S, !, 
-        pq_insert_sorted_list(Elem, Score, Xs, Xs1).
-
-% pq_inserts(+[Elem-Score], +PQ, -NewPQ)
-% inserts pairs of scored elements into priority queue
-%
-% TODO: inserting multiple elements should require only a single pass,
-% but is currently implemented as multiple passes, one for each element.
-pq_inserts([], PQ, PQ).
-pq_inserts([Elem-Score|Pairs], PQ, NewPQ) :-
-        pq_insert(Elem, Score, PQ, PQ1),
-        pq_inserts(Pairs, PQ1, NewPQ).
 
 % list_to_pq(KVs, PqSize, PQ)
 list_to_pq(Elems, PqSize, PQ) :-
