@@ -588,6 +588,8 @@ save_gl(Dir, Prefix, Options) :-
          listing(compile:gl_rule/4),
          listing(compile:gl_rule_group_rules/3),
          write_global_vars_,
+         (member(ovbem_info(Info), Options) ->
+          portray_clause(Info)),
          told
         ).
 
