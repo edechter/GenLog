@@ -8,9 +8,6 @@
            run_online_vbem/2,
            run_online_vbem/3,
            
-           variational_em_single_iteration/1,
-           variational_em_single_iteration/2,
-
            prove_goals/2,
            prove_goals/3,
 
@@ -37,7 +34,6 @@
 :- use_module(assoc_extra).
 :- use_module(pprint).
 
-
 :- use_foreign_library('libdigamma.dylib').
 :- use_foreign_library('libmultinom.dylib').
 
@@ -49,14 +45,59 @@
 % derivation of a goal.
 :- setting(min_loglikelihood, number, -9e9, 'Most negative loglikelihood possible.').
 
+
+
+/* ----------------------------------------------------------------------
+   ----------------------------------------------------------------------
+                             Batch VBEM
+
+   TODO: Currently this updates the global alpha and weight
+   parameters. This is problematic, because we want to use the alpha
+   parameters as the prior parameters throughout the VBEM computation.
+   
+*/
+
+%% options and defaults for vbem
+:- record vbem_options(max_iter = 1000, % maximum number of iterations to run vbem
+                       epsilon  = 1e-3, % stop when improvement is in
+                                        % variational lower bound is less than epsilon
+
+                       % how to initialize the variational parameters
+                       % - normal(+Mean, +StdDev) samples randomly from a
+                       % normal distribution with Mean and StdDev provided.
+                       % - uniform(Lo, Hi) samples uniformly from [0,1]
+                       init_params = uniform(0.0, 1.0),
+
+                       % where to save the genlog data files during learning
+                       save_dir    = './'
+                      ).
+
+
+init_vb_params(uniform(Lo, Hi), VBParams) :-
+        assertion(Hi > Lo), 
+        findall(Id-P,
+                (
+                 rule(Id),
+                 get_rule_alpha(Id, A), 
+                 random(X),
+                 V is X * (Hi - Lo) + Lo,
+                 P is A + V
+                ),
+                IdPs),
+        list_to_assoc(IdPs, VBParams).
+                 
+                 
+                 
+        
 %% ----------------------------------------------------------------------
 %%      run_batch_vbem(+Goals)
 %%      run_batch_vbem(+Goals, +Options) is det
 %%
 %%      Run the batch vbem algorithm for Goals. See the vbem_options
-%%      record below for relevant options and their defaults. Any
+%%      record above for relevant options and their defaults. Any
 %%      options for mi_best_first/4 are also applicable here, and the
 %%      defaults are the same.
+
 run_batch_vbem(Goals) :-
         run_batch_vbem(Goals, []).
 
@@ -65,58 +106,91 @@ run_batch_vbem(Goals, Options) :-
 
         print_message(informational, batch_vbem(start(OptRecord))),
 
-        %% initialize the alpha hyperparams
-        vbem_options_init_params(OptRecord, InitParams), 
-        set_rule_alphas(InitParams),        
-
-        FreeEnergy0 = 9e10, % ~infinity
-        run_batch_vbem(Goals, 1, FreeEnergy0, Options).
-
-% worker predicate
-% * FreeEnergy0: the value of the variational free energy on the last
-% iteration.
-
-run_batch_vbem(Goals, Iter, FreeEnergy0, Options) :-
-        print_message(informational, batch_vbem(start_iter(Iter))),
-        time(
-             variational_em_single_iteration(Goals, Options),
-             CPU_time,
-             _Wall_time), 
-        print_message(informational, batch_vbem(end_iter(Iter, CPU_time))),
-
-        DeltaFreeEnergy is FreeEnergy - FreeEnergy0,
+        %% initialize the variational parameters
+        vbem_options_init_params(OptRecord, InitParams),
+        init_vb_params(InitParams, VBParams),
+        compute_variational_weights(VBParams, Weights), 
+        set_rule_probs(Weights),
         
-        debug_free_energy(DeltaFreeEnergy, Msg),
-        debug(learning(free_energy), Msg, []),
+        VBStateIn = vbem_state{
+                             % iteration of the algorithm
+                             iter        : 1,
+                             % the free_energy value on the most
+                             % recent iteration
+                             free_energy : 9e10,
+                             % the current variational parameters
+                             vb_params   : VBParams,
+                             % the current multinomial weights
+                             weights     : Weights
+                             },
 
-        make_vbem_options(Options, OptRecord, _),
-        vbem_options_max_iter(OptRecord, MaxIter), 
-        (Iter >= MaxIter ->
-         debug(learning, "Batch VBEM: Finished.\n", []),
-         set_rule_alphas(HyperParams)
+        prove_goals(Goals, DSearchResults, Options),
+
+        % count the number of derivations found
+        aggregate_all(count,
+                      (member(dsearch_result(_Goal, _Count, Ds), DSearchResults),
+                       member(_D, Ds)),
+                      NResults),
+        
+
+        (NResults > 0 -> % if there are derivations
+         compute_vb_fixed_point(DSearchResults, VBStateIn, VBStateOut, OptRecord),
+         set_rule_alphas(VBStateOut.vb_params)
         ;
-         vbem_options_epsilon(OptRecord, Eps),
-         abs(FreeEnergy0 - FreeEnergy) < Eps ->
-         debug(learning, "Batch VBEM: Converged ... Finished. \n", [])
-        ;         
-         Iter1 is Iter + 1,
-         run_batch_vbem(Goals, Iter1, FreeEnergy, Options)
+         print_message(informational, online_vbem(no_derivations_found))
         ).
 
+compute_vb_fixed_point(_, VBStateIn, VBStateOut, OptRecord) :-
+        vbem_options_max_iter(OptRecord, MaxIter),
+        VBStateIn.iter > MaxIter,
+        !,
+        VBStateOut = VBStateIn.
+compute_vb_fixed_point(DSearchResults,
+                       VBStateIn,
+                       VBStateOut,
+                       OptRecord) :-
+
+        WeightsIn  = VBStateIn.weights,
         
-%% options and defaults for vbem
-:- record vbem_options(max_iter = 1000, % maximum number of iterations to run vbem
-                       epsilon  = 1e-3, % stop when improvement is in
-                                        % variational lower bound is less than epsilon
 
-                       % how to initialize the variational parameters
-                       % normal(+Mean, +StdDev) samples randomly from a
-                       % normal distribution with Mean and StdDev provided.   
-                       init_params = normal(0.1, 0.05),
+        %% compute the expected rule counts
+        expected_rule_counts(DSearchResults,
+                             WeightsIn,
+                             ExpectedCounts,
+                             Options),
+        
+        %% compute new vb params
+        get_rule_alphas(PriorHyperParams), 
+        add_assocs(0, PriorHyperParams, ExpectedCounts, VBParamsOut),
+        compute_variational_weights(VBParamsOut, WeightsOut),
 
-                       % where to save the genlog data files during learning
-                       save_dir    = './'
-                      ).
+        free_energy(PriorHyperParams,
+                    VBParamsOut,
+                    WeightsOut, 
+                    DSearchResults,
+                    Loglikelihood, 
+                    FreeEnergy),
+        
+        Iter1 is VBStateIn.iter + 1,
+        VBStateNext = vbem_state{
+                                 iter      : Iter1,
+                                 vb_params : VBParamsOut,
+                                 weights   : WeightsOut,
+                                 free_energy : FreeEnergy
+                                },
+        vbem_options_epsilon(OptRecord, Eps),
+        (
+         abs(VBStateIn.free_energy - FreeEnergy) < Eps ->
+         VBStateOut = VBStateNext,
+         debug(learning, "Batch VBEM: Converged ... Finished. \n", [])
+        ;
+         compute_vb_fixed_point(DSearchResults, VBStateNext, VBStateOut, OptRecord)
+        ).
+
+%% ----------------------------------------------------------------------
+%% ----------------------------------------------------------------------
+%%        Online VBEM
+        
 
 %% ----------------------------------------------------------------------
 %%      run_online_vbem(+GoalGen, -Data)
@@ -158,7 +232,7 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         ), 
         print_message(informational, online_vbem(goal(Goal))),
         time(
-             variational_em_single_iteration([Goal], Options),
+             run_batch_vbem([Goal], Options),
              CPU_time,
              _Wall_time),
 
@@ -169,8 +243,10 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         !,
 
         %% save data to file
+        Info = ovbem_info{iter : Iter,
+                          goal : Goal},
         online_vbem_options_save_dir(OptRecord, SaveDir), 
-        save_gl(SaveDir, 'ovbem_gl_', []),
+        save_gl(SaveDir, 'ovbem_gl_', [ovbem_info(Info)]),
         
         online_vbem_options_max_iter(OptRecord, MaxIter),        
         (Iter >= MaxIter ->
@@ -197,50 +273,6 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
                        % where to save the genlog data files during learning
                        save_dir    = './'
                       ).
-
-
-%% ----------------------------------------------------------------------
-%%      variational_em_single_iteration(+Goals, -DSearchResults)
-%%      variational_em_single_iteration(+Goals, -DSearchResults, +Options)
-%%
-%%      Execute a single iteration of Variational EM on the list of
-%%      Goals. See mi_best_first/4 for a list of Options.
-%%
-%%      Side-effect: - updates the global rules weights with new
-%%      multinomial weights and updates the global alpha values
-variational_em_single_iteration(Goals) :-
-        variational_em_single_iteration(Goals, []).
-
-variational_em_single_iteration(Goals, Options) :-
-        get_rule_alphas(PriorHyperParams),
-        compute_variational_weights(PriorHyperParams, Weights),
-        set_rule_probs(Weights),
-
-        % get derivations for all goals
-        prove_goals(Goals, DSearchResults, Options),
-
-        % count the number of derivations found
-        aggregate_all(count,
-                      (member(dsearch_result(_Goal, _Count, Ds), DSearchResults),
-                       member(_D, Ds)),
-                      NResults),
-        
-        (NResults > 0 -> % if there are derivations
-         expected_rule_counts(DSearchResults, ExpectedCounts, Options),
-         increment_alphas_by(ExpectedCounts),
-         get_rule_probs(MultinomialWeights),
-         get_rule_alphas(Hyperparameters),
-         free_energy(PriorHyperParams,
-                     Hyperparameters,
-                     MultinomialWeights, 
-                     DSearchResults,
-                     Loglikelihood, 
-                     FreeEnergy),
-         format('Free Energy: ~g', [FreeEnergy])
-        
-        ;
-         print_message(informational, online_vbem(no_derivations_found))
-        ).
 
                     
 
