@@ -55,20 +55,31 @@ chmod 600 ~/.ssh/git/id_rsa
 
 # clone GenLog repo from github
 GENLOG_ROOT=~/GenLog
+# delete repo if already exists
+if [ -d ${GENLOG_ROOT} ]
+then 
+    echo "Found existing GenLog repo."
+    echo "Deleting ${GENLOG_ROOT}."
+    rm -rf ${GENLOG_ROOT}
+fi
+
+echo "Cloning GenLog Repo..."
 git clone git@github.com:edechter/GenLog.git
+echo "Done."
 
 # source job script
 GENLOG_JOB_SCRIPT=${GENLOG_ROOT}/ec2/job.sh
 GENLOG_JOB_OUT=${GENLOG_ROOT}/ec2/job.out
+chmod +x ${GENLOG_JOB_SCRIPT}
 if [ ! -x ${GENLOG_JOB_SCRIPT} ]
 then
     echo "Cannot execute GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}" 
 else
     echo "Executing GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}..."
-    echo "Time: $( date +%T )"
-    ./${GENLOG_JOB_SCRIPT}
+    echo "Time: $(date +%Y.%m.%d-%H.%M.%S)"
+    bash -x ${GENLOG_JOB_SCRIPT}
     echo "GenLog ec2 job script, ${GENLOG_JOB_SCRIPT}, finished running."
-    echo "Time: $( date +%T )"
+    echo "Time: $(date +%Y.%m.%d-%H.%M.%S)"
 fi
 
 if [ ! -r GENLOG_JOB_OUT ]
