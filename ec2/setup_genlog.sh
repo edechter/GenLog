@@ -83,10 +83,16 @@ else
     echo "Time: $(date +%Y.%m.%d-%H.%M.%S)"
 fi
 
-if [ ! -r GENLOG_JOB_OUT ]
+if [ ! -r ${GENLOG_JOB_OUT} ]
 then
     echo "Cannot find output of GenLog ec2 job script: ${GENLOG_JOB_OUT}"
 else
     t=$( date "+%Y-%m-%d-%HH-%MM-%SS" )
+    echo "Uploading job.out data to S3 bucket..."
     aws s3 cp ${GENLOG_JOB_OUT} "s3://${S3_BUCKET}/data/out_$t"
+    if [ $? -eq 0 ]; then
+        echo "Data transfer succeeded."
+    else
+        echo "Data transfer failed."
+    fi
 fi
