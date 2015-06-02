@@ -45,8 +45,6 @@
 % derivation of a goal.
 :- setting(min_loglikelihood, number, -9e9, 'Most negative loglikelihood possible.').
 
-
-
 /* ----------------------------------------------------------------------
    ----------------------------------------------------------------------
                              Batch VBEM
@@ -81,7 +79,16 @@ init_vb_params(uniform(Lo, Hi), VBParams) :-
                 ),
                 IdPs),
         list_to_assoc(IdPs, VBParams).
-                 
+
+init_vb_params(norm(Lo, Hi), VBParams) :-
+        assertion(Mean > 0),
+        assertion(StdDev > 0),
+        
+        rules(RuleIds),
+        length(RuleIds, NRules),
+        Ps <- rnorm(NRules, Mean, StdDev), 
+        pairs_keys_values(RAs, RuleIds, As),
+        list_to_assoc(RAs, VBParams).
                  
                  
         
