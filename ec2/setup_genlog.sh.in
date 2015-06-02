@@ -15,46 +15,66 @@ export GMAIL_USER
 GMAIL_PASSWORD=<GMAIL_PASSWORD>
 export GMAIL_PASSWORD
 
-
 # install awscli
-# sudo pip install awscli
+pip install awscli
+
 
 # set up awscli config
-mkdir -p ~/.aws
-cat << EOF > ~/.aws/credentials
+mkdir -p /home/ubuntu/.aws
+cat <<DOF > /home/ubuntu/.aws/credentials
 [default]
 aws_access_key_id = ${AWS_ACCESS_KEY}
 aws_secret_access_key = ${AWS_SECRET_KEY}
-EOF
-chmod 666 ~/.aws/credentials
+DOF
+sudo chmod 666 /home/ubuntu/.aws/credentials
 
-cat << EOF > ~/.aws/config
+cat <<GOF > /home/ubuntu/.aws/config
 [default]
 region = us-east-1
-EOF
-chmod 666 ~/.aws/config
+GOF
+sudo chmod 666  /home/ubuntu/.aws/config
 
-# add GitHub to known_hosts
-ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
 # add swipl repo
 # -y automatically responds yes to all queries
 # needed for non-interactive script
-sudo apt-add-repository -y ppa:swi-prolog/devel
-sudo apt-get -y update
+apt-add-repository -y ppa:swi-prolog/devel
+apt-get -y update
 
 # install git
-sudo apt-get install -y git
-sudo apt-get install -y swi-prolog
+apt-get install -y git
+apt-get install -y swi-prolog
 
-# ####################
-# ## Get GenLog     ##
-# ####################
+sudo -u ubuntu bash <<"EOF"
+
+
+export HOME=/home/ubuntu
+
+# Add environment variables to ubuntu user .bashrc file
+echo "export AWS_ACCESS_KEY=${AWS_ACCESS_KEY}" >> ~/.bashrc
+echo "export AWS_SECRET_KEY=${AWS_SECRET_KEY}" >> ~/.bashrc
+echo "export GMAIL_USER=${GMAIL_USER}" >> ~/.bashrc
+echo "export GMAIL_PASSWORD=${GMAIL_PASSWORD}" >> ~/.bashrc
+
+
+# add GitHub to known_hosts
+sudo chown ubuntu ~/.ssh/known_hosts
+sudo ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
+#####################################################################
+ ####################
+ ## Get GenLog     ##
+ ####################
 
 
 S3_BUCKET=edechter.genlog
 # get github ssh key from S3 bucket
-aws s3 cp s3://edechter.genlog/.ssh ~/.ssh --recursive 
+echo "Fetching .ssh from S3"
+CMD="aws s3 cp s3://edechter.genlog/.ssh ~/.ssh --recursive"
+echo $CMD
+$CMD
+
+
 chmod 600 ~/.ssh/git/id_rsa
 
 # clone GenLog repo from github
@@ -76,7 +96,7 @@ echo "Done."
 GENLOG_JOB_SCRIPT=${GENLOG_ROOT}/ec2/job.sh
 GENLOG_JOB_OUT=${GENLOG_ROOT}/ec2/job.out
 GENLOG_JOB_LOG=${GENLOG_ROOT}/ec2/job.log
-GENLOG_JOB_ID=$( date +%s%3 ) # milliseconds since epoch
+GENLOG_JOB_ID=$( date +%s%3N ) # milliseconds since epoch
 LOG_PRE="GenLog Job ${GENLOG_JOB_ID}: "
 chmod +x ${GENLOG_JOB_SCRIPT}
 if [ ! -x ${GENLOG_JOB_SCRIPT} ]
@@ -91,15 +111,15 @@ else
 fi
 
 # Transfer data to S3
-S3_DATA_PATH=data
+S3_DATA_DIR=data
 S3_DATA_PRE="out_job_id_"
 S3_DATA_FILENAME="${S3_DATA_PRE}_${GENLOG_JOB_ID}"
-S3_DATA_URL="s3://${S3_BUCKET}/${S3_DATA_PATH}/${S3_DATA_FILENAME}"
+S3_DATA_URL="s3://${S3_BUCKET}/${S3_DATA_DIR}/${S3_DATA_FILENAME}"
 
 S3_LOG_DIR="logs/jobs"
 S3_LOG_PRE="log_job_id_"
 S3_LOG_FILENAME="${S3_LOG_PRE}_${GENLOG_JOB_ID}"
-S3_LOG_URL="s3://${S3_BUCKET}/${S3_DATA_PATH}/${S3_DATA_FILENAME}"
+S3_LOG_URL="s3://${S3_BUCKET}/${S3_LOG_DIR}/${S3_LOG_FILENAME}"
 
 S3_LOG_URL="s3://${S3_BUCKET}/${S3_DATA_PATH}/${S3_DATA_FILENAME}"
 
@@ -133,4 +153,6 @@ else
         echo "$LOG_PRE: Data transfer failed."
     fi
 fi
+
+EOF
 
