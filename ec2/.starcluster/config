@@ -1,0 +1,225 @@
+## StarCluster config file for GenLog experiments on EC2
+## Author: Eyal Dechter
+## Date: 6/1/2015
+######################################################################
+
+####################################
+## Starcluster Configuration File ##
+####################################
+[global]
+# Configure the default cluster template to use when starting a cluster
+# defaults to 'smallcluster' defined below. This template should be usable
+# out-of-the-box provided you've configured your keypair correctly
+DEFAULT_TEMPLATE=smallcluster
+# enable experimental features for this release
+#ENABLE_EXPERIMENTAL=True
+# number of seconds to wait when polling instances (default: 30s)
+REFRESH_INTERVAL=5
+# specify a web browser to launch when viewing spot history plots
+#WEB_BROWSER=chromium
+# split the config into multiple files
+#INCLUDE=~/.starcluster/aws, ~/.starcluster/keys, ~/.starcluster/vols
+
+#############################################
+## AWS Credentials and Connection Settings ##
+#############################################
+[aws info]
+# This is the AWS credentials section (required).
+# These settings apply to all clusters
+# replace these with your AWS keys
+AWS_ACCESS_KEY_ID = "<Defined in ENV>"
+AWS_SECRET_ACCESS_KEY = "<Defined in ENV>"
+# replace this with your account number
+#AWS_USER_ID= eyaldechter@gmail.com
+# Uncomment to specify a different Amazon AWS region  (OPTIONAL)
+# (defaults to us-east-1 if not specified)
+# NOTE: AMIs have to be migrated!
+# AWS_REGION_NAME = eu-west-1
+# AWS_REGION_HOST = ec2.eu-west-1.amazonaws.com
+# Uncomment these settings when creating an instance-store (S3) AMI (OPTIONAL)
+#EC2_CERT = /path/to/your/cert-asdf0as9df092039asdfi02089.pem
+#EC2_PRIVATE_KEY = /path/to/your/pk-asdfasd890f200909.pem
+# Uncomment these settings to use a proxy host when connecting to AWS
+#AWS_PROXY = your.proxyhost.com
+#AWS_PROXY_PORT = 8080
+#AWS_PROXY_USER = yourproxyuser
+#AWS_PROXY_PASS = yourproxypass
+
+###########################
+## Defining EC2 Keypairs ##
+###########################
+# Sections starting with "key" define your keypairs. See "starcluster createkey
+# --help" for instructions on how to create a new keypair. Section name should
+# match your key name e.g.:
+[key ec2]
+KEY_LOCATION=~/.ssh/ec2.rsa     
+
+################################
+## Defining Cluster Templates ##
+################################
+# Sections starting with "cluster" represent a cluster template. These
+# "templates" are a collection of settings that define a single cluster
+# configuration and are used when creating and configuring a cluster. You can
+# change which template to use when creating your cluster using the -c option
+# to the start command:g
+#
+#     $ starcluster start -c mediumcluster mycluster
+#
+# If a template is not specified then the template defined by DEFAULT_TEMPLATE
+# in the [global] section above is used. Below is the "default" template named
+# "smallcluster". You can rename it but dont forget to update the
+# DEFAULT_TEMPLATE setting in the [global] section above. See the next section
+# on defining multiple templates.
+
+[cluster smallcluster]
+# change this to the name of one of the keypair sections defined above
+KEYNAME = ec2
+# number of ec2 instances to launch
+CLUSTER_SIZE = 2
+# create the following user on the cluster
+CLUSTER_USER = sgeadmin
+# optionally specify shell (defaults to bash)
+# (options: tcsh, zsh, csh, bash, ksh)
+CLUSTER_SHELL = bash
+# Uncomment to prepent the cluster tag to the dns name of all nodes created
+# using this cluster config.  ie: mycluster-master and mycluster-node001
+# If you choose to enable this option, it's recommended that you enable it in
+# the DEFAULT_TEMPLATE so all nodes will automatically have the prefix
+# DNS_PREFIX = True
+# AMI to use for cluster nodes. These AMIs are for the us-east-1 region.
+# Use the 'listpublic' command to list StarCluster AMIs in other regions
+# The base i386 StarCluster AMI is ami-9bf9c9f2
+# The base x86_64 StarCluster AMI is ami-3393a45a
+# The base HVM StarCluster AMI is ami-6b211202
+# IMPORTANT: for most recent StarCluster AMIs, see: 
+# http://star.mit.edu/cluster/index.html
+NODE_IMAGE_ID = ami-765b3e1f
+# instance type for all cluster nodes
+# (options: m3.large, c3.8xlarge, i2.8xlarge, t2.micro, hs1.8xlarge, c1.xlarge, r3.4xlarge, g2.2xlarge, m1.small, c1.medium, m3.2xlarge, c3.2xlarge, m2.xlarge, m2.2xlarge, t2.small, r3.2xlarge, t1.micro, cr1.8xlarge, r3.8xlarge, cc1.4xlarge, m1.medium, r3.large, c3.xlarge, i2.xlarge, m3.medium, cc2.8xlarge, m1.large, cg1.4xlarge, i2.2xlarge, c3.large, i2.4xlarge, c3.4xlarge, r3.xlarge, t2.medium, hi1.4xlarge, m2.4xlarge, m1.xlarge, m3.xlarge)
+NODE_INSTANCE_TYPE = m1.small
+# Launch cluster in a VPC subnet (OPTIONAL)
+#SUBNET_ID=subnet-99999999
+# Uncomment to assign public IPs to cluster nodes (VPC-ONLY) (OPTIONAL)
+# WARNING: Using public IPs with a VPC requires:
+# 1. An internet gateway attached to the VPC
+# 2. A route table entry linked to the VPC's internet gateway and associated
+#    with the VPC subnet with a destination CIDR block of 0.0.0.0/0
+# WARNING: Public IPs allow direct access to your VPC nodes from the internet
+#PUBLIC_IPS=True
+# Uncomment to disable installing/configuring a queueing system on the
+# cluster (SGE)
+#DISABLE_QUEUE=True
+# Uncomment to specify a different instance type for the master node (OPTIONAL)
+# (defaults to NODE_INSTANCE_TYPE if not specified)
+#MASTER_INSTANCE_TYPE = m1.small
+# Uncomment to specify a separate AMI to use for the master node. (OPTIONAL)
+# (defaults to NODE_IMAGE_ID if not specified)
+#MASTER_IMAGE_ID = ami-3393a45a (OPTIONAL)
+# availability zone to launch the cluster in (OPTIONAL)
+# (automatically determined based on volumes (if any) or
+# selected by Amazon if not specified)
+#AVAILABILITY_ZONE = us-east-1c
+# list of volumes to attach to the master node (OPTIONAL)
+# these volumes, if any, will be NFS shared to the worker nodes
+# see "Configuring EBS Volumes" below on how to define volume sections
+#VOLUMES = oceandata, biodata
+# list of plugins to load after StarCluster's default setup routines (OPTIONAL)
+# see "Configuring StarCluster Plugins" below on how to define plugin sections
+PLUGINS = tmux
+# list of permissions (or firewall rules) to apply to the cluster's security
+# group (OPTIONAL).
+#PERMISSIONS = ssh, http
+# Uncomment to always create a spot cluster when creating a new cluster from
+# this template. The following example will place a $0.50 bid for each spot
+# request.
+# SPOT_BID = 0.02
+
+# USER DATA SCRIPTS
+# NB: All scripts combined must be less than 16KB
+USERDATA_SCRIPTS = ~/Dropbox/Projects/SDCL/ec2/scripts/install_swipl.sh
+
+
+
+######################
+## Built-in Plugins ##
+######################
+# The following plugins ship with StarCluster and should work out-of-the-box.
+# Uncomment as needed. Don't forget to update your PLUGINS list!
+# See http://star.mit.edu/cluster/docs/latest/plugins for plugin details.
+#
+# Use this plugin to install one or more packages on all nodes
+# [plugin pkginstaller]
+# SETUP_CLASS = starcluster.plugins.pkginstaller.PackageInstaller
+# list of apt-get installable packages
+# PACKAGES = git
+#
+# Use this plugin to create one or more cluster users and download all user ssh
+# keys to $HOME/.starcluster/user_keys/<cluster>-<region>.tar.gz
+# [plugin createusers]
+# SETUP_CLASS = starcluster.plugins.users.CreateUsers
+# NUM_USERS = 30
+# # you can also comment out NUM_USERS and specify exact usernames, e.g.
+# # usernames = linus, tux, larry
+# DOWNLOAD_KEYS = True
+#
+# Use this plugin to configure the Condor queueing system
+# [plugin condor]
+# SETUP_CLASS = starcluster.plugins.condor.CondorPlugin
+#
+# The SGE plugin is enabled by default and not strictly required. Only use this
+# if you want to tweak advanced settings in which case you should also set
+# DISABLE_QUEUE=TRUE in your cluster template. See the plugin doc for more
+# details.
+# [plugin sge]
+# SETUP_CLASS = starcluster.plugins.sge.SGEPlugin
+# MASTER_IS_EXEC_HOST = False
+#
+# The IPCluster plugin configures a parallel IPython cluster with optional
+# web notebook support. This allows you to run Python code in parallel with low
+# latency message passing via ZeroMQ.
+# [plugin ipcluster]
+# SETUP_CLASS = starcluster.plugins.ipcluster.IPCluster
+# # Enable the IPython notebook server (optional)
+# ENABLE_NOTEBOOK = True
+# # Set a password for the notebook for increased security
+# # This is optional but *highly* recommended
+# NOTEBOOK_PASSWD = a-secret-password
+# # Set a custom directory for storing/loading notebooks (optional)
+# NOTEBOOK_DIRECTORY = /path/to/notebook/dir
+# # Set a custom packer. Must be one of 'json', 'pickle', or 'msgpack'
+# # This is optional.
+# PACKER = pickle
+#
+# Use this plugin to create a cluster SSH "dashboard" using tmux. The plugin
+# creates a tmux session on the master node that automatically connects to all
+# the worker nodes over SSH. Attaching to the session shows a separate window
+# for each node and each window is logged into the node via SSH.
+[plugin tmux]
+SETUP_CLASS = starcluster.plugins.tmux.TmuxControlCenter
+#
+# Use this plugin to change the default MPI implementation on the
+# cluster from OpenMPI to MPICH2.
+# [plugin mpich2]
+# SETUP_CLASS = starcluster.plugins.mpich2.MPICH2Setup
+#
+# Configure a hadoop cluster. (includes dumbo setup)
+# [plugin hadoop]
+# SETUP_CLASS = starcluster.plugins.hadoop.Hadoop
+#
+# Configure a distributed MySQL Cluster
+# [plugin mysqlcluster]
+# SETUP_CLASS = starcluster.plugins.mysql.MysqlCluster
+# NUM_REPLICAS = 2
+# DATA_MEMORY = 80M
+# INDEX_MEMORY = 18M
+# DUMP_FILE = test.sql
+# DUMP_INTERVAL = 60
+# DEDICATED_QUERY = True
+# NUM_DATA_NODES = 2
+#
+# Install and setup an Xvfb server on each cluster node
+# [plugin xvfb]
+# SETUP_CLASS = starcluster.plugins.xvfb.XvfbSetup
+
+# [plugin swipl-devel]
+# SETUP_CLASS = swipl_devel.SwiplDevel

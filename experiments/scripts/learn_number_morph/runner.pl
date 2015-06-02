@@ -94,7 +94,7 @@ main(Options) :-
 analyze1(GlFile, Ls) :-
         load_gl(GlFile),
         number_goals(1, 20, 1, Goals),
-        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(1.0)]), 
+        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(2.0)]), 
         findall(L,
                 (member(D, Ds), 
                  loglikelihood(D, L)),
@@ -108,7 +108,7 @@ analyze(Dir, LoglikelihoodData) :-
                  atom_prefix(F, 'ovbem_gl'),
                  file_name_extension(_, 'gl', F)),
                 Files0),
-        length(Files1, 50), 
+        length(Files1, 10), 
         append(Files1, _, Files0),
         writeln(Files1),
         retractall(worked(_)),
