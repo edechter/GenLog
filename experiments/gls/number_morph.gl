@@ -1,9 +1,9 @@
 
-num_preds(phrase, 2).
-num_preds(word, 2).
-num_preds(syll, 1).
-num_preds(cons, 2).
-num_preds(vow,  1).
+num_preds(phrase, 4).
+num_preds(word, 4).
+num_preds(syll, 4).
+num_preds(cons, 4).
+num_preds(vow,  4).
 
 
 pred(Category, Index, Pred) :-
@@ -45,6 +45,15 @@ macro(
       syntax_category(Cat)
       )
      ).
+
+% macro(
+%       ('?A'([A|X]-Y|Z) ---> '?B'(X-Y | Z))
+%      :-
+%      (pred(word, '?A'),
+%       pred(word, '?B'),
+%       lexeme(A)
+%       )
+%      ).
 
 macro(
       ('?A'(X-X|Z))

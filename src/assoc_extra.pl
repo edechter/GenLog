@@ -24,22 +24,20 @@ add_assocs(V0, Assoc1, Assoc2, AssocOut) :-
 add_assocs1(_, [], AssocIn, AssocOut) :- !, AssocIn = AssocOut.
 add_assocs1(V0, [K-V|Rest], AssocIn, AssocOut) :-
         (
-         get_assoc(K, AssocIn, V1), !
+         get_assoc(K, AssocIn, V1, AssocTmp, V2) ->
+         V2 is V + V1
          ;
-         V1 = V0
+         put_assoc(K, AssocIn, V, AssocTmp)
         ),
-        V2 is V1 + V,
-        put_assoc(K, AssocIn, V2, AssocTmp),
         add_assocs1(V0, Rest, AssocTmp, AssocOut).
 
 add_to_assoc(Key, Value, AssocIn, AssocOut) :-
         (
-         get_assoc(Key, AssocIn, V0), !
+         get_assoc(Key, AssocIn, V0, AssocOut, V) -> 
+         V is Value + V0
         ;
-         V0 = 0
-        ),
-        V is Value + V0,
-        put_assoc(Key, AssocIn, V, AssocOut).
+         put_assoc(Key, AssocIn, Value, AssocOut)
+        ).
 
 
 :- begin_tests(assoc_extra).
