@@ -51,10 +51,6 @@
    ----------------------------------------------------------------------
                              Batch VBEM
 
-   TODO: Currently this updates the global alpha and weight
-   parameters. This is problematic, because we want to use the alpha
-   parameters as the prior parameters throughout the VBEM computation.
-   
 */
 
 %% options and defaults for vbem
