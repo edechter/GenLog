@@ -55,6 +55,7 @@ chmod 600 ~/.ssh/git/id_rsa
 
 # clone GenLog repo from github
 GENLOG_ROOT=~/GenLog
+export GENLOG_ROOT
 # delete repo if already exists
 if [ -d ${GENLOG_ROOT} ]
 then 
