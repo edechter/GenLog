@@ -15,51 +15,78 @@ export GMAIL_USER
 GMAIL_PASSWORD=<GMAIL_PASSWORD>
 export GMAIL_PASSWORD
 
+SSH_KEY='ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCmzbCLQoAMG9EtoNmkPWxFsy6+PVafqeH98kZSMAuR3cM2jvlMGpejuids51uB5tIQDW8CJHTxO3Z8kp9yUJfE6s4GKD5v3CX/51TQ9PMNkGflyxAFv/pV0Y2Rnf9UA7mjpLzWMotE8CwFTTuhmmu4r8vfONzWKpOAsHoaFbdDxgH/Amj2+gjRIScZH08eXLaCBvPgea2RCDG8mOZGZAXA+Xd4hr83YHE79QAU45f63/WabtOxfuNdtw31DobJQRmT4LtcgkLxsREws4d+N3HRrJA95i3TooQhOlyNPVD6G2Ymkmo6RBCBg1lPGrgVFns7wPZkEu8y6HlfwonNNLFR edechter@helmholtz.westell.com'
+
+# create new user
+USER_HOME=/home/edechter
+useradd \
+    --home /home/edechter \
+    --create-home \
+    --shell /bin/bash \
+    --groups sudo \
+    edechter
+
+# set up ssh key
+mkdir -p $USER_HOME/.ssh
+chown edechter $USER_HOME/.ssh
+chmod 700 $USER_HOME/.ssh
+echo $SSH_KEY > $USER_HOME/.ssh/authorized_keys
+chown edechter $USER_HOME/.ssh/*
+chmod 600 $USER_HOME/.ssh/*
+
 # install awscli
 pip install awscli
 
-
 # set up awscli config
-mkdir -p /home/ubuntu/.aws
-cat <<DOF > /home/ubuntu/.aws/credentials
+mkdir -p $USER_HOME/.aws
+chown edechter $USER_HOME/.aws
+chmod 770 $USER_HOME/.aws
+cat <<DOF > $USER_HOME/.aws/credentials
 [default]
 aws_access_key_id = ${AWS_ACCESS_KEY}
 aws_secret_access_key = ${AWS_SECRET_KEY}
 DOF
-sudo chmod 666 /home/ubuntu/.aws/credentials
-
-cat <<GOF > /home/ubuntu/.aws/config
-[default]
-region = us-east-1
-GOF
-sudo chmod 666  /home/ubuntu/.aws/config
+chown edechter $USER_HOME/.aws/credentials
+chmod 600 $USER_HOME/.aws/credentials
 
 
-# add swipl repo
-# -y automatically responds yes to all queries
-# needed for non-interactive script
+# cat <<GOF > $USER_HOME/.aws/config
+# [default]
+# region = us-east-1
+# GOF
+chown edechter $USER_HOME/.aws/config
+chmod 666  $USER_HOME/.aws/config
+
+#add swipl repo
+#-y automatically responds yes to all queries
+#needed for non-interactive script
 apt-add-repository -y ppa:swi-prolog/devel
 apt-get -y update
 
-# install git
-apt-get install -y git
+# # install git
+# apt-get install -y git
 apt-get install -y swi-prolog
 
-sudo -u ubuntu bash <<"EOF"
+# -i emulates the login of the target user
+# thus setting the home directory correctly
+sudo -i -u edechter bash <<EOF
+set +ex
+export HOME=$USER_HOME
+pwd
 
-
-export HOME=/home/ubuntu
-
-# Add environment variables to ubuntu user .bashrc file
-echo "export AWS_ACCESS_KEY=${AWS_ACCESS_KEY}" >> ~/.bashrc
-echo "export AWS_SECRET_KEY=${AWS_SECRET_KEY}" >> ~/.bashrc
-echo "export GMAIL_USER=${GMAIL_USER}" >> ~/.bashrc
-echo "export GMAIL_PASSWORD=${GMAIL_PASSWORD}" >> ~/.bashrc
+# Add environment variables to edechter user .bashrc file
+echo "export AWS_ACCESS_KEY=${AWS_ACCESS_KEY}" >> $USER_HOME/.bashrc
+echo "export AWS_SECRET_KEY=${AWS_SECRET_KEY}" >> $USER_HOME/.bashrc
+echo "export GMAIL_USER=${GMAIL_USER}" >>  $USER_HOME/.bashrc
+echo "export GMAIL_PASSWORD=${GMAIL_PASSWORD}" >>  $USER_HOME/.bashrc
 
 
 # add GitHub to known_hosts
-sudo chown ubuntu ~/.ssh/known_hosts
-sudo ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+touch  $USER_HOME/.ssh/known_hosts
+chown edechter  $USER_HOME/.ssh/known_hosts
+chmod 660  $USER_HOME/.ssh/known_hosts
+ssh-keyscan -t rsa github.com >> $USER_HOME/.ssh/known_hosts
+
 
 #####################################################################
  ####################
@@ -70,89 +97,90 @@ sudo ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 S3_BUCKET=edechter.genlog
 # get github ssh key from S3 bucket
 echo "Fetching .ssh from S3"
-CMD="aws s3 cp s3://edechter.genlog/.ssh ~/.ssh --recursive"
-echo $CMD
-$CMD
+CMD="aws s3 cp s3://edechter.genlog/.ssh/ ${USER_HOME}/.ssh/ --recursive"
+echo \$CMD
+\$CMD
 
 
-chmod 600 ~/.ssh/git/id_rsa
+chmod 600 ${USER_HOME}/.ssh/git/id_rsa
 
 # clone GenLog repo from github
-GENLOG_ROOT=~/GenLog
+GENLOG_ROOT=$USER_HOME/GenLog
 export GENLOG_ROOT
 # delete repo if already exists
-if [ -d ${GENLOG_ROOT} ]
+if [ -d \${GENLOG_ROOT} ]
 then 
     echo "Found existing GenLog repo."
-    echo "Deleting ${GENLOG_ROOT}."
-    rm -rf ${GENLOG_ROOT}
+    echo "Deleting \${GENLOG_ROOT}."
+    rm -rf \${GENLOG_ROOT}
 fi
 
 echo "Cloning GenLog Repo..."
-git clone git@github.com:edechter/GenLog.git ${GENLOG_ROOT}
+git clone git@github.com:edechter/GenLog.git \${GENLOG_ROOT}
 echo "Done."
 
 # source job script
-GENLOG_JOB_SCRIPT=${GENLOG_ROOT}/ec2/job.sh
-GENLOG_JOB_OUT=${GENLOG_ROOT}/ec2/job.out
-GENLOG_JOB_LOG=${GENLOG_ROOT}/ec2/job.log
-GENLOG_JOB_ID=$( date +%s%3N ) # milliseconds since epoch
-LOG_PRE="GenLog Job ${GENLOG_JOB_ID}: "
-chmod +x ${GENLOG_JOB_SCRIPT}
-if [ ! -x ${GENLOG_JOB_SCRIPT} ]
+GENLOG_JOB_SCRIPT=\${GENLOG_ROOT}/ec2/job.sh
+GENLOG_JOB_OUT=\${GENLOG_ROOT}/ec2/job.out
+GENLOG_JOB_LOG=\${GENLOG_ROOT}/ec2/job.log
+GENLOG_JOB_ID=\$( date +%s%3N ) # milliseconds since epoch
+LOG_PRE="GenLog Job \${GENLOG_JOB_ID}: "
+CMD="chmod +x \${GENLOG_JOB_SCRIPT}"
+$CMD
+chmod +x \${GENLOG_JOB_SCRIPT}
+if [ ! -x \${GENLOG_JOB_SCRIPT} ]
 then
-    echo "$LOG_PRE: Cannot execute GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}" 
+    echo "\$LOG_PRE: Cannot execute GenLog ec2 job script: \${GENLOG_JOB_SCRIPT}" 
 else
-    echo "$LOG_PRE: Executing GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}..."
-    echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
-    bash -x ${GENLOG_JOB_SCRIPT} 2> ${GENLOG_JOB_LOG}
-    echo "$LOG_PRE: GenLog ec2 job script, ${GENLOG_JOB_SCRIPT}, finished running."
-    echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
+    echo "\$LOG_PRE: Executing GenLog ec2 job script: \${GENLOG_JOB_SCRIPT}..."
+    echo "\$LOG_PRE: Time: \$(date +%Y.%m.%d-%H.%M.%S)"
+    bash -x \${GENLOG_JOB_SCRIPT} 2> \${GENLOG_JOB_LOG}
+    echo "\$LOG_PRE: GenLog ec2 job script, \${GENLOG_JOB_SCRIPT}, finished running."
+    echo "\$LOG_PRE: Time: \$(date +%Y.%m.%d-%H.%M.%S)"
 fi
 
 # Transfer data to S3
 S3_DATA_DIR=data
 S3_DATA_PRE="out_job_id_"
-S3_DATA_FILENAME="${S3_DATA_PRE}_${GENLOG_JOB_ID}"
-S3_DATA_URL="s3://${S3_BUCKET}/${S3_DATA_DIR}/${S3_DATA_FILENAME}"
+S3_DATA_FILENAME="\${S3_DATA_PRE}_\${GENLOG_JOB_ID}"
+S3_DATA_URL="s3://\${S3_BUCKET}/\${S3_DATA_DIR}/\${S3_DATA_FILENAME}"
 
 S3_LOG_DIR="logs/jobs"
 S3_LOG_PRE="log_job_id_"
-S3_LOG_FILENAME="${S3_LOG_PRE}_${GENLOG_JOB_ID}"
-S3_LOG_URL="s3://${S3_BUCKET}/${S3_LOG_DIR}/${S3_LOG_FILENAME}"
+S3_LOG_FILENAME="\${S3_LOG_PRE}_\${GENLOG_JOB_ID}"
+S3_LOG_URL="s3://\${S3_BUCKET}/\${S3_LOG_DIR}/\${S3_LOG_FILENAME}"
 
-S3_LOG_URL="s3://${S3_BUCKET}/${S3_DATA_PATH}/${S3_DATA_FILENAME}"
+S3_LOG_URL="s3://\${S3_BUCKET}/\${S3_DATA_PATH}/\${S3_DATA_FILENAME}"
 
 
 # upload job.out to S3
-if [ ! -r ${GENLOG_JOB_OUT} ]
+if [ ! -r \${GENLOG_JOB_OUT} ]
 then
-    echo "$LOG_PRE: Cannot find output of GenLog ec2 job script: ${GENLOG_JOB_OUT}"
+    echo "\$LOG_PRE: Cannot find output of GenLog ec2 job script: \${GENLOG_JOB_OUT}"
         
 else
-    echo "$LOG_PRE: Uploading job.out data to S3 bucket..."
-    aws s3 cp ${GENLOG_JOB_OUT} ${S3_DATA_URL}
-    if [ $? -eq 0 ]; then
-        echo "$LOG_PRE: Data transfer succeeded."
+    echo "\$LOG_PRE: Uploading job.out data to S3 bucket..."
+    aws s3 cp \${GENLOG_JOB_OUT} \${S3_DATA_URL}
+    if [ \$? -eq 0 ]; then
+        echo "\$LOG_PRE: Data transfer succeeded."
     else
-        echo "$LOG_PRE: Data transfer failed."
+        echo "\$LOG_PRE: Data transfer failed."
     fi
 fi
 
 # upload job.log to S3
-if [ ! -r ${GENLOG_JOB_LOG} ]
+if [ ! -r \${GENLOG_JOB_LOG} ]
 then
-    echo "$LOG_PRE: Cannot find log file: ${GENLOG_JOB_LOG}"
+    echo "\$LOG_PRE: Cannot find log file: \${GENLOG_JOB_LOG}"
         
 else
-    echo "$LOG_PRE: Uploading log file  to S3 bucket..."
-    aws s3 cp ${GENLOG_JOB_LOG} ${S3_LOG_URL}
-    if [ $? -eq 0 ]; then
-        echo "$LOG_PRE: Data transfer succeeded."
+    echo "\$LOG_PRE: Uploading log file  to S3 bucket..."
+    aws s3 cp \${GENLOG_JOB_LOG} \${S3_LOG_URL}
+    if [ \$? -eq 0 ]; then
+        echo "\$LOG_PRE: Data transfer succeeded."
     else
-        echo "$LOG_PRE: Data transfer failed."
+        echo "\$LOG_PRE: Data transfer failed."
     fi
 fi
 
 EOF
-
