@@ -124,15 +124,6 @@ analyze(Dir, LoglikelihoodData) :-
                 LoglikelihoodData),
         length(LoglikelihoodData, N).
         
-        
-        
-        
-        
-        
-        
-        
-  
-
 %% ----------------------------------------------------------------------
 consonant(C) :-
         consonants(Cs),
