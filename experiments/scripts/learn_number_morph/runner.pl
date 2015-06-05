@@ -80,10 +80,10 @@ main(Options) :-
         % experiment:setup_experiment,
         gl_file(GlFile),
         compile_sdcl_file(GlFile),
-        Options0 = [beam_width(100), time_limit_seconds(2)],
+        Options0 = [beam_width(100), time_limit_seconds(5)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        number_goals(1, 30, 1, Goals),
+        number_goals(20, 30, 1, Goals),
         list_to_random_choice(Goals, GoalGen),
         run_online_vbem(GoalGen, Data, Options1).
 

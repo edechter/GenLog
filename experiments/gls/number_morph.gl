@@ -1,9 +1,9 @@
 
-num_preds(phrase, 4).
-num_preds(word, 4).
-num_preds(syll, 4).
-num_preds(cons, 4).
-num_preds(vow,  4).
+num_preds(phrase, 2).
+num_preds(word, 2).
+num_preds(syll, 2).
+num_preds(cons, 2).
+num_preds(vow,  2).
 
 
 pred(Category, Index, Pred) :-
@@ -103,7 +103,7 @@ macro(
      ).
 
 
-  \\
+
 
 % &w_i(X Y | Z ) &&\leftarrow w_j(X | Z) w_k(Y | X) \\
 macro(

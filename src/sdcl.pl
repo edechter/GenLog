@@ -844,7 +844,6 @@ gen_node_id(Id) :-
 match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
         Rule=gl_rule(RuleId, Goal, Body, _),
-        copy_term(Body, UnBoundBody), 
         call(Rule),
         acyclic_term(Goal), 
         get_rule_prob(RuleId, Prob),
@@ -855,13 +854,6 @@ match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
         and_to_list(UnBoundBody, UnBoundBodyList),
         pairs_keys_values(BodyList, TargetBodyList, UnBoundBodyList).
         
-        %% Debug
-        % maplist(pprint_term, BodyList, BodyStrings),
-        % atomic_list_concat(BodyStrings, ', ', BodyString), 
-        % debug(match,
-              % "Result: ~w", [BodyString]).
-        %% End Debug
-
 
 :- begin_tests(match).
 
