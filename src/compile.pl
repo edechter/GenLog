@@ -10,7 +10,7 @@
            
            translate_to_gl_term/2,
            translate_to_gl_rule/3,
-           gl_rule/4,
+           gl_rule/5,
            
            save_gl/0,
            save_gl/1,
@@ -20,8 +20,6 @@
            load_gl/1
           
            ]).
-
-
 
 :- use_module(library(varnumbers)).
 :- use_module(library(gensym)).
@@ -37,14 +35,16 @@
 :- op(1000, xfy, --->).
 
 :- op(1200, xfy, ::).
+:- op(950, xfy, @).
 %% ----------------------------------------------------------------------
 /*
-  gl_rule/4.
+  gl_rule/5.
 
-  A genlog rule is a structure of the form gl_rule(RuleId, RuleHead, RuleBody, RuleGroup).
+  A genlog rule is a structure of the form gl_rule(RuleId, RuleHead, RuleGuard, RuleBody, RuleGroup).
   
   RuleId:       Int for integer Int. This is a unique key for genlog rules.
   RuleHead:     a gl_term/3 structure representing the head of the rule.
+  RuleGuard:    a list of prolog goals 
   RuleBody:     a conjunction of gl_term/3 structures representing the body of the rule.
   RuleGroup:    a rule_group/2 structure representing the group of alternative rules to which this rule belongs.
 
@@ -53,19 +53,13 @@
   frequently, these are maintained in the record database.
 
 */
-:- dynamic gl_rule/4.
+:- dynamic gl_rule/5.
 
 
 %% ----------------------------------------------------------------------
 %% compile GenLog syntax to prolog syntax
 %%
 %%
-%% TODO: use load_file with the stream(Input) option to get the input
-%% directly from a stream.  Generate a stream by reading from a file
-%% and only writing out to the stream things that are not in bettween
-%% the genlog directives. Lines inbetween the directives should be
-%% directed to a list of clauses, and those can then be used with
-%% compile_sdcl_file. Or we can just have two files.
 
 %% split_gl_file(+File, +PrologStream, +GenLogStream)
 %%
@@ -150,7 +144,7 @@ compile_sdcl_clause(Clause) :-
         ),
          
         translate_to_gl_rule(Clause, TrClause, Prob),
-        TrClause = gl_rule(RuleId, _, _, _),
+        TrClause = gl_rule(RuleId, _, _, _, _),
         assert(TrClause),
         term_to_atom(gl_rule_prob(RuleId), NameP),
         term_to_atom(gl_rule_alpha(RuleId), NameA),
@@ -173,11 +167,11 @@ remove_rule_params(RuleId) :-
 
 remove_rule(RuleId) :-
         remove_rule_params(RuleId), 
-        retractall(gl_rule(RuleId, _, _, _)).
+        retractall(gl_rule(RuleId, _, _, _, _)).
 
 remove_all_rules :-
         rules(RuleIds),
-        retractall(gl_rule(_, _, _, _)),
+        retractall(gl_rule(_, _, _, _, _)),
         forall(member(RuleId, RuleIds),
                remove_rule_params(RuleId)).
 
@@ -205,7 +199,7 @@ rule_group_id_rules(RuleGroupId, Rules) :-
 %% display compiled rules
 show_rules :-
         findall(Id-W, 
-                (gl_rule(Id, _, _, _),
+                (gl_rule(Id, _, _, _, _),
                  get_rule_prob(Id, W)), 
                 Assoc),
         keysort(Assoc,AssocSorted),
@@ -227,10 +221,10 @@ test(compile_sdcl_clause1,
         reset_gensym,
         Clause = (s(_X, _Y | [boy], _Y)),
         compile_sdcl_clause(Clause),
-        TClause = gl_rule(1, gl_term(s/4, [_X1, _Y1], [[boy], _Y1]),
-                     true, rule_group(s/4, [[boy], '$VAR'(0)])),
+        TClause = gl_rule(1, gl_term(s/4, [_X1, _Y1], [[boy], _Y1]),[],
+                     true, rule_group(s/4, [[boy], '$VAR'(0)], [])),
         call(TClause),
-        AClause = gl_rule(_, _, _, _),
+        AClause = gl_rule(_, _, _, _, _),
         call(AClause).
 :- end_tests(compile).
 
@@ -285,7 +279,7 @@ translate_to_gl_rule(Clause, Rule, RuleWeight) :-
         \+ var(Clause),
         copy_term(Clause, ClauseCopy), 
         numbervars(ClauseCopy), 
-        Rule = gl_rule(_, RuleHead, RuleBody, RuleGroup),
+        Rule = gl_rule(_, RuleHead, RuleGuards, RuleBody, RuleGroup),
         % strip rule weight if present
         (
          ClauseCopy = (Clause1 :: RuleWeight)
@@ -293,11 +287,19 @@ translate_to_gl_rule(Clause, Rule, RuleWeight) :-
          ClauseCopy = Clause1,
          RuleWeight = 1.0
         ),
+        % extract body
         (
-         Clause1 = (H ---> B), !
+         Clause1 = (HG ---> B) -> true
         ;
-         Clause1 = H,
+         Clause1 = HG,
          B = true
+        ),
+        % extract list of guards
+        (
+         HG = (H @ G) -> true
+        ;
+         H = HG,
+         G = []
         ),
         % we always set default alpha value to 1
         RuleAlpha = 1.0,
@@ -305,16 +307,17 @@ translate_to_gl_rule(Clause, Rule, RuleWeight) :-
         maplist(tr_numbered_gl_term, BList, BList1),
         list_to_and(BList1, RuleBody0), 
         tr_numbered_gl_term(H, RuleHead0),
+        RuleGuards0 = G,
         % unnumber the variables NB: both head and body are unnumbered
         % at once so that we preserve the correspondence between variables
-        varnumbers((RuleHead0, RuleBody0), (RuleHead, RuleBody)),
-        goal_to_rule_group(RuleHead, RuleGroup),
+        varnumbers((RuleHead0, RuleGuards0, RuleBody0), (RuleHead, RuleGuards, RuleBody)),
+        goal_to_rule_group(RuleHead, RuleGuards, RuleGroup),
         !.
 
-goal_to_rule_group(gl_term(F/A, _, Args), RuleGroup) :-
-        copy_term(Args, Args1),
-        numbervars(Args1), 
-        RuleGroup = rule_group(F/A, Args1).
+goal_to_rule_group(gl_term(F/A, _, Args), Guards, RuleGroup) :-
+        copy_term((Args, Guards), (Args1, Guards1)),
+        numbervars((Args1, Guards1)), 
+        RuleGroup = rule_group(F/A, Args1, Guards1).
 
         
         
@@ -323,28 +326,30 @@ goal_to_rule_group(gl_term(F/A, _, Args), RuleGroup) :-
 
 test('translate gl rule (no weight)',
      [
-      true(TermOut =@= gl_rule(_, Head, Body, RuleGroup))
+      true(TermOut =@= gl_rule(_, Head, Guards, Body, RuleGroup))
      ]
     ) :- 
-        RuleIn  = (s(X, Y | Y, Z) ---> a(X | Y), b(Y)),
+        RuleIn  = (s(X, Y | Y, Z) @ [Y = Z] ---> a(X | Y), b(Y)),
         translate_to_gl_rule(RuleIn, TermOut, RuleWeight),
         Head = gl_term(s/4, [X, Y], [Y, Z]),
         Body = (gl_term(a/2, [X], [Y]), gl_term(b/1, [Y], [])),
+        Guards = [Y=Z],
         Weight = 1.0,
         Alpha = 1.0, 
-        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)]),
+        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)], ['$VAR'(0)='$VAR'(1)]),
         assertion(RuleWeight = Weight).
 
 test('translate gl rule (with weight)',
-     [true(TermOut =@= gl_rule(_, Head, Body, RuleGroup))]
+     [true(TermOut =@= gl_rule(_, Head, Guards, Body, RuleGroup))]
     ) :- 
         RuleIn  = (s(X, Y | Y, Z) ---> a(X | Y), b(Y) :: 3.2),
         translate_to_gl_rule(RuleIn, TermOut, Weight),
         Head = gl_term(s/4, [X, Y], [Y, Z]),
+        Guards = [],
         Body = (gl_term(a/2, [X], [Y]), gl_term(b/1, [Y], [])),
         Weight = 3.2,
         Alpha = 1.0,
-        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)]),
+        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)], []),
         assertion(Weight=RuleWeight).
                         
 :- end_tests('translate gl rules').
@@ -585,7 +590,7 @@ save_gl(Dir, Prefix, Options) :-
         ;
          !,
          tell(Path),
-         listing(compile:gl_rule/4),
+         listing(compile:gl_rule/5),
          listing(compile:gl_rule_group_rules/3),
          write_global_vars_,
          (member(ovbem_info(Info), Options) ->

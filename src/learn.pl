@@ -112,8 +112,11 @@ run_batch_vbem(Goals, Options) :-
         %% initialize the variational parameters
         vbem_options_init_params(OptRecord, InitParams),
         init_vb_params(InitParams, VBParams),
+
+                      
         compute_variational_weights(VBParams, Weights), 
         set_rule_probs(Weights),
+
         
         VBStateIn = vbem_state{
                              % iteration of the algorithm
@@ -128,6 +131,10 @@ run_batch_vbem(Goals, Options) :-
                              },
 
         prove_goals(Goals, DSearchResults, Options),
+        expected_rule_counts(DSearchResults, Assoc),
+        % writeln('-------------------------------'),
+        % writeln(Assoc),
+        % writeln('-------------------------------'),
 
         % count the number of derivations found
         aggregate_all(count,
@@ -161,9 +168,11 @@ compute_vb_fixed_point(DSearchResults,
                              WeightsIn,
                              ExpectedCounts,
                              Options),
+        % writeln(ExpectedCounts), 
         
         %% compute new vb params
-        get_rule_alphas(PriorHyperParams), 
+        get_rule_alphas(PriorHyperParams),
+
         add_assocs(0, PriorHyperParams, ExpectedCounts, VBParamsOut),
         compute_variational_weights(VBParamsOut, WeightsOut),
 
@@ -276,23 +285,6 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
                        % where to save the genlog data files during learning
                        save_dir    = './'
                       ).
-
-                    
-
-% auxiliary debugging messages
-debug_expected_rule_counts(ExpectedCounts, Msg) :-
-        format(atom(M1), "~|~`-t~30+\nExpected Counts: \n\n", []),
-        pprint_num_assoc(ExpectedCounts, M2),
-        atomic_list_concat([M1, M2], '\n', Msg).
-
-debug_new_rule_weights(NewWeights, Msg) :-
-        format(atom(M1), "~|~`-t~30+\nMultinomial Weights: \n\n", []),
-        pprint_num_assoc(NewWeights, M2),
-        atomic_list_concat([M1, M2], '\n', Msg).
-
-debug_free_energy(DeltaFreeEnergy, Msg) :-
-        format(atom(Msg), "~|VBEM Delta FreeEnergy: ~20+~g \n\n", [DeltaFreeEnergy]).
-
 
 %% ----------------------------------------------------------------------
 %% FIXME: This documentation is completely wrong.
@@ -476,7 +468,7 @@ normalize_variational_weights(VariationalWeightsNum, %% numerator
                               VariationalWeights) :-
         findall(RuleId-VariationalWeight,
                 (gen_assoc(RuleId, VariationalWeightsNum, VNum), 
-                 gl_rule(RuleId, _, _, RuleGroup),
+                 gl_rule(RuleId, _, _, _, RuleGroup),
                  get_assoc(RuleGroup, VariationalWeightsDen, VDen),
                  digamma(VDen, DigamVDen), 
                  VariationalWeight is exp(VNum - DigamVDen)
@@ -495,7 +487,7 @@ sum_rule_assoc_across_rule_groups_go(RuleVals, RuleGroupAssoc) :-
 
 sum_rule_assoc_across_rule_groups_go([], AssocIn, AssocOut) :- !, AssocIn = AssocOut.
 sum_rule_assoc_across_rule_groups_go([RuleId-Val|Rest], AssocIn, AssocOut) :-
-        gl_rule(RuleId, _, _, RuleGroup),
+        gl_rule(RuleId, _, _, _, RuleGroup),
         !,
         (
          get_assoc(RuleGroup, AssocIn, V_Old, AssocTmp, V_New) -> 
@@ -553,26 +545,6 @@ increment_alphas_by(Assoc) :-
 
 
 %% ----------------------------------------------------------------------
-%%      update_hyperparams(+ExpectedCounts, +AlphaAssoc, -VariationalParams) is det
-%%
-%%      - ExpectedCounts is an assoc of rule ids and their expected
-%%      counts.
-%%      - AlphaAssoc is an assoc of rule ids and their alpha values.
-%%      - VariationalParams is an
-%%      assoc consisting of the current variational parameters based
-%%      on the expected counts.
-%%
-
-update_hyperparams(ExpectedCounts, AlphaAssoc, HyperParams) :-
-        add_assocs(0, ExpectedCounts, AlphaAssoc, HyperParams).
-
-update_hyperparams(ExpectedCounts, HyperParams) :-
-        get_rule_alphas(AlphaAssoc),
-        update_hyperparams(ExpectedCounts, AlphaAssoc, HyperParams).
-
-
-
-%% ----------------------------------------------------------------------
 %%      prove_goals(+Goals, -Derivations) is det
 %%      prove_goals(+Goals, -Derivations, +Options) is det
 %%
@@ -623,8 +595,12 @@ expected_rule_counts(DSearchResults, Assoc) :-
         expected_rule_counts(DSearchResults, Assoc, []).
 
 expected_rule_counts(DSearchResults, Assoc, Options) :-
+        get_rule_probs(Weights),
+        expected_rule_counts(DSearchResults, Weights, Assoc, Options).
+
+expected_rule_counts(DSearchResults, Weights, Assoc, Options) :-
         empty_rules_assoc(Empty),
-        expected_rule_counts(DSearchResults, Empty, Assoc, Options).
+        expected_rule_counts_go(DSearchResults, Weights, Empty, Assoc, Options).
 
 % create an empty assoc with rule id keys
 empty_rules_assoc(Assoc) :-
@@ -633,16 +609,15 @@ empty_rules_assoc(Assoc) :-
         list_to_assoc(RVs, Assoc).
 
 % worker predicate
-expected_rule_counts([], Assoc, Assoc, _).
-expected_rule_counts([dsearch_result(_, Count, Derivations)|Goals], AssocIn, AssocOut, Options) :-
-        findall(DGraph-W,
-                member(deriv(_, DGraph, W), Derivations),
-                ScoredDGraphs),
-        assert(sd(ScoredDGraphs)), 
-        expected_rule_counts1(ScoredDGraphs, Assoc0),
+expected_rule_counts_go([], _, Assoc, Assoc, _).
+expected_rule_counts_go([dsearch_result(_, Count, Derivations)|Goals], Weights, AssocIn, AssocOut, Options) :-
+        findall(DGraph,
+                member(deriv(_, DGraph, _), Derivations),
+                DGraphs),
+        expected_rule_counts1(DGraphs, Weights, Assoc0),
         scalar_multiply_assoc(Count, Assoc0, Assoc1),
         add_assocs(0, Assoc1, AssocIn, AssocTmp),
-        expected_rule_counts(Goals, AssocTmp, AssocOut, Options).
+        expected_rule_counts_go(Goals, Weights, AssocTmp, AssocOut, Options).
         
 
 
@@ -665,41 +640,47 @@ test(expected_rule_counts,
 
 
 %% ----------------------------------------------------------------------
-%%      expected_rule_counts1(ScoredDerivations, Assoc)
+%%      expected_rule_counts1(DGraphs, Weights, Assoc)
 %%
-%%      Given a set of scored derivations for a single observation,
+%%      Given a set of dgraphs for a single observation,
 %%      return the expected rule counts for that observation. 
 %%
 %%      arguments:
 %%
-%%      ScoredDerivations: a list of pairs DGraph-Weight (the weight is
-%%      normally is the probability of the derivation, but could be
-%%      the conditional probability of the derivation given the
-%%      corresponding goal). All derivations should be derivations of
-%%      the same goal.
+%%      Derivations: a list of DGraph's. All derivations should be
+%%      derivations of the same goal.
 %%
 %%      Assoc: An assoc associating each rule with its expected
 %%      counts in the list of derivations. 
 
-expected_rule_counts1(Ds, Assoc) :-
-        empty_assoc(Empty), 
-        expected_rule_counts1(Ds, Empty, Assoc).
+expected_rule_counts1(Ds, Weights, Assoc) :-
+        maplist(dgraph_rule_counts, Ds, Counts),
+        maplist(call(multinomial_loglikelihood, Weights), Counts, LogLikelihoods),
+        LogZ <- logSumExp(LogLikelihoods),
+        findall(CondP,
+                (member(L, LogLikelihoods), 
+                 CondP is exp(L - LogZ)),
+                CondPs),
+        maplist(scalar_multiply_assoc, CondPs, Counts, WeightedCounts),
+        sum_assocs(0, WeightedCounts, Assoc).
+%         expected_rule_counts1(Ds, Weights, Empty, Assoc).
 
-expected_rule_counts1([], AssocIn, AssocIn).
-expected_rule_counts1([DGraph-W|Ds], AssocIn, AssocOut) :-
-        dgraph_rule_counts(DGraph, W, Assoc),
-        assoc_to_list(Assoc, RVs),
-        expected_rule_insert_rules(RVs, AssocIn, AssocTmp),
-        expected_rule_counts1(Ds, AssocTmp, AssocOut).
+% expected_rule_counts1([], _, AssocIn, AssocIn).
+% expected_rule_counts1([DGraph|Ds], Weights, AssocIn, AssocOut) :-
+%         dgraph_rule_counts(DGraph, Assoc),
+%         multinomial_loglikelihood(Weights, Assoc, W),
+%         expected_rule_insert_rules(RCs, W, AssocIn, AssocTmp),
+%         expected_rule_counts1(Ds, Weights, AssocTmp, AssocOut).
 
-expected_rule_insert_rules([], Assoc, Assoc).
-expected_rule_insert_rules([R-V|RVs], AssocIn, AssocOut) :-
-        (get_assoc(R, AssocIn, V_old, AssocTmp, V_new) -> 
-         V_new is V_old + V
-        ;
-         put_assoc(R, AssocIn, V, AssocTmp)
-        ),
-        expected_rule_insert_rules(RVs, AssocTmp, AssocOut).
+% expected_rule_insert_rules([], _, Assoc, Assoc).
+% expected_rule_insert_rules([R-V|RVs], W, AssocIn, AssocOut) :-
+%         (get_assoc(R, AssocIn, V_old, AssocTmp, V_new) -> 
+%          V_new is V_old + exp(W)*V
+%         ;
+%          V_new is exp(W)*V,
+%          put_assoc(R, AssocIn, V_new, AssocTmp)
+%         ),
+%         expected_rule_insert_rules(RVs, W, AssocTmp, AssocOut).
 
 %% ----------------------------------------------------------------------
 %%     dgraph_rule_counts(+DGraph, -Assoc) is Det
@@ -740,8 +721,9 @@ test(expected_rule_counts1,
      [setup(setup_trivial_sdcl),
       set(R-C=[1-15.0, 2-5.0])]) :-
         test_dgraph(DGraph),
-        Ds = [DGraph-3.0, DGraph-2.0],
-        expected_rule_counts1(Ds, Assoc),
+        Ds = [DGraph, DGraph],
+        get_rule_probs(Ws), 
+        expected_rule_counts1(Ds, Ws, Assoc),
         assoc_to_list(Assoc, Counts),
         member(R-C, Counts).
         

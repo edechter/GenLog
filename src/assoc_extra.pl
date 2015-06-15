@@ -6,6 +6,7 @@
 
 :- module(assoc_extra,
           [add_assocs/4,
+           sum_assocs/3,
            scalar_multiply_assoc/3,
            map_keys/3,
            constant_assoc/3,
@@ -38,6 +39,18 @@ add_to_assoc(Key, Value, AssocIn, AssocOut) :-
         ;
          put_assoc(Key, AssocIn, Value, AssocOut)
         ).
+
+%% sum_assocs(V, AssocList, -AssocOut)
+sum_assocs(V, Assocs, AssocOut) :-
+        empty_assoc(Empty),
+        sum_assocs(V, Assocs, Empty, AssocOut).
+sum_assocs(V, [], In, Out) :-
+        !,
+        In = Out.
+sum_assocs(V, [A|Rest], In, Out) :-
+        add_assocs(V, A, In, Tmp),
+        sum_assocs(V, Rest, Tmp, Out).
+        
 
 
 :- begin_tests(assoc_extra).

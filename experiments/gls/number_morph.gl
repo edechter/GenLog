@@ -1,9 +1,9 @@
-
-num_preds(phrase, 2).
-num_preds(word, 2).
-num_preds(syll, 2).
-num_preds(cons, 2).
-num_preds(vow,  2).
+ 
+num_preds(phrase, 1).
+num_preds(word, 5).
+num_preds(syll, 6).
+num_preds(cons, 6).
+num_preds(vow,  6).
 
 
 pred(Category, Index, Pred) :-
@@ -51,89 +51,110 @@ The following grammar reflects the following rules:
   \end{align}
 */
 
-hear(X-Y) ---> 'A(phrase, 1)'(X-Y|[]-[]).
+hear(X-Y) ---> 'A(word, 1)'(X-Y|[]-[]).
 
 % &p_i(X Y | Z ) &&\leftarrow p_j(X | Z) p_k(Y | X) 
-macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
-     :-
-     (pred(phrase, '?A'),
-      pred(phrase, '?B'),
-      pred(phrase, '?C')
-      )
-     ).
+% macro(
+%       ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
+%      :-
+%      (pred(phrase, '?A'),
+%       pred(word, '?B'),
+%       pred(phrase, '?C')
+%       )
+%      ).
 
-% &p_i(X Y | Z ) &&\leftarrow p_j(Y | Z) p_k(X | Y) 
-macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Yi-Yf | Z), '?C'(Xi-Yi | Yi-Yf))
-     :-
-     (pred(phrase, '?A'),
-      pred(phrase, '?B'),
-      pred(phrase, '?C')
-      )
-     ).
+% % &p_i(X Y | Z ) &&\leftarrow p_j(Y | Z) p_k(X | Y) 
+% macro(
+%       ('?A'(Xi-Yf|Z) ---> '?B'(Yi-Yf | Z), '?C'(Xi-Yi | Yi-Yf))
+%      :-
+%      (pred(phrase, '?A'),
+%       pred(word, '?B'),
+%       pred(phrase, '?C')
+%       )
+%      ).
 
-%  &p_i(X Y | Z ) &&\leftarrow p_j(X | Z) p_k(Y | Z) \\
-macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yf | Z), '?C'(Xi-Yf | Z))
-     :-
-     (pred(phrase, '?A'),
-      pred(phrase, '?B'),
-      pred(phrase, '?C')
-      )
-     ).
+% %  &p_i(X Y | Z ) &&\leftarrow p_j(X | Z) p_k(Y | Z) \\
+% macro(
+%       ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
+%      :-
+%      (pred(phrase, '?A'),
+%       pred(word, '?B'),
+%       pred(phrase, '?C')
+%       )
+%      ).
 
-%  &p_i(\epsilon | Z)&& \\
-macro(
-      ('?A'(X-X|Z))
-     :-
-     (pred(phrase, '?A'))
-     ).
+% % &p_i(\epsilon | Z)&& \\
+% macro(
+%       ('?A'(X-X|Z))
+%      :-
+%      (pred(phrase, '?A'))
+%      ).
 
-%%  &p_i(X | Z) &&\leftarrow w_j(X | Z)\\
-%% NB: We make the difference lists explicit here
-%% because the search algorithm uses argument subsumption.
-%% So we want unbound arguments in the rules to be variants
-%% of one another. 
-macro(
-      ('?A'(X-Y|Z) ---> '?B'(X-Y|Z))
-     :-
-     (pred(phrase, '?A'),
-      pred(word, '?B'))
-     ).
+% %%  &p_i(X | Z) &&\leftarrow w_j(X | Z)\\
+% %% NB: We make the difference lists explicit here
+% %% because the search algorithm uses argument subsumption.
+% %% So we want unbound arguments in the rules to be variants
+% %% of one another. 
+% macro(
+%       ('?A'(X-Y|Z) ---> '?B'(X-Y|Z))
+%      :-
+%      (pred(phrase, '?A'),
+%       pred(word, '?B'))
+%      ).
 
 
 
 
 % &w_i(X Y | Z ) &&\leftarrow w_j(X | Z) w_k(Y | X) \\
+
+% &w_i(X Y | Z ) &&\leftarrow w_j(X | Z) w_k(Y | Z)
+
+macro(
+      ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Z))
+     :-
+     (pred(word, '?A'),
+      pred(syll, '?B'),
+      pred(word, '?C')
+      )
+     ).
+
 macro(
       ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
      :-
      (pred(word, '?A'),
-      pred(word, '?B'),
-      pred(word, '?C')
-     )
-     ).
-
-% &w_i(X Y | Z ) &&\leftarrow w_j(Y | Z) w_k(X | Y) 
-macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Yi-Yf | Z), '?C'(Xi-Yi | Yi-Yf))
-     :-
-     (pred(word, '?A'),
-      pred(word, '?B'),
+      pred(syll, '?B'),
       pred(word, '?C')
       )
      ).
 
-% &w_i(X Y | Z ) &&\leftarrow w_j(X | Z) w_k(Y | Z) 
+
 macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yf | Z), '?C'(Xi-Yf | Z))
+      ('?A'([A, B, C|X]-X|Z) ---> '?B'([A, B, C| X]-X | Z))
      :-
      (pred(word, '?A'),
-      pred(word, '?B'),
-      pred(word, '?C')
-      )
+      pred(syll, '?B'))
      ).
+
+
+% macro(
+%       ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Z))
+%      :-
+%      (pred(word, '?A'),
+%       pred(syll, '?B'),
+%       pred(word, '?C')
+%       )
+%      ).
+
+% macro(
+%       ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
+%      :-
+%      (pred(word, '?A'),
+%       pred(syll, '?B'),
+%       pred(word, '?C')
+%       )
+%      ).
+
+
 
 % &w_i(\epsilon | Z)&& \\
 macro(
@@ -143,21 +164,21 @@ macro(
      ).
 
 
-%  &w_i(X | Z) &&\leftarrow s_j(X | Z)\\
-macro(
-      ('?A'(X-Y|Z) ---> '?B'(X-Y|Z))
-     :-
-     (pred(word, '?A'),
-      pred(syll, '?B'))
-     ).
+% &w_i(X | Z) &&\leftarrow s_j(X | Z)\\
+% macro(
+%       ('?A'(X|Z) ---> '?B'(X|Z))
+%      :-
+%      (pred(word, '?A'),
+%       pred(syll, '?B'))
+%      ).
 
 
 %  &s_i(\alpha \beta \gamma | Z) &&\leftarrow c_j(\alpha | Z) v_k(\beta | Z) c_\ell(\gamma | Z)\\
 macro(
-      ('?A'([A, B, C|R] - R | Z) --->
-       '?B'(A|Z),
-       '?C'(B|Z),
-       '?D'(C|Z))
+      ('?A'([A, B, C|R] - R | Z1-Z2) --->
+       '?B'(A|Z1-Z2),
+       '?C'(B|[A|Z1]-Z2),
+       '?D'(C|[B, A | Z1]-Z2))
      :-
      (pred(syll, '?A'),
       pred(cons, '?B'),
@@ -166,19 +187,41 @@ macro(
       ).
 
 
+% &s_i(\epsilon | Z)&& \\
+% macro(
+%       ('?A'(X-X|Z))
+%      :-
+%      (pred(syll, '?A'))
+%      ).
+
+
 %  &c_i(\alpha | \beta Z) &&\leftarrow c_j(\alpha | Z) \\
 %  &v_i(\alpha | \beta Z) &&\leftarrow v_j(\alpha | Z) \\
 macro(
-      ('?A'(X | [A|Y]-R) --->
-       '?B'(X | Y-R)
+      ('?A'(X | Y-R) @ [Y \= R, Y = [A|Z]] --->
+       '?B'(X | Z-R)
       )
      :-
      (member(Cat, [cons, vow]),
       pred(Cat, '?A'),
       pred(Cat, '?B'),
-      from_cat(Cat, A)
+      lexeme(A)
      )
      ).
+
+macro(
+      ('?A'(A | Y - R) @ [Y \= R, Y = [B|Z]] --->
+       '?B'(A | Z - R)
+      )
+     :-
+     (member(Cat, [cons, vow]),
+      pred(Cat, '?A'),
+      pred(Cat, '?B'),
+      from_cat(Cat, A),
+      lexeme(B)
+     )
+     ).
+
 
 % &c_i(\alpha | \epsilon)&&
 % &v_i(\alpha | \epsilon)&&

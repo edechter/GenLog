@@ -11,6 +11,7 @@
 
 :- module(pgen,
           [yield/3,
+           enum/2,
            list_to_gen/2,
            list_to_random_choice/2,
            list_to_categorical/2]
@@ -92,3 +93,12 @@ div_list(Z, [V|Vs], [W|Ws]) :-
         div_list(Z, Vs, Ws).
         
 
+%% enum(X, IX) :-
+enum(X, IX) :-
+        enum(X, 1, [], IX).
+enum([], _, Acc, IX) :-
+        !, Acc = IX.
+enum([X|Xs], I, Acc, IX) :-
+        I1 is I + 1,
+        enum(Xs, I1, [I-X|Acc], IX).
+        

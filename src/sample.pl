@@ -33,7 +33,7 @@ sample_constrained_(Goal, LogProb, OptRecord) :-
         sample_from_derivations_(Goal, Derivations, LogProb).        
 
 sample_from_derivations_(Goal, [], LogProb) :- fail, !.
-sample_from_derivations_(Goal, Derivations, LogProb) :- 
+sample_from_derivations_(Goal, Derivations, LogProb) :-
         findall(Derivation-Prob,
                 (member(Derivation, Derivations),
                  Derivation = deriv(_, _, Prob)),
@@ -48,7 +48,6 @@ sample_from_derivations_(Goal, Derivations, LogProb) :-
         Derivation = deriv(Goal, dgraph(_, Nodes, _), _),
         bagof(LogProb,
                 (member(goal(_, G, _), Nodes),
-                 writeln(G),
                  (unconstrained(G) ->
                   sample_unconstrained_(G, LogProb, OptRecord)
                  ;
@@ -57,7 +56,6 @@ sample_from_derivations_(Goal, Derivations, LogProb) :-
                 LogProbs
                ),
         !,
-        writeln(60-G), 
         sum_list(LogProbs, LogProb1), 
         LogProb is LogProb0 + LogProb1.
                            
@@ -77,32 +75,34 @@ sample_from_derivations_(Goal, Derivations, LogProb) :-
 sample_unconstrained_(true, LogProb, OptRecord) :- !,
         LogProb = 0.
 sample_unconstrained_((Goal, Rest), LogProb, OptRecord) :-
-        pprint_term(Goal, Out),
-        writeln(Out),
-
+        % pprint_term(Goal, Out),
+        % writeln(Out),
         !,
         sample_unconstrained_(Goal, LogProb0, OptRecord),
         sample_unconstrained_(Rest, LogProb1, OptRecord),
         LogProb is LogProb0 + LogProb1.
 sample_unconstrained_(Goal, LogProb, OptRecord) :-
-        pprint_term(Goal, Out),
-        writeln(Out),
-
-
-        Goal = gl_term(_, _, _), !, 
-        
+        % pprint_term(Goal, Out),
+        % writeln(Out),
+        copy_term(Goal, GoalCp),
+        Goal = gl_term(F/A, Args, Conds),
+        writeln(Goal), 
         findall(RuleId-Prob,
-                (Rule = gl_rule(RuleId, Goal, Body, _),
+                (Rule = gl_rule(RuleId, Goal, Guard, Body, _),
                  call(Rule),
+                 call_list_with_occurs_check(Guard),
                  acyclic_term(Goal),
                  get_rule_prob(RuleId, Prob)),
                 RuleDistribution),
+
         list_to_categorical(RuleDistribution, Gen),
+
         yield(Gen, RuleId, _),
         member(RuleId-Prob, RuleDistribution),
         !,
-        Rule = gl_rule(RuleId, Goal, Body, _),
+        Rule = gl_rule(RuleId, Goal, Guard, Body, _),
         call(Rule),
+        call_list_with_occurs_check(Guard),
         !, 
         LogProb0 is log(Prob),
         sample_unconstrained_(Body, LogProb1, OptRecord),
@@ -110,6 +110,10 @@ sample_unconstrained_(Goal, LogProb, OptRecord) :-
                  
 
 
+call_list([]) :- !.
+call_list([G|Gs]) :-
+        call(G),
+        call_list(Gs).
         
 
         

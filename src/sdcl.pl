@@ -41,7 +41,8 @@
            set_body_of_gl_rule/2,
            set_body_of_gl_rule/3,
 
-           unconstrained/1, 
+           unconstrained/1,
+           call_list_with_occurs_check/1,
            
            mi_best_first/4,
            mi_best_first/5,
@@ -80,6 +81,7 @@
 :- use_module(library(gensym)).
 :- use_module(library(real)).
 :- use_module(library(settings)).
+:- use_module(library(heaps)).
 
 %% Local imports
 :- use_module(assoc_extra).
@@ -100,19 +102,17 @@
 
 :- record gl_rule(id,
                   head,
+                  guard,
                   body,
                   group).
 
-
 find_rule_by_id(RuleId, Rule) :-
-        make_gl_rule([id(RuleId)], Rule),
+        Rule = gl_rule(RuleId, _, _, _, _),
         call(Rule), !
         ;
         throw(error(domain_error(gl_rule, Rule),
                     find_rule_by_id(RuleId, Rule))).
         
-       
-
 % accessors and setters for rule probability values
 get_rule_prob(RuleId, P) :-
         term_to_atom(gl_rule_prob(RuleId), Name),
@@ -270,11 +270,11 @@ test(set_uniform_k_rule_alpha,
         
 rules(RuleIds) :-
         findall(RuleId, (
-                         gl_rule(RuleId, _, _, _)),
+                         gl_rule(RuleId, _, _, _, _)),
                 RuleIds).
 
 rule(RuleId) :-
-        gl_rule(RuleId, _, _, _).
+        gl_rule(RuleId, _, _, _, _).
 
 
 rule_functor(RuleId, Functor/Arity) :-
@@ -299,18 +299,18 @@ functors(Functors) :-
               Functors).
 
 get_rule_rule_group(RuleId, RuleGroup) :-
-        gl_rule(RuleId, _, _, RuleGroup),
+        gl_rule(RuleId, _, _, _, RuleGroup),
         !.
 
 get_rule_group_rules(RuleGroup, RuleIds) :-
         findall(RuleId,
-                gl_rule(RuleId, _, _, RuleGroup),
+                gl_rule(RuleId, _, _, _, RuleGroup),
                 RuleIds).
 
 rule_group_rule_assoc(RuleGroupRuleAssoc) :-
         empty_assoc(Empty),
         findall(RG-Id,
-                gl_rule(Id, _, _, RG),
+                gl_rule(Id, _, _, _, RG),
                 RGRs), 
         rule_group_rule_assoc(RGRs, Empty, RuleGroupRuleAssoc).
 
@@ -330,7 +330,7 @@ rule_group_rule_assoc([RG-Id|RGRs], AssocIn, AssocOut) :-
 %% RuleGroups is a list of rule groups present in the current rule set. 
 rule_groups(RuleGroups) :-
         findall(RuleGroup,
-                gl_rule(_, _, _, RuleGroup),
+                gl_rule(_, _, _, _, RuleGroup),
                 RuleGroups0),
         sort(RuleGroups0, RuleGroups).
 
@@ -365,7 +365,7 @@ rule_group_norms(RuleGroupAssoc) :-
                 Xs),
         list_to_assoc(Xs, Assoc0),
         findall(Id-G,
-                gl_rule(Id, _, _, G),
+                gl_rule(Id, _, _, _, G),
                 IdsToGroups),
         rule_group_norms_(IdsToGroups, Assoc0, RuleGroupAssoc).
 
@@ -538,6 +538,7 @@ test(mi_best_first,
 mi_best_first_go(_, _, _, _, _, StartTime-TimeLimit, _) :-
         get_time(Now),
         Now-StartTime >= TimeLimit,
+        writeln(Now-StartTime >= TimeLimit),
         !,
         fail.
 mi_best_first_go(PQ, _, _, _, _, _, _) :-
@@ -548,99 +549,90 @@ mi_best_first_go(PQ, _, _, _, _, _, _) :-
         fail.
 mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
                  DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
-
-        % Solution is found, return goal.
-        % Continue to next goal on backtracking.
-        pq_find_max(PQ, deriv_info([]-OrigGoal, LogProbMax, DGraph), Score, NewPQ),
-        !,  
+        %% return any of the solutions
+        PQ = pq(PqElems, Size, MaxSize),
+ 
+        select(pq_elem(deriv_info([]-OrigGoal, LogProbMax, DGraph), _), PqElems, PqElems1),
+        writeln(success-OrigGoal),
+        !,
+        Size1 is Size - 1,
+        NewPQ = pq(PqElems1, Size1, MaxSize),
         (
          TargetGoal = OrigGoal,
          LogProb=LogProbMax,
          DGraphOut = DGraph
-         
         ;
          mi_best_first_go(NewPQ, TargetGoal-UbTargetGoal,
                           LogProb, DGraphOut, PrefixMassList, TimeInfo, OptionsRecord)
         ).
-mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
+mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
                  DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
         % If the next best is not a solution
-        % get the best solution from priority queue
-        pq_find_max(PQ, Elem, _Score, Beam),
+        % generate a new beam from the current one
+        extend_all(Beam, NewBeam),
+        % writeln(NewBeam),
+        
+        % NewBeam=pq(_, S, _),
+        % (S = 0 ->
+        %  writeln(Beam)
+        % ;
+        %  true),
+        
         !, 
-        
-        % extend best solution
-        extend(Elem, Extensions),
-        !, 
-                        
-        % update the prefix mass assoc
-        update_prefix_mass_list(Extensions, PrefixMassList, PrefixMassList1),
-        
-        !,
-        insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList1,
-                                    Beam, NewBeam, OptionsRecord),
-        
         print_message(informational, beam_size(NewBeam)),
-        % print_message(informational, beam_terms(NewBeam)),
-                      
 
         mi_best_first_go(NewBeam, TargetGoal-UbTargetGoal, LogProb,
                          DGraphOut, PrefixMassList1, TimeInfo, OptionsRecord).
 
+
 %% ----------------------------------------------------------------------
-%%      update_prefix_mass_list(DerivInfos, ListIn, ListOut)
+%%      extend_all(BeamIn, BeamOut)
 %%
-%%      ListIn is a list of pairs sorted on its keys whose keys are
-%%      gl_terms and whose values are log probabilities. ListOut is
-%%      also sorted on its keys.
-%%
-update_prefix_mass_list(DerivInfos, ListIn, ListOut) :-
-        findall(K-V,
-                member(deriv_info(_-K, V, _), DerivInfos),
-                KVs),
-        inserts_into_list_with_sum_by_variant(KVs, ListIn, ListOut0),
-        keysort(ListOut0, ListOut).
-
-inserts_into_list_with_sum_by_variant([], ListIn, ListOut) :-
-        !,
-        ListIn = ListOut.
-inserts_into_list_with_sum_by_variant([K-V|KVs], ListIn, ListOut) :-
-        insert_into_list_with_sum_by_variant(K, V, ListIn, ListTmp),
-        inserts_into_list_with_sum_by_variant(KVs, ListTmp, ListOut).
-
-insert_into_list_with_sum_by_variant(K, V, [], [K-V]) :-
+extend_all(BeamIn, BeamOut) :-
+        BeamIn = pq(PqElemsIn, Size, MaxSize),
+        empty_pqueue(EmptyPQ),
+        extend_all_go(MaxSize, 0, PqElemsIn, [], EmptyPQ, PqElemsNew),
+        length(PqElemsNew, N),
+        BeamOut = pq(PqElemsNew, N, MaxSize),
         !.
-insert_into_list_with_sum_by_variant(K, V, [K1-V1|KVs], [K1-V2|KVs]) :-
-        K =@= K1,
-        !,
-        log_sum_exp([V, V1], V2).
-insert_into_list_with_sum_by_variant(K, V, [K1-V1|KVs], [K1-V1|KVs1]) :-
-        insert_into_list_with_sum_by_variant(K, V, KVs, KVs1).
-        
-:- begin_tests(insert_into_list_by_variant).
 
-test(inserts_into_list_by_variant,
-     [setup((D is log(4.5))), set(KV =@= [f(a, 1) - 3, f(a, X) - D, f(X, Y) - 0])]) :-
-        A is log(1),
-        B is log(3),
-        C is log(0.5),
-        inserts_into_list_with_sum_by_variant([f(a, 1) - 3,
-                                               f(a, X) - A,
-                                               f(a, Y) - B],
-                                              [f(X, Y) - 0,
-                                               f(a, Z) - C],
-                                              Out),
-        member(KV, Out).
-                                               
+extend_all_go(MaxSize, _, [], [], PqIn, PqElemsOut) :-
+        !, 
+        pqueue_to_list(PqIn, VKs),
+        findall(pq_elem(K, V),
+                member(V-K, VKs),
+                PqElemsOut),        
+        !.
+extend_all_go(MaxSize, Inf, [pq_elem(K, V)|PqElems], [], PqIn, PqElemsOut) :-
+        pqueue_size(PqIn, Size),
+        ( (Size > MaxSize, V < Inf) ->
+          extend_all_go(MaxSize, Inf, PqElems, [], PqIn, PqElemsOut)
+        ;
+          extend(K, Ks),
+          !,
+          findall(pq_elem(D, L),
+                  (D=deriv_info(_, L, _),
+                   member(D, Ks)),
+                  Elems),
+          extend_all_go(MaxSize, Inf, PqElems, Elems, PqIn, PqElemsOut)
+        ).
+extend_all_go(MaxSize, Inf, PqElems, [pq_elem(K, V)|Elems], PqIn, PqElemsOut) :-
+        pqueue_size(PqIn, Size),
+        ((Size > MaxSize, V < Inf)  -> 
+         extend_all_go(MaxSize, Inf, PqElems, Elems, PqIn, PqElemsOut)
+        ;
+         V < Inf -> 
+         add_to_pqueue(PqIn, V, K, PqTmp0),
+         take(MaxSize, PqTmp0, PqTmp),
+         extend_all_go(MaxSize, V, PqElems, Elems, PqTmp, PqElemsOut)
+        ;
+         add_to_pqueue(PqIn, V, K, PqTmp0),
+         take(MaxSize, PqTmp0, PqTmp),
+         extend_all_go(MaxSize, Inf, PqElems, Elems, PqTmp, PqElemsOut)
+        ).
         
-
-:- end_tests(insert_into_list_by_variant).
-
-
+                 
         
-        
-        
-
 %% ----------------------------------------------------------------------
 %%      unbind_sdcl_head_vars(Goal, UnboundGoal)
 %%
@@ -657,65 +649,7 @@ unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
          X = Y
         ),
         unbind_sdcl_head_vars_go(Xs, Ys). 
-        
 
-%% ----------------------------------------------------------------------
-%%     insert_extensions_into_beam(+Extensions, +TargetGoal, +PrefixMassList,
-%%                                 +BeamIn, BeamOut, OptionsRecord)
-%%
-%%     insert Extensions (each of the form deriv_info(Goals-OrigGoal,
-%%     LogProb, DGraph) into BeamIn by first computing for each
-%%     extensions and for each element in the beam its Score (that is
-%%     the conditional prefix probability) and then removing the
-%%     element with the smallest score. 
-%%
-%%     NB: Since the score update step requires looking at every element
-%%     on the beam, it doesn't make sense to use a priority queue data
-%%     structure here.
-%%
-%%     How do we decide which prefixes to include in the computation
-%%     of the denominator for a particular derivation? Consider a
-%%     prefix P, and suppose that we have current goal G and target
-%%     goal T. We include the mass of prefix P in the denominator if
-%%     *either* p does not subsume G *or* T subsumes P. This
-%%     collection is computed by collect_prefix_masses.
-insert_extensions_into_beam(Extensions, TargetGoal, PrefixMassList,
-                            BeamIn, BeamOut, OptionsRecord) :-
-        pq_keys(BeamIn, Ds),
-        append(Extensions, Ds, DsNew),
-        findall(D-Score,
-                (member(D, DsNew),
-                 D = deriv_info(_ - CurrentGoal, LogProb, _),          
-                 (collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, Masses) ->
-                  % print_message(informational, CurrentGoal),              
-                  true
-                 ;
-                  throw(error(evaluation_error, masses_of_prefixes_must_succeed))
-                 ),
-                 (Masses=[Mass] ->
-                  LogZ=Mass
-                 ;                  
-                  log_sum_exp(Masses, LogZ)
-                 ),
-                 Score is LogProb-LogZ
-                ), 
-                PqElems),
-        bf_options_beam_width(OptionsRecord, BeamWidth),
-        list_to_pq(PqElems, BeamWidth, BeamOut).
-
-collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, Masses) :-
-        collect_prefix_masses(CurrentGoal, TargetGoal, PrefixMassList, [], Masses).
-collect_prefix_masses(_, _, [], MassesIn, MassesOut) :-
-        !,
-        MassesIn = MassesOut.
-collect_prefix_masses(CurrentGoal, TargetGoal, [P-M|PMs], MassesIn, MassesOut) :-
-        
-        ((\+ subsumes_term(P, CurrentGoal) ; (P =@= CurrentGoal)) ->
-         MassesTmp = [M|MassesIn]
-        ;
-         MassesTmp = MassesIn
-        ),
-        collect_prefix_masses(CurrentGoal, TargetGoal, PMs, MassesTmp, MassesOut).
 
 %% ----------------------------------------------------------------------
 
@@ -756,10 +690,8 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
         G = goal(_, Goal, _),
         unconstrained(Goal),
         !, 
-        Extensions = [deriv_info(Rest-OrigGoal, LogProb, DGraph)].
-        
+        Extensions = [deriv_info(Rest-OrigGoal, LogProb, DGraph)].        
 extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
-        
         % the current derivation graph
         DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
 
@@ -768,15 +700,12 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
         %% of top level bindings in this derivation)
         %% - DGraph_new: the new derivation graph generated by a
         %% choice of extending rule
+
         findall(deriv_info(G_new-OrigGoal, LogProb_new, DGraph_new),
                 (
-                 
                  % find a matching rule for the current goal
                  G = goal(NodeId, Goal, UnBoundGoal),
                  match(Goal-UnBoundGoal, BodyList, RuleId, Prob),
-
-                 % pprint_rule(RuleId, Rstring), 
-                 % print_message(informational, Rstring),
                  
                  (
                   bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
@@ -788,10 +717,6 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                   ;
                   ChildNodes = []
                  ),
-                 length(BodyList, BN),
-                 length(ChildNodes, CN),
-                 assertion(BN = CN), 
-                 
                  
                  findall(ChildNodeId,
                          member(goal(ChildNodeId, _, _), ChildNodes),
@@ -813,14 +738,12 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                  %% i.e. number of nodes is number of edge children plus 1
                  assert_dgraph_tree_property(DGraph_new), 
                          
-
-                 
-
                  %% calculate the updated log probability of the
                  %% current derivation
                  LogProb_new is LogProb + log(Prob),
+                 % writeln(LogProb_new is LogProb + log(Prob)),
                  %% calculate conditional prefix probability
-                 
+                 % nl, 
                  assertion(LogProb_new =< LogProb),
 
                  %% prepend the new goal nodes onto the goal stack
@@ -843,17 +766,28 @@ gen_node_id(Id) :-
 %% match(Goal-UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
 match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
-        Rule=gl_rule(RuleId, Goal, Body, _),
+        Rule=gl_rule(RuleId, Goal, Guard, Body, _),
         call(Rule),
-        acyclic_term(Goal), 
+        acyclic_term(Goal),
+        call_list(Guard),
+
+  
+
         get_rule_prob(RuleId, Prob),
-        RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundBody, _),
+        % writeln(prob-Prob),
+        RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundGuard, UnBoundBody, _),
         call(RuleCopy),
+        % call_list(UnBoundGuard),
+
         
         and_to_list(Body, TargetBodyList),
         and_to_list(UnBoundBody, UnBoundBodyList),
         pairs_keys_values(BodyList, TargetBodyList, UnBoundBodyList).
-        
+
+call_list([]).
+call_list([G|Gs]) :-
+        once(G),
+        call_list(Gs).
 
 :- begin_tests(match).
 
@@ -1015,6 +949,7 @@ list_to_pq(Elems, PqSize, PQ) :-
         take(PqSize, PqElems0, PqElems),
         length(PqElems, N),
         PQ= pq(PqElems, N, PqSize).
+
 
 % pq_find_max(+PQ, -MaxElem, -Score, -NewPQ)
 %
@@ -1292,6 +1227,8 @@ print_current_frame :-
         prolog_current_frame(Frame), 
         format("Current Frame: ~w\n", [Frame]).
 
+
+
 %% ----------------------------------------------------------------------
 
         
@@ -1328,6 +1265,18 @@ log_sum_exp(Xs, Y) :-
 
 log_sum_exp_go(Xm, X, Y) :-
         Y is exp(X-Xm).
+
+
+call_list_with_occurs_check([]) :- !.
+call_list_with_occurs_check(Gs) :-
+        set_prolog_flag(occurs_check, true), 
+        call_list_with_occurs_check_(Gs),
+        set_prolog_flag(occurs_check, false).
+
+call_list_with_occurs_check_([]).
+call_list_with_occurs_check_([G|Gs]) :-
+        once(G),
+        call_list_with_occurs_check_(Gs).
 
 
 
@@ -1385,6 +1334,30 @@ beam_terms_go_([pq_elem(deriv_info(Goals-_, _, _), W) | Es]) -->
          ["~w  ~2f"-[TString, W]], [nl],
          beam_terms_go_(Es).
 
+% ----------------------------------------------------------------------
+%%  max_list a list sorted in descending order
+
+empty_pqueue([]).
+
+add_to_pqueue([], V, K, [V-K]) :- !.
+add_to_pqueue([V0-K0|In], V, K, Out) :-
+        V >= V0,
+        !,
+        Out = [V-K, V0-K0| In].
+add_to_pqueue([V0-K0|In], V, K, Out) :-
+        V < V0,
+        !,
+        Out = [V0-K0 | Tmp],
+        add_to_pqueue(In, V, K, Tmp).
+
+list_to_pqueue(In, PQ) :-
+        keysort(In, PQ0),
+        reverse(PQ0, PQ).
+
+pqueue_to_list(In, In).
+
+pqueue_size(Pq, N) :-
+        length(Pq, N).
 
         
         

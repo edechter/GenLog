@@ -71,8 +71,15 @@ number_phone_lexicon(Phones) :-
 number_phone(Phone) :-
         number_phone_lexicon(Phones),
         member(Phone, Phones).
-        
 
+power_law_goals(GoalWeights) :-
+        number_goals(1, 100, 1, Gs),
+        enum(Gs, IGs),
+        findall(G-W,
+                (member(I-G, IGs),
+                 W is 100/I),
+                GoalWeights).
+        
 
 gl_file('../../gls/number_morph.gl').
         
@@ -80,11 +87,11 @@ main(Options) :-
         % experiment:setup_experiment,
         gl_file(GlFile),
         compile_sdcl_file(GlFile),
-        Options0 = [beam_width(100), time_limit_seconds(5)],
+        Options0 = [beam_width(50), time_limit_seconds(20)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        number_goals(20, 30, 1, Goals),
-        list_to_random_choice(Goals, GoalGen),
+        power_law_goals(GoalWeights),
+        list_to_categorical(GoalWeights, GoalGen),
         run_online_vbem(GoalGen, Data, Options1).
 
 %% ----------------------------------------------------------------------
@@ -92,7 +99,7 @@ main(Options) :-
 analyze1(GlFile, Ls) :-
         load_gl(GlFile),
         number_goals(1, 20, 1, Goals),
-        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(2.0)]), 
+        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(20.0)]), 
         findall(L,
                 (member(D, Ds), 
                  loglikelihood(D, L)),
