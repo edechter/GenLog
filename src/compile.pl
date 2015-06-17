@@ -10,7 +10,6 @@
            
            translate_to_gl_term/2,
            translate_to_gl_rule/3,
-           gl_rule/5,
            
            save_gl/0,
            save_gl/1,
@@ -24,9 +23,8 @@
 :- use_module(library(varnumbers)).
 :- use_module(library(gensym)).
 :- use_module(library(debug)).
-
 :- use_module(sdcl).
-
+:- use_module(gl_rule).
 :- use_module(pprint).
 
 % :- add_import_module(compile,
@@ -53,7 +51,6 @@
   frequently, these are maintained in the record database.
 
 */
-:- dynamic gl_rule/5.
 
 
 %% ----------------------------------------------------------------------

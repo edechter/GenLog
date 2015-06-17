@@ -6,7 +6,6 @@
 :- getenv('GENLOG_DIR', Dir),
    asserta(file_search_path(genlog, Dir));
    true.
-   
         
 %% ----------------------------------------------------------------------
 
@@ -14,6 +13,7 @@
 
 :- use_module(genlog(experiment)).
 
+:- use_module(genlog(gl_rule)).
 :- use_module(genlog(sdcl)).
 :- use_module(genlog(compile)).
 
@@ -33,7 +33,7 @@
    set_setting(experiment:runner, Abs).
 
 %% experiment data directory
-:- set_setting(experiment:root, '../data').
+:- set_setting(experiment:root, '../../data').
 
 
 %% ------------------------------------------
@@ -72,25 +72,23 @@ number_phone(Phone) :-
         number_phone_lexicon(Phones),
         member(Phone, Phones).
 
-power_law_goals(GoalWeights) :-
+power_law_goals(A, GoalWeights) :-
         number_goals(1, 100, 1, Gs),
         enum(Gs, IGs),
         findall(G-W,
                 (member(I-G, IGs),
-                 W is 100/I),
-                GoalWeights).
-        
+                 W is A/I),
+                GoalWeights).        
 
 gl_file('../../gls/number_morph.gl').
         
 main(Options) :-
-        % experiment:setup_experiment,
         gl_file(GlFile),
         compile_sdcl_file(GlFile),
-        Options0 = [beam_width(50), time_limit_seconds(20)],
+        Options0 = [beam_width(50), time_limit_seconds(10)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        power_law_goals(GoalWeights),
+        power_law_goals(100, GoalWeights),
         list_to_categorical(GoalWeights, GoalGen),
         run_online_vbem(GoalGen, Data, Options1).
 
@@ -99,7 +97,7 @@ main(Options) :-
 analyze1(GlFile, Ls) :-
         load_gl(GlFile),
         number_goals(1, 20, 1, Goals),
-        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(20.0)]), 
+        prove_goals(Goals, Ds, [beam_width(50), time_limit_seconds(10)]), 
         findall(L,
                 (member(D, Ds), 
                  loglikelihood(D, L)),
@@ -112,9 +110,7 @@ analyze(Dir, LoglikelihoodData) :-
                 (member(F, Files),
                  atom_prefix(F, 'ovbem_gl'),
                  file_name_extension(_, 'gl', F)),
-                Files0),
-        length(Files1, 10), 
-        append(Files1, _, Files0),
+                Files1),
         writeln(Files1),
         retractall(worked(_)),
         findall(Ls,

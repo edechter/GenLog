@@ -18,18 +18,6 @@
            normalize_rules/0,
 
            
-           gl_rule_id/2,
-           gl_rule_head/2,
-           gl_rule_body/2,
-           gl_rule_group/2,
-          
-           set_id_of_gl_rule/2,
-           set_id_of_gl_rule/3,
-           set_head_of_gl_rule/2,
-           set_head_of_gl_rule/3,
-           set_body_of_gl_rule/2,
-           set_body_of_gl_rule/3,
-
            unconstrained/1,
            call_list_with_occurs_check/1,
            
@@ -73,6 +61,7 @@
 :- use_module(library(heaps)).
 
 %% Local imports
+:- use_module(gl_rule).
 :- use_module(assoc_extra).
 :- use_module(plunit_extra).
 :- use_module(compile).

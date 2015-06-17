@@ -10,7 +10,9 @@
 */
 
 :- module(gl_rule,
-          [find_rule_by_id/2,
+          [gl_rule/5,
+
+           find_rule_by_id/2,
            get_rule_prob/2,
            get_rule_probs/1,
            set_rule_prob/2,
@@ -27,6 +29,17 @@
    asserta(file_search_path(genlog, Dir));
    true.
 
+%% External imports
+:- use_module(library(record)).
+:- use_module(library(lists)).
+:- use_module(library(pairs)).
+:- use_module(library(debug)).
+:- use_module(library(real)).
+
+ 
+%% Local imports
+:- use_module(plunit_extra).
+:- use_module(assoc_extra).
 
 %% ----------------------------------------------------------------------
 %%                The gl_rule data type.
@@ -40,11 +53,14 @@
 %% - body: a conjunction of gl_terms
 %% - group: the rule group, i.e., an identifier for the group of rules that fires if this rule fires.
 
+:- dynamic gl_rule/5.
+
 :- record gl_rule(id,
                   head,
                   guard,
                   body,
                   group).
+
 
 
 %%           find_rule_by_id(+RuleId, -Rule).
@@ -182,7 +198,7 @@ test(set_default_rule_alpha,
       cleanup(cleanup_trivial_sdcl),
       all(Alpha=[1.0, 1.0])]) :-
         rule(RuleId),
-        find_rule_by_id(RuleId, Rule),
+        find_rule_by_id(RuleId, _),
         set_rule_alpha(RuleId, default),
         get_rule_alpha(RuleId, Alpha).
 
@@ -197,11 +213,11 @@ test(set_default_rule_alphas,
 test(set_uniform_rule_alpha,
      [setup(setup_sdcl('../example/trivial_2.gl')),
       cleanup(cleanup_sdcl),
-      true(RAs ~= [r(1)-1.0, r(2)-0.5, r(3)-0.5,
-                          r(4)-1.0, r(5)-1.0, r(6)-1.0,
-                          r(7)-0.5, r(8)-0.5, r(9)-0.5,
-                          r(10)-0.5, r(11)-0.333333333, r(12)-0.33333333,
-                          r(13)-0.333333333])]) :-
+      true(RAs ~= [1-1.0, 2-0.5, 3-0.5,
+                          4-1.0, 5-1.0, 6-1.0,
+                          7-0.5, 8-0.5, 9-0.5,
+                          10-0.5, 11-0.333333333, 12-0.33333333,
+                          13-0.333333333])]) :-
         set_rule_alphas(uniform),
         get_rule_alphas(Assoc),
         assoc_to_list(Assoc, RAs).
@@ -209,11 +225,11 @@ test(set_uniform_rule_alpha,
 test(set_uniform_k_rule_alpha,
      [setup(setup_sdcl('../example/trivial_2.gl')),
       cleanup(cleanup_sdcl),
-      true(RAs ~= [r(1)-0.50, r(2)-0.25, r(3)-0.25,
-                          r(4)-0.5, r(5)-0.5, r(6)-0.5,
-                          r(7)-0.25, r(8)-0.25, r(9)-0.25,
-                          r(10)-0.25, r(11)-0.1666666, r(12)-0.1666666,
-                          r(13)-0.166666])]) :-
+      true(RAs ~= [1-0.50, 2-0.25, 3-0.25,
+                          4-0.5, 5-0.5, 6-0.5,
+                          7-0.25, 8-0.25, 9-0.25,
+                          10-0.25, 11-0.1666666, 12-0.1666666,
+                          13-0.166666])]) :-
         set_rule_alphas(uniform(2.0)),
         get_rule_alphas(Assoc),
         assoc_to_list(Assoc, RAs).

@@ -29,6 +29,7 @@
 
 :- r(library("matrixStats")).
 
+:- use_module(gl_rule).
 :- use_module(sdcl).
 :- use_module(compile).
 :- use_module(assoc_extra).
@@ -80,15 +81,15 @@ init_vb_params(uniform(Lo, Hi), VBParams) :-
                 IdPs),
         list_to_assoc(IdPs, VBParams).
 
-init_vb_params(norm(Lo, Hi), VBParams) :-
+init_vb_params(norm(Mean, StdDev), VBParams) :-
         assertion(Mean > 0),
         assertion(StdDev > 0),
         
         rules(RuleIds),
         length(RuleIds, NRules),
         Ps <- rnorm(NRules, Mean, StdDev), 
-        pairs_keys_values(RAs, RuleIds, As),
-        list_to_assoc(RAs, VBParams).
+        pairs_keys_values(RPs, RuleIds, Ps),
+        list_to_assoc(RPs, VBParams).
                  
                  
         
@@ -131,11 +132,7 @@ run_batch_vbem(Goals, Options) :-
                              },
 
         prove_goals(Goals, DSearchResults, Options),
-        expected_rule_counts(DSearchResults, Assoc),
-        % writeln('-------------------------------'),
-        % writeln(Assoc),
-        % writeln('-------------------------------'),
-
+        
         % count the number of derivations found
         aggregate_all(count,
                       (member(dsearch_result(_Goal, _Count, Ds), DSearchResults),
