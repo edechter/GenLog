@@ -34,6 +34,7 @@
 :- use_module(compile).
 :- use_module(assoc_extra).
 :- use_module(pprint).
+:- use_module(pgen).
 
 :- use_foreign_library('libdigamma.dylib').
 :- use_foreign_library('libmultinom.dylib').
@@ -316,7 +317,7 @@ free_energy(PriorHyperParams,
                      FreeEnergy2
                      ),
         FreeEnergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2,
-        writeln((freeenergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2)).
+        print_message(informational, (freeenergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2)).
 
 %% ----------
 %%      loglikelihood(+DSearchResults, +MultinomialWeights, -Loglikelihood) is det

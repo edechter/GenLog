@@ -142,7 +142,7 @@ rule_group(RuleGroup) :-
         
 
 rule_group_norm(RuleGroup, Z) :-
-        rule_group_rules(RuleGroup, RuleIds),
+        get_rule_group_rules(RuleGroup, RuleIds),
         findall(Prob,
                 (member(RuleId, RuleIds), 
                  get_rule_prob(RuleId, Prob)
@@ -151,7 +151,7 @@ rule_group_norm(RuleGroup, Z) :-
         sum_list(Ws, Z).
 
 rule_group_norm(RuleGroup, RuleAssoc, Z) :-
-        rule_group_rules(RuleGroup, RuleIds),
+        get_rule_group_rules(RuleGroup, RuleIds),
         findall(Prob,
                 (member(RuleId, RuleIds), 
                  get_assoc(RuleId, RuleAssoc, Prob)
@@ -354,7 +354,6 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
         PQ = pq(PqElems, Size, MaxSize),
  
         select(pq_elem(deriv_info([]-OrigGoal, LogProbMax, DGraph), _), PqElems, PqElems1),
-        writeln(success-OrigGoal),
         !,
         Size1 is Size - 1,
         NewPQ = pq(PqElems1, Size1, MaxSize),

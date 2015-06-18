@@ -1,18 +1,25 @@
 
 
+:- module(runner, [main/1]).
+
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
 
 :- getenv('GENLOG_DIR', Dir),
-   asserta(file_search_path(genlog, Dir));
+   atomic_list_concat([Dir, '/', src], Src),
+   asserta(user:file_search_path(genlog, Src));
    true.
-        
+
+:- getenv('GENLOG_DIR', Dir),
+   atomic_list_concat([Dir, '/experiments/scripts/learn_number_morph/'], Exp),
+   asserta(user:file_search_path(genlog, Exp));
+   true.
+
 %% ----------------------------------------------------------------------
 
 :- use_module(library(lists)).
 
 :- use_module(genlog(experiment)).
-
 :- use_module(genlog(gl_rule)).
 :- use_module(genlog(sdcl)).
 :- use_module(genlog(compile)).
@@ -24,17 +31,19 @@
 :- use_module(genlog(data_utils)).
 :- use_module(genlog(number_words)).
 
-:- [number_syllables].
-:- [consonants].
-:- [vowels].
+:- ensure_loaded(genlog(number_syllables)).
+:- ensure_loaded(genlog(consonants)).
+:- ensure_loaded(genlog(vowels)).
 
-%% this file
-:- absolute_file_name('./syllables.pl', Abs),
-   set_setting(experiment:runner, Abs).
+%% experiment root directory
+:- getenv('GENLOG_DIR', Dir),
+   atomic_list_concat([Dir, '/', experiments], Root), 
+   set_setting(experiment:root, Root).
 
-%% experiment data directory
-:- set_setting(experiment:root, '../../data').
-
+%% select genlog file
+gl_file(GlFile) :-
+   getenv('GENLOG_DIR', Dir),
+   atomic_list_concat([Dir, '/', experiments, '/', gls, '/', 'number_morph.gl'], GlFile).
 
 %% ------------------------------------------
 %% make number data
@@ -72,23 +81,22 @@ number_phone(Phone) :-
         number_phone_lexicon(Phones),
         member(Phone, Phones).
 
-power_law_goals(A, GoalWeights) :-
-        number_goals(1, 100, 1, Gs),
+power_law_goals(Lo, Hi, C, GoalWeights) :-
+        number_goals(Lo, Hi, 1, Gs),
         enum(Gs, IGs),
         findall(G-W,
                 (member(I-G, IGs),
-                 W is A/I),
-                GoalWeights).        
+                 W is C/I),
+                GoalWeights).
 
-gl_file('../../gls/number_morph.gl').
         
 main(Options) :-
         gl_file(GlFile),
         compile_sdcl_file(GlFile),
-        Options0 = [beam_width(50), time_limit_seconds(10)],
+        Options0 = [beam_width(10), time_limit_seconds(2)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        power_law_goals(100, GoalWeights),
+        power_law_goals(1, 3, 100, GoalWeights),
         list_to_categorical(GoalWeights, GoalGen),
         run_online_vbem(GoalGen, Data, Options1).
 

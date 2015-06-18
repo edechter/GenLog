@@ -52,7 +52,7 @@ options([
         ]) :-
         setting(experiment:data_path, SaveDir).
         
-main :-
+main1 :-
         experiment:setup_experiment,
         setting(experiment:genlog_file, GL_FILE), 
         compile_sdcl_file(GL_FILE),

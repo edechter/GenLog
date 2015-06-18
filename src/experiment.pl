@@ -18,10 +18,20 @@
            run_experiment/1
           ]).
 
+
+:- multifile user:file_search_path/2.
+:- dynamic   user:file_search_path/2.
+
+:- getenv('GENLOG_DIR', Dir),
+   atomic_list_concat([Dir, '/', src], Src),
+   asserta(user:file_search_path(genlog, Src))
+   ;
+   true.
+
+
 :- use_module(library(readutil)).
 :- use_module(library(record)).
 :- use_module(library(settings)).
-
 
 %% ----------------------------------------------------------------------
 %%
@@ -123,7 +133,7 @@ require_runner :-
 %%      directory experiments_root_dir/1 whose name is the git commit
 %%      hash; 3) create a 'config.pl' file with information about the
 %%      experiment; 4) create a 'data' subdirectory; 5) execute the
-%%      runner script predicate 'main/0'
+%%      runner script predicate 'main/1'
 
 run_experiment :-
         require_runner,
@@ -133,12 +143,11 @@ run_experiment :-
 run_experiment(PATH_TO_RUNNER) :-
         \+ exists_file(PATH_TO_RUNNER),
         !,
-        throw(error(argument_error, context(run_experiment/1, 'Cannot find experiment runner script'))).
+        throw(error(argument_error, context(run_experiment/1, 'Cannot find experiment runner script.'))).
 run_experiment(PATH_TO_RUNNER) :-
-        set_setting(runner, PATH_TO_RUNNER), 
+        set_setting(runner, PATH_TO_RUNNER),
         load_files([PATH_TO_RUNNER], [module(runner)]),
         setup_experiment(Config),
-
         config_data_path(Config, DataPath), 
         Options = [save_dir(DataPath)],
         call(runner:main, Options).

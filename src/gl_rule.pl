@@ -34,6 +34,7 @@
 
  
 %% Local imports
+:- use_module(sdcl).
 :- use_module(plunit_extra).
 :- use_module(assoc_extra).
 
@@ -155,7 +156,7 @@ set_rule_alphas(uniform(K)) :-
         !,
         assertion(number(K)),
         forall(rule_group(RuleGroup),
-               (rule_group_rules(RuleGroup, RuleIds),
+               (get_rule_group_rules(RuleGroup, RuleIds),
                length(RuleIds, N),
                assertion(N>0),
                Alpha is 1.0/(K*N),

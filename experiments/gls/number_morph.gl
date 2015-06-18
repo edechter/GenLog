@@ -1,9 +1,14 @@
- 
+
+
+% :- include(genlog(number_syllables)).
+:- include(genlog(consonants)).
+:- include(genlog(vowels)).
+
 num_preds(phrase, 1).
-num_preds(word, 10).
-num_preds(syll, 4).
-num_preds(cons, 4).
-num_preds(vow,  4).
+num_preds(word, 1).
+num_preds(syll, 1).
+num_preds(cons, 1).
+num_preds(vow,  1).
 
 
 pred(Category, Index, Pred) :-
@@ -13,6 +18,13 @@ pred(Category, Index, Pred) :-
 
 pred(Category, Pred) :- pred(Category, _, Pred).
 
+consonant(C) :-
+        consonants(Cs),
+        member(C, Cs).
+
+vowel(V) :-
+        vowels(Vs),
+        member(V, Vs).
 
 from_cat(cons, X) :-
         consonant(X).
