@@ -37,7 +37,7 @@
 
 %% experiment root directory
 :- getenv('GENLOG_ROOT', Dir),
-   atomic_list_concat([Dir, '/', experiments], Root), 
+   atomic_list_concat([Dir, '/', experiments, '/', data], Root), 
    set_setting(experiment:root, Root).
 
 %% select genlog file
