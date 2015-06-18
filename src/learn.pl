@@ -36,8 +36,8 @@
 :- use_module(pprint).
 :- use_module(pgen).
 
-:- use_foreign_library('libdigamma.dylib').
-:- use_foreign_library('libmultinom.dylib').
+:- use_foreign_library('lib/digamma.dylib').
+:- use_foreign_library('lib/multinom.dylib').
 
 %% ----------------------------------------------------------------------
 %%      Settings
