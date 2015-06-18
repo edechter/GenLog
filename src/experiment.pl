@@ -22,7 +22,7 @@
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
 
-:- getenv('GENLOG_DIR', Dir),
+:- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/', src], Src),
    asserta(user:file_search_path(genlog, Src))
    ;

@@ -5,12 +5,12 @@
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
 
-:- getenv('GENLOG_DIR', Dir),
+:- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/', src], Src),
    asserta(user:file_search_path(genlog, Src));
    true.
 
-:- getenv('GENLOG_DIR', Dir),
+:- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/experiments/scripts/learn_number_morph/'], Exp),
    asserta(user:file_search_path(genlog, Exp));
    true.
@@ -36,13 +36,13 @@
 :- ensure_loaded(genlog(vowels)).
 
 %% experiment root directory
-:- getenv('GENLOG_DIR', Dir),
+:- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/', experiments], Root), 
    set_setting(experiment:root, Root).
 
 %% select genlog file
 gl_file(GlFile) :-
-   getenv('GENLOG_DIR', Dir),
+   getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/', experiments, '/', gls, '/', 'number_morph.gl'], GlFile).
 
 %% ------------------------------------------

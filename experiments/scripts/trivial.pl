@@ -2,7 +2,7 @@
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
 
-:- getenv('GENLOG_DIR', Dir),
+:- getenv('GENLOG_ROOT', Dir),
    asserta(file_search_path(genlog, Dir));
    true. 
         
@@ -29,7 +29,7 @@
    set_setting(experiment:root, Abs).
 
 %% genlog file 
-:- getenv('GENLOG_DIR', Dir),
+:- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/', 'experiments/gls', '/', 'trivial.gl'], Path),
    prolog_to_os_filename(Path, Path2),
    set_setting(experiment:genlog_file, Path2).

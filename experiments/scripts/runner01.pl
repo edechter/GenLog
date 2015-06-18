@@ -3,7 +3,7 @@
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
 
-:- getenv('GENLOG_DIR', Dir),
+:- getenv('GENLOG_ROOT', Dir),
    asserta(file_search_path(genlog, Dir));
    true.
    
