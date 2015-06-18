@@ -30,7 +30,7 @@
 
 %% genlog file 
 :- getenv('GENLOG_DIR', Dir),
-   atomic_list_concat([Dir, '/', '../experiments/gls', '/', 'trivial.gl'], Path),
+   atomic_list_concat([Dir, '/', 'experiments/gls', '/', 'trivial.gl'], Path),
    prolog_to_os_filename(Path, Path2),
    set_setting(experiment:genlog_file, Path2).
 

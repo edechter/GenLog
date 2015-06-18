@@ -23,7 +23,7 @@
 :- nodebug(real).
 
 :- getenv('GENLOG_DIR', Dir),
-   atomic_list_concat([Dir, '/', 'learn.r'], Learn_R_Path),
+   atomic_list_concat([Dir, '/', src, '/', 'learn.r'], Learn_R_Path),
    prolog_to_os_filename(Learn_R_Path, Learn_R_Path2),
    r(source(+Learn_R_Path2)).
 

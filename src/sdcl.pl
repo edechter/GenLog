@@ -45,10 +45,6 @@
 
                  ]).
 
-:- getenv('GENLOG_DIR', Dir),
-   asserta(file_search_path(genlog, Dir));
-   true.
-
 %% External imports
 :- use_module(library(record)).
 :- use_module(library(lists)).

@@ -571,7 +571,7 @@ save_gl(File, Options) :-
          exists_file(File) ->
            throw(evaulation_error(save_gl/2, 'file already exists'))
         ;
-         tell(Path),
+         tell(File),
          listing(compile:gl_rule/5),
          listing(compile:gl_rule_group_rules/3),
          write_global_vars_,
@@ -585,7 +585,12 @@ save_gl(Dir, Prefix, Options) :-
         between(1, 1000, I),
         format(atom(File), "~w~|~`0t~d~4+.gl", [Prefix, I]),
         directory_file_path(Dir, File, Path),
-        save_gl(Path, Options).
+        (\+ exists_file(Path) -> 
+         save_gl(Path, Options))
+        ;
+        throw(evaluation_error(save_gl/3, 'Cannot save gl file with this prefix.')).
+             
+         
 
 write_global_vars_ :-
         nb_current(N, V),
@@ -594,14 +599,6 @@ write_global_vars_ :-
         ;
         true.
         
-
-        
-
-
-
-        
-
-
 %% ----------------------------------------------------------------------
 %%      load_gl(+File).
 
