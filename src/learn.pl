@@ -36,8 +36,14 @@
 :- use_module(pprint).
 :- use_module(pgen).
 
-:- use_foreign_library('lib/digamma.dylib').
-:- use_foreign_library('lib/multinom.dylib').
+:- getenv('GENLOG_ROOT', Dir),
+   atomic_list_concat([Dir, '/lib/'], LIB),
+   asserta(user:file_search_path(foreign, LIB));
+   true.
+   
+
+:- use_foreign_library(foreign('digamma.dylib')).
+:- use_foreign_library(foreign('multinom.dylib')).
 
 %% ----------------------------------------------------------------------
 %%      Settings
