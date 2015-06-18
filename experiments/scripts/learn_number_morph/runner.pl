@@ -93,7 +93,7 @@ power_law_goals(Lo, Hi, C, GoalWeights) :-
 main(Options) :-
         gl_file(GlFile),
         compile_sdcl_file(GlFile),
-        Options0 = [beam_width(10), time_limit_seconds(2)],
+        Options0 = [beam_width(10), time_limit_seconds(2), max_iter(2)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
         power_law_goals(1, 3, 100, GoalWeights),
