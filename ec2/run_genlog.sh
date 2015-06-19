@@ -9,7 +9,9 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 # pull most recent changes
 echo "Pulling from GenLog repo..."
-git -C $GENLOG_ROOT pull origin master
+cd $GENLOG_ROOT
+git pull origin master
+cd -
 echo "Done."
 
 # source job script
