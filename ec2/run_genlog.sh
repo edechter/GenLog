@@ -11,7 +11,7 @@ cd $GENLOG_ROOT
 
 # pull most recent changes
 echo "Pulling from GenLog repo..."
-git pull
+git pull origin master
 echo "Done."
 
 # source job script
@@ -29,10 +29,13 @@ then
 else
     echo "$LOG_PRE: Executing GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}..."
     echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
-    bash -x ${GENLOG_JOB_SCRIPT} 2> ${GENLOG_JOB_LOG}
-    echo "$LOG_PRE: GenLog ec2 job script, ${GENLOG_JOB_SCRIPT}, finished running."
-    echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
+    bash -x ${GENLOG_JOB_SCRIPT} &>> ${GENLOG_JOB_LOG} &  
+    JOB_PID=$!
 fi
+
+# If this script is killed, kill the `cp'.
+trap "kill $pid 2> /dev/null" EXIT
+
 
 # Transfer data to S3
 S3_DATA_DIR=data
@@ -47,21 +50,24 @@ S3_LOG_URL="s3://${S3_BUCKET}/${S3_LOG_DIR}/${S3_LOG_FILENAME}"
 
 S3_LOG_URL="s3://${S3_BUCKET}/${S3_DATA_PATH}/${S3_DATA_FILENAME}"
 
+# how often to sync data dir with s3 bucket (seconds)
+S3_SYNC_INTERVAL=5 
 
-# upload job.out to S3
-if [ ! -r ${GENLOG_JOB_OUT} ]
-then
-    echo "$LOG_PRE: Cannot find output of GenLog ec2 job script: ${GENLOG_JOB_OUT}"
-        
-else
-    echo "$LOG_PRE: Uploading job.out data to S3 bucket..."
-    aws s3 cp ${GENLOG_JOB_OUT} ${S3_DATA_URL}
+
+# While copy is running...
+while kill -0 $pid 2> /dev/null; do
+    sleep $S3_SYNC_INTERVAL
+    echo "$LOG_PRE: Syncing experiment data with S3 bucket..."
+    aws s3 sync ${GENLOG_EXPERIMENTS_DATA_DIR} ${S3_DATA_DIR}
     if [ $? -eq 0 ]; then
-        echo "$LOG_PRE: Data transfer succeeded."
+        echo "$LOG_PRE: Data sync succeeded."
     else
-        echo "$LOG_PRE: Data transfer failed."
+        echo "$LOG_PRE: Data sync failed."
     fi
-fi
+done
+
+echo "$LOG_PRE: GenLog ec2 job script, ${GENLOG_JOB_SCRIPT}, finished running."
+echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
 
 # upload job.log to S3
 if [ ! -r ${GENLOG_JOB_LOG} ]
@@ -77,3 +83,6 @@ else
         echo "$LOG_PRE: Data transfer failed."
    fi
 fi
+
+# Disable the trap on a normal exit.
+trap - EXIT
