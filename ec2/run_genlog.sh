@@ -54,7 +54,7 @@ S3_SYNC_INTERVAL=5
 
 
 # While copy is running...
-while kill -0 $pid 2> /dev/null; do
+while kill -0 $JOB_PID 2> /dev/null; do
     sleep $S3_SYNC_INTERVAL
     echo "$LOG_PRE: Syncing experiment data with S3 bucket..."
     CMD="aws s3 sync ${GENLOG_EXPERIMENTS_DATA_DIR} ${S3_DATA_DIR}"
