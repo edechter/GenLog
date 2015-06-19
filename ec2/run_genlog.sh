@@ -1,7 +1,8 @@
-#!/bin/bash -x
+#!/bin/bash 
 # run_genlog.sh
 # 
 # ----------------------------------------------------------------------
+
 
 # set up user-data logger
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
@@ -36,6 +37,7 @@ fi
 # If this script is killed, kill the `cp'.
 trap "kill $pid 2> /dev/null" EXIT
 
+S3_BUCKET=edechter.genlog
 
 # Transfer data to S3
 S3_DATA_DIR=data
