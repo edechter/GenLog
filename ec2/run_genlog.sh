@@ -5,7 +5,7 @@
 
 
 # set up user-data logger
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console)
+sudo exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console)
 
 # pull most recent changes
 echo "Pulling from GenLog repo..."
