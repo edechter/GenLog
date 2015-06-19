@@ -1,10 +1,9 @@
 #!/bin/bash -x
 #
 # ----------------------------------------------------------------------
-set -x
 
-# genlog_ami
-IMAGE_ID=ami-2b3ac740
+# ami: GENLOG
+IMAGE_ID=ami-61cf330a
 
 INSTANCE_TYPE=m1.small
 USERDATA_SCRIPT=run_genlog.sh
