@@ -5,12 +5,12 @@ echo "job.sh"
 RUNNER_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/runner.pl"
 EXEC_PATH="${GENLOG_ROOT}/src/run.pl"
 
-if [ -z "$2" ] 
+if [ -z "$1" ] 
 then
     echo "JOB.sh: ** No data path supplied in second argument **"
-    exit(1)
+    exit 1
 else
-    DATA_PATH=$2
+    DATA_PATH=$1
 fi
 
 if [ ! -x ${EXEC_PATH} ] 

@@ -1,11 +1,11 @@
-#!/bin/bash 
+#!/bin/bash -x
 # run_genlog.sh
 # 
 # ----------------------------------------------------------------------
 
 
 # set up user-data logger
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+#exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 # pull most recent changes
 echo "Pulling from GenLog repo..."
@@ -18,7 +18,7 @@ GENLOG_JOB_OUT=${GENLOG_ROOT}/ec2/job.out
 GENLOG_JOB_LOG=${GENLOG_ROOT}/ec2/job.log
 GENLOG_JOB_ID=$( date +%s%3N ) # milliseconds since epoch
 GENLOG_JOB_DATA_PRE="data_job_id"
-GENLOG_JOB_DATA_PATH=${GENLOG_EXPERIMENT_DATA_DIR}/${GENLOG_JOB_DATA_PRE}_${GENLOG_JOB_ID}
+GENLOG_JOB_DATA_PATH=${GENLOG_EXPERIMENT_DATA_DIR}${GENLOG_JOB_DATA_PRE}_${GENLOG_JOB_ID}
 
 LOG_PRE="GenLog Job ${GENLOG_JOB_ID}: "
 CMD="chmod +x ${GENLOG_JOB_SCRIPT}"
