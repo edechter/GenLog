@@ -6,8 +6,8 @@
 
 
 run :-
-        current_prolog_flag(argv, [Runner|_]),
-        experiment:run_experiment(Runner).
+        current_prolog_flag(argv, [Runner, DataPath|_]),
+        experiment:run_experiment(Runner, [data_path(DataPath)]).
 
 main :-
         catch(run, E, (print_message(error, E), fail)),

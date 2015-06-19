@@ -15,7 +15,8 @@
 
 :- module(experiment,
           [run_experiment/0,
-           run_experiment/1
+           run_experiment/1,
+           run_experiment/2
           ]).
 
 
@@ -141,13 +142,16 @@ run_experiment :-
         run_experiment(RUNNER).
 
 run_experiment(PATH_TO_RUNNER) :-
+        run_experiment(PATH_TO_RUNNER, []).
+
+run_experiment(PATH_TO_RUNNER, _) :-
         \+ exists_file(PATH_TO_RUNNER),
         !,
         throw(error(argument_error, context(run_experiment/1, 'Cannot find experiment runner script.'))).
-run_experiment(PATH_TO_RUNNER) :-
+run_experiment(PATH_TO_RUNNER, Fields) :-
         set_setting(runner, PATH_TO_RUNNER),
         load_files([PATH_TO_RUNNER], [module(runner)]),
-        setup_experiment(Config),
+        setup_experiment(Fields, Config),
         config_data_path(Config, DataPath), 
         Options = [save_dir(DataPath)],
         call(runner:main, Options).
