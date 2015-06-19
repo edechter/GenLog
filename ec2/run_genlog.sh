@@ -17,6 +17,9 @@ GENLOG_JOB_SCRIPT=${GENLOG_ROOT}/ec2/job.sh
 GENLOG_JOB_OUT=${GENLOG_ROOT}/ec2/job.out
 GENLOG_JOB_LOG=${GENLOG_ROOT}/ec2/job.log
 GENLOG_JOB_ID=$( date +%s%3N ) # milliseconds since epoch
+GENLOG_JOB_DATA_PRE="data_job_id"
+GENLOG_JOB_DATA_PATH=${GENLOG_EXPERIMENT_DATA_DIR}/${GENLOG_JOB_PRE}_${GENLOG_JOB_ID}
+
 LOG_PRE="GenLog Job ${GENLOG_JOB_ID}: "
 CMD="chmod +x ${GENLOG_JOB_SCRIPT}"
 $CMD
@@ -27,7 +30,7 @@ then
 else
     echo "$LOG_PRE: Executing GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}..."
     echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
-    bash -x ${GENLOG_JOB_SCRIPT} &>> ${GENLOG_JOB_LOG} &  
+    bash -x ${GENLOG_JOB_SCRIPT} ${GENLOG_JOB_DATA_PATH} &>> ${GENLOG_JOB_LOG} &  
     JOB_PID=$!
 fi
 
@@ -38,8 +41,7 @@ S3_BUCKET=edechter.genlog
 
 # Transfer data to S3
 S3_DATA_DIR=data
-S3_DATA_PRE="out_job_id_"
-S3_DATA_FILENAME="${S3_DATA_PRE}_${GENLOG_JOB_ID}"
+S3_DATA_FILENAME="${GENLOG_JOB_DATA_PRE}_${GENLOG_JOB_ID}"
 S3_DATA_URL="s3://${S3_BUCKET}/${S3_DATA_DIR}/${S3_DATA_FILENAME}"
 
 S3_LOG_DIR="logs/jobs"
