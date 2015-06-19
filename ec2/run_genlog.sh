@@ -59,7 +59,7 @@ S3_SYNC_INTERVAL=5
 while kill -0 $JOB_PID 2> /dev/null; do
     sleep $S3_SYNC_INTERVAL
     echo "$LOG_PRE: Syncing experiment data with S3 bucket..."
-    CMD="aws s3 sync ${GENLOG_EXPERIMENT_DATA_DIR} ${S3_DATA_URL}"
+    CMD="aws s3 sync ${GENLOG_JOB_DATA_PATH} ${S3_DATA_URL}"
     echo $CMD
     $CMD
     if [ $? -eq 0 ]; then
