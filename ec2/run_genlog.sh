@@ -7,12 +7,9 @@
 # set up user-data logger
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
-# change directory to the root of the GenLog project
-cd $GENLOG_ROOT
-
 # pull most recent changes
 echo "Pulling from GenLog repo..."
-git pull origin master
+git -C $GENLOG_ROOT pull origin master
 echo "Done."
 
 # source job script
@@ -60,7 +57,9 @@ S3_SYNC_INTERVAL=5
 while kill -0 $pid 2> /dev/null; do
     sleep $S3_SYNC_INTERVAL
     echo "$LOG_PRE: Syncing experiment data with S3 bucket..."
-    aws s3 sync ${GENLOG_EXPERIMENTS_DATA_DIR} ${S3_DATA_DIR}
+    CMD="aws s3 sync ${GENLOG_EXPERIMENTS_DATA_DIR} ${S3_DATA_DIR}"
+    echo $CMD
+    $CMD
     if [ $? -eq 0 ]; then
         echo "$LOG_PRE: Data sync succeeded."
     else
@@ -78,7 +77,9 @@ then
         
 else
     echo "$LOG_PRE: Uploading log file  to S3 bucket..."
-    aws s3 cp ${GENLOG_JOB_LOG} ${S3_LOG_URL}
+    CMD="aws s3 cp ${GENLOG_JOB_LOG} ${S3_LOG_URL}"
+    echo $CMD
+    $CMD
     if [ $? -eq 0 ]; then
         echo "$LOG_PRE: Data transfer succeeded."
     else
