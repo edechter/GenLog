@@ -124,7 +124,6 @@ pprint_derivs(Derivs, Options) :-
 %%        pprint_rule_alphas(Options)
 %%        pprint_rule_alphas
 
-%% FIXME: do we need options here? if so, implement them.
 
 pprint_rule_probs_def_options([thresh(0)]).
 
