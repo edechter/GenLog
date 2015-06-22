@@ -9,10 +9,10 @@ launch_ec2.sh:
 
 - logs: 
     - user-data log is on the ec2 instance at /var/logs/user-data.log
-    - system log is on the ec2 instance at /var/logs/syslog.log
+    - system log is on the ec2 instance at /var/log/syslog.log
  
 - to view the logs from local machine, get the DNS from the ec2 console and type
-``>> ssh -i ~/Dropbox/ec2.pem ubuntu@<DNS> tail -F /var/logs/*.log``
+``>> ssh -i ~/Dropbox/ec2.pem ubuntu@<DNS> tail -F /var/log/*.log``
 
 
 TODO: 
