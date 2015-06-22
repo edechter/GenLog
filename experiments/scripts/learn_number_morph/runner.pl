@@ -93,10 +93,10 @@ power_law_goals(Lo, Hi, C, GoalWeights) :-
 main(Options) :-
         gl_file(GlFile),
         compile_sdcl_file(GlFile),
-        Options0 = [beam_width(50), time_limit_seconds(10), max_iter(100)],
+        Options0 = [beam_width(50), time_limit_seconds(10), max_iter(10000)],
         merge_options(Options, Options0, Options1),
         set_rule_alphas(uniform),
-        power_law_goals(1, 20, 100, GoalWeights),
+        power_law_goals(1, 99, 100, GoalWeights),
         list_to_categorical(GoalWeights, GoalGen),
         run_online_vbem(GoalGen, Data, Options1).
 
@@ -105,7 +105,7 @@ main(Options) :-
 analyze1(GlFile, Ls) :-
         load_gl(GlFile),
         number_goals(1, 20, 1, Goals),
-        prove_goals(Goals, Ds, [beam_width(50), time_limit_seconds(10)]), 
+        prove_goals(Goals, Ds, [beam_width(100), time_limit_seconds(10)]), 
         findall(L,
                 (member(D, Ds), 
                  loglikelihood(D, L)),
