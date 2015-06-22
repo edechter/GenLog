@@ -22,9 +22,8 @@ cd -
 echo "Done."
 
 echo "Running run_genlog.sh..."
-CMD=$GENLOG_ROOT/ec2/run_genlog.sh
-echo $CMD
-$CMD
+cd $GENLOG_ROOT/ec2
+./run_genlog.sh
 echo "Done."
 
 EOF
