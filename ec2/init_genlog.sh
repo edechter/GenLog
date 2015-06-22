@@ -10,6 +10,11 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console)
 # -i: login shell
 # -c: bash flag to read command
 sudo -i -u edechter bash -c <<'EOF'
+# HACK: fake being an interactive script so that ~/.bashrc executes
+export PS1=1
+# source .bashrc
+source $HOME/.bashrc
+
 echo "Pulling from GenLog repo..."
 cd $GENLOG_ROOT
 git pull origin master
