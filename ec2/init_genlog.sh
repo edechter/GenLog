@@ -9,7 +9,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console)
 # pull most recent changes as user edechter
 # -i: login shell
 # -c: bash flag to read command
-sudo -i -u edechter bash -c <<'EOF'
+sudo -i -u edechter bash <<'EOF'
 # HACK: fake being an interactive script so that ~/.bashrc executes
 export PS1=1
 
