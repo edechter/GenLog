@@ -1,21 +1,7 @@
-#!/bin/bash -x
+#!/bin/bash 
+#
 # run_genlog.sh
-# 
 # ----------------------------------------------------------------------
-
-
-# set up user-data logger
-sudo exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console)
-
-# login as user edechter 
-su - edechter
-
-# pull most recent changes
-echo "Pulling from GenLog repo..."
-cd $GENLOG_ROOT
-git pull origin master
-cd -
-echo "Done."
 
 # source job script
 GENLOG_JOB_SCRIPT=${GENLOG_ROOT}/ec2/job.sh
