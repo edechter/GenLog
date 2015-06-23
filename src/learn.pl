@@ -261,8 +261,10 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         %% save data to file
         Info = ovbem_info{iter : Iter,
                           goal : Goal},
-        online_vbem_options_save_dir(OptRecord, SaveDir), 
-        save_gl(SaveDir, 'ovbem_gl_', [ovbem_info(Info)]),
+        online_vbem_options_save_dir(OptRecord, SaveDir),
+        format(atom(File), "~w~|~`0t~d~4+.gl", ['ovbem_gl_', Iter]),
+        directory_file_path(SaveDir, File, Path),
+        save_gl(Path, [ovbem_info(Info)]),
         
         online_vbem_options_max_iter(OptRecord, MaxIter),        
         (Iter >= MaxIter ->
