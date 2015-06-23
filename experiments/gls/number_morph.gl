@@ -5,10 +5,10 @@
 :- include(genlog(vowels)).
 
 num_preds(phrase, 1).
-num_preds(word, 5).
-num_preds(syll, 5).
-num_preds(cons, 5).
-num_preds(vow,  5).
+num_preds(word, 2).
+num_preds(syll, 3).
+num_preds(cons, 3).
+num_preds(vow,  3).
 
 
 pred(Category, Index, Pred) :-
