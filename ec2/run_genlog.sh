@@ -40,8 +40,6 @@ S3_LOG_PRE="log_job_id_"
 S3_LOG_FILENAME="${S3_LOG_PRE}_${GENLOG_JOB_ID}"
 S3_LOG_URL="s3://${S3_BUCKET}/${S3_LOG_DIR}/${S3_LOG_FILENAME}"
 
-S3_LOG_URL="s3://${S3_BUCKET}/${S3_DATA_PATH}/${S3_DATA_FILENAME}"
-
 # how often to sync data dir with s3 bucket (seconds)
 S3_SYNC_INTERVAL=5 
 
@@ -49,12 +47,31 @@ S3_SYNC_INTERVAL=5
 # While copy is running...
 while kill -0 $JOB_PID 2> /dev/null; do
     sleep $S3_SYNC_INTERVAL
+    echo "$LOG_PRE: Compressing data files..."
+    CMD="gzip ${GENLOG_JOB_DATA_PATH}/*.gl"
+    echo $CMD
+    $CMD
+    if [ $? -eq 0 ]; then
+        echo "$LOG_PRE: compression succeeded."
+    else
+        echo "$LOG_PRE: compression failed."
+    fi
+    
     echo "$LOG_PRE: Syncing experiment data with S3 bucket..."
     CMD="aws s3 sync ${GENLOG_JOB_DATA_PATH} ${S3_DATA_URL}"
     echo $CMD
     $CMD
     if [ $? -eq 0 ]; then
         echo "$LOG_PRE: Data sync succeeded."
+        echo "$LOG_PRE: Clean up local data."
+        CMD="rm -fr ${GENLOG_JOB_DATA_PATH}/*"
+        echo $CMD
+        $CMD
+        if [ $? -eq 0 ]; then
+            echo "$LOG_PRE: Clean up succeeded. Files removed"
+        else
+            echo "$LOG_PRE: Clean up failed."
+        fi
     else
         echo "$LOG_PRE: Data sync failed."
     fi
