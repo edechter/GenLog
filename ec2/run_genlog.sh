@@ -53,28 +53,31 @@ while kill -0 $JOB_PID 2> /dev/null; do
     $CMD
     if [ $? -eq 0 ]; then
         echo "$LOG_PRE: compression succeeded."
+
+        echo "$LOG_PRE: Syncing experiment data with S3 bucket..."
+        CMD="aws s3 sync ${GENLOG_JOB_DATA_PATH} ${S3_DATA_URL}"
+        echo $CMD
+        $CMD
+        if [ $? -eq 0 ]; then
+            echo "$LOG_PRE: Data sync succeeded."
+
+            echo "$LOG_PRE: Clean up local data."
+            CMD="rm -fr ${GENLOG_JOB_DATA_PATH}/*"
+            echo $CMD
+            $CMD
+            if [ $? -eq 0 ]; then
+                echo "$LOG_PRE: Clean up succeeded. Files removed"
+            else
+                echo "$LOG_PRE: Clean up failed."
+            fi
+        else
+            echo "$LOG_PRE: Data sync failed."
+        fi
+
     else
         echo "$LOG_PRE: compression failed."
     fi
     
-    echo "$LOG_PRE: Syncing experiment data with S3 bucket..."
-    CMD="aws s3 sync ${GENLOG_JOB_DATA_PATH} ${S3_DATA_URL}"
-    echo $CMD
-    $CMD
-    if [ $? -eq 0 ]; then
-        echo "$LOG_PRE: Data sync succeeded."
-        echo "$LOG_PRE: Clean up local data."
-        CMD="rm -fr ${GENLOG_JOB_DATA_PATH}/*"
-        echo $CMD
-        $CMD
-        if [ $? -eq 0 ]; then
-            echo "$LOG_PRE: Clean up succeeded. Files removed"
-        else
-            echo "$LOG_PRE: Clean up failed."
-        fi
-    else
-        echo "$LOG_PRE: Data sync failed."
-    fi
 done
 
 echo "$LOG_PRE: GenLog ec2 job script, ${GENLOG_JOB_SCRIPT}, finished running."
