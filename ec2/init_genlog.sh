@@ -27,6 +27,6 @@ echo "Running run_genlog.sh..."
 cd $GENLOG_ROOT/ec2
 ./run_genlog.sh $GENLOG_ARGS
 cd -
-echo "Done."
+kecho "Done."
 
 EOF

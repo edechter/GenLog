@@ -13,6 +13,8 @@ SPOT_BID=0.05
 INSTANCE_COUNT=1
 KEY_PAIR=ec2
 
+GENLOG_ARGS="$@"
+
 
 # Should we use an on-demand instance (0 for spot instance)
 ON_DEMAND=0
@@ -20,9 +22,6 @@ ON_DEMAND=0
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
-
-echo "$USERDATA_SCRIPT $@" > init_genlog_.sh
-USERDATA_SCRIPT1=init_genlog_.sh
 
 if [ $ON_DEMAND == 1 ] 
 then
@@ -36,7 +35,7 @@ fi
 GO="$CMD \
     ${IMAGE_ID} \
     --instance-count ${INSTANCE_COUNT} \
-    --user-data-file ${USERDATA_SCRIPT1} \
+    --user-data-file ${USERDATA_SCRIPT} \
     --instance-type ${INSTANCE_TYPE} \
     --key ${KEY_PAIR} \
     ${PRICE_OPT}"

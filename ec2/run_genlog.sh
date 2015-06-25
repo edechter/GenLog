@@ -13,7 +13,7 @@ GENLOG_JOB_DATA_PRE="data_job_id"
 GENLOG_JOB_DATA_PATH=${GENLOG_EXPERIMENT_DATA_DIR}${GENLOG_JOB_DATA_PRE}_${GENLOG_JOB_ID}
 
 
-LOG_PRE="GenLog Job ${GENLOG_JOB_ID}: "q
+LOG_PRE="GenLog Job ${GENLOG_JOB_ID}: "
 CMD="chmod +x ${GENLOG_JOB_SCRIPT}"
 $CMD
 chmod +x ${GENLOG_JOB_SCRIPT}
@@ -26,7 +26,9 @@ else
 
     echo "$LOG_PRE: Executing GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}..."
     echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
-    bash -x ${GENLOG_JOB_SCRIPT} ${GENLOG_JOB_DATA_PATH} ${GENLOG_ARGS} &>> ${GENLOG_JOB_LOG} &  
+    CMD="bash -x ${GENLOG_JOB_SCRIPT} ${GENLOG_JOB_DATA_PATH} ${GENLOG_ARGS} &>> ${GENLOG_JOB_LOG} &"
+    echo $CMD
+    $CMD
     JOB_PID=$!
 fi
 
