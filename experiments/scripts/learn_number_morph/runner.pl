@@ -120,7 +120,7 @@ analyze(Dir, LoglikelihoodData) :-
                  atom_prefix(F, 'ovbem_gl'),
                  file_name_extension(_, 'gl', F)),
                 Files1),
-        writeln(Files1),
+        % writeln(Files1),
         retractall(worked(_)),
         findall(Ls,
                 (member(F, Files1),
@@ -142,3 +142,5 @@ consonant(C) :-
 vowel(V) :-
         vowels(Vs),
         member(V, Vs).
+
+

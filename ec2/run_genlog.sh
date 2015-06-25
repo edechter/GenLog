@@ -4,12 +4,14 @@
 # ----------------------------------------------------------------------
 
 # source job script
+GENLOG_ARGS="$@"
 GENLOG_JOB_SCRIPT=${GENLOG_ROOT}/ec2/job.sh
 GENLOG_JOB_OUT=${GENLOG_ROOT}/ec2/job.out
 GENLOG_JOB_LOG=${GENLOG_ROOT}/ec2/job.log
 GENLOG_JOB_ID=$( date +%s%3N ) # milliseconds since epoch
 GENLOG_JOB_DATA_PRE="data_job_id"
 GENLOG_JOB_DATA_PATH=${GENLOG_EXPERIMENT_DATA_DIR}${GENLOG_JOB_DATA_PRE}_${GENLOG_JOB_ID}
+
 
 LOG_PRE="GenLog Job ${GENLOG_JOB_ID}: "q
 CMD="chmod +x ${GENLOG_JOB_SCRIPT}"
@@ -19,9 +21,12 @@ if [ ! -x ${GENLOG_JOB_SCRIPT} ]
 then
     echo "$LOG_PRE: Cannot execute GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}" 
 else
+    echo "$LOG_PRE: making data dir (if it does not already exist)..."
+    mkdir -p "$GENLOG_JOB_DATA_DIR"
+
     echo "$LOG_PRE: Executing GenLog ec2 job script: ${GENLOG_JOB_SCRIPT}..."
     echo "$LOG_PRE: Time: $(date +%Y.%m.%d-%H.%M.%S)"
-    bash -x ${GENLOG_JOB_SCRIPT} ${GENLOG_JOB_DATA_PATH} &>> ${GENLOG_JOB_LOG} &  
+    bash -x ${GENLOG_JOB_SCRIPT} ${GENLOG_JOB_DATA_PATH} ${GENLOG_ARGS} &>> ${GENLOG_JOB_LOG} &  
     JOB_PID=$!
 fi
 

@@ -9,7 +9,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console)
 # pull most recent changes as user edechter
 # -i: login shell
 # -c: bash flag to read command
-sudo -i -u edechter bash <<'EOF'
+sudo -i -u edechter GENLOG_ARGS="$@" bash <<'EOF'
 # HACK: fake being an interactive script so that ~/.bashrc executes
 export PS1=1
 
@@ -25,7 +25,7 @@ echo "Done."
 
 echo "Running run_genlog.sh..."
 cd $GENLOG_ROOT/ec2
-./run_genlog.sh
+./run_genlog.sh $GENLOG_ARGS
 cd -
 echo "Done."
 
