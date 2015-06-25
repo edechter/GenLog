@@ -38,10 +38,14 @@ export GENLOG_ROOT
 
 # echo "Cloning GenLog Repo..."
 git clone git@github.com:edechter/GenLog.git $GENLOG_ROOT
-# echo "Done."
 
+cd $GENLOG_ROOT
+
+
+# build GenLog
 export CPPFLAGS="-I/usr/lib/swi-prolog/include/"
 export LDGLAGS="-L/usr/lib/"
+make lib
 
 bash
 

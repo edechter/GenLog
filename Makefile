@@ -18,7 +18,7 @@ $(OBJDIR)/multinom.o  :  dir
 	$(CC) $(CPPFLAGS) -fPIC  -c $(srcdir)/multinom.c -o $@
 
 $(OBJDIR)/multinom.dylib : $(OBJDIR)/multinom.o dir
-	$(CC) -shared -W1 $(LDFLAGS) -lswipl $< -o $@
+	$(CC) -shared -Wl $(LDFLAGS) -lswipl $< -o $@
 
 build   : dir $(OBJDIR)/digamma.dylib $(OBJDIR)/multinom.dylib
 

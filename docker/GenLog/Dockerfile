@@ -45,12 +45,15 @@ RUN echo "%sudo ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # change to genlog user
 WORKDIR /home/genlog
-ENV HOME /home/genlog
 
-ADD ./init_genlog.sh ./
-RUN sudo chown genlog ./init_genlog.sh
-RUN chmod +x /home/genlog/init_genlog.sh
+ENV HOME /home/genlog
+ENV CC gcc
+
+
+ADD ./boot.sh ./
+RUN sudo chown genlog ./boot.sh
+RUN chmod +x ./boot.sh
 
 USER genlog
 
-ENTRYPOINT /home/genlog/init_genlog.sh
+ENTRYPOINT /home/genlog/boot.sh
