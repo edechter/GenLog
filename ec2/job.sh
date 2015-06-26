@@ -1,8 +1,10 @@
 #!/bin/bash 
-# set -x
+# set -ex
 
 echo "job.sh: Running..."
 EXEC_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/number_loglike.pl"
+
+set -- "$JOB_ARGS"
 
 RESULT_PATH="$1"
 S3_GL_URL="$2"

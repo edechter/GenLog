@@ -43,9 +43,19 @@ cd $GENLOG_ROOT
 
 
 # build GenLog
-export CPPFLAGS="-I/usr/lib/swi-prolog/include/"
+export CPPFLAGS="-I/usr/lib/swi-prolog/include/ -I/usr/include/"
 export LDGLAGS="-L/usr/lib/"
 make lib
+
+# run job
+JOB_SCRIPT=$GENLOG_ROOT/ec2/job.sh
+if [[ ! -f "$JOB_SCRIPT" ]]; then 
+    echo "Cannot find job script $JOB_SCRIPT." >&2
+    exit 1
+fi
+
+CMD="$JOB_SCRIPT $JOB_ARGS"
+echo $CMD > /tmp/cmd.log
 
 bash
 

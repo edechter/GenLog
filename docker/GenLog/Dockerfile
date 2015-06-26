@@ -26,6 +26,20 @@ RUN apt-get -y install swi-prolog
 # install git
 RUN apt-get -y install git
 
+# install wget
+RUN apt-get -y install wget
+
+# install gsl
+# RUN apt-get -y install gsl-bin
+RUN apt-get -y install libgsl0-dev
+
+# install r
+RUN apt-get -y install r-base
+
+# install matrixStats r package
+RUN wget http://cran.r-project.org/src/contrib/matrixStats_0.14.2.tar.gz
+RUN R CMD INSTALL matrixStats_0.14.2.tar.gz
+
 # install aws-cli
 RUN apt-get install -y python-pip
 RUN pip install awscli
@@ -48,7 +62,6 @@ WORKDIR /home/genlog
 
 ENV HOME /home/genlog
 ENV CC gcc
-
 
 ADD ./boot.sh ./
 RUN sudo chown genlog ./boot.sh
