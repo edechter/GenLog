@@ -1,9 +1,26 @@
 #!/bin/bash -ex
+#
+# Create a docker virtual machine and run genlog job on it
 
-RESULT_FILE=out.json
-S3_DATA_PATH='s3://edechter.genlog/data/data_job_id_1435093342217/ovbem_gl_0001.gl'
-echo $S3_DATA_PATH
+# generate 16 digit random job id
+JOB_ID=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
 
+S3_URL='s3://edechter.genlog'
+GL_JOB_ID=1435093342217
+
+# # create a docker machine
+# docker-machine create \
+#     --driver virtualbox \
+#     genlog-dev
+
+# load machine enviroment
+eval "$(docker-machine env genlog-dev)"
+
+
+# run 
 docker run \
     --env-file env_file \
-    -e JOB_ARGS="$RESULT_FILE $S3_DATA_PATH 1 2" -it edechter/genlog bash 
+    -i \
+    -t edechter/genlog  \
+    # bash
+    '/home/genlog/GenLog/ec2/job.sh' "$JOB_ID" "$GL_JOB_ID" 1 1 2
