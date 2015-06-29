@@ -55,7 +55,9 @@ fi
 
 # copy data to S3
 S3_DATA_URL="$S3_URL"
-S3_DATA_URL+="/data/"
+S3_DATA_URL+="/data"
+
+ls "$DATA_DIR"
 
 aws s3 cp --recursive "$DATA_DIR" "${S3_DATA_URL}/data_job_id_${JOB_ID}"
 if [[ $? -ne 0 ]]; then 
@@ -64,5 +66,8 @@ if [[ $? -ne 0 ]]; then
 else 
     echo "job.sh: Data copied to S3" >&2
 fi
+
+echo "Exiting..." >&2
+exit 0
 
 
