@@ -104,6 +104,7 @@ run(ResultStream, GlFile, Numbers) :-
                  loglikelihood(D, L),
                  term_to_atom(D, D1),
                  Result=result{number:N,
+                               gl_file:GlFile,
                                dsearch_results:D1,
                                loglikelihood:L},
                  json_write_dict(ResultStream, Result)
