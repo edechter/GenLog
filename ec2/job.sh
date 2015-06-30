@@ -14,6 +14,7 @@ SUBJOD_ID=$2
 
 echo "job.sh: Running..." >&2
 RUNNER_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/runner.pl"
+EXEC_PATH="${GENLOG_ROOT}/src/run.pl"
 
 # Make data dir for script data
 DATA_DIR="${GENLOG_ROOT}"/data/"$JOB_ID"/"$SUBJOD_ID"
@@ -22,7 +23,7 @@ chown genlog "$DATA_DIR"
 
 
 # run executable
-if [[ ! -x ${RUNNER_PATH} ]] 
+if [[ ! -x "${EXEC_PATH}" ]] 
 then
     echo "job.sh: ** Cannot run $EXEC_PATH **" 
 else

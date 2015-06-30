@@ -24,6 +24,6 @@ docker run \
         "$JOB_ID" \
         "$SUBJOB_ID" \
         "${@:2:$#}" \
-        1>>job.stdout 2>>job.stderr 
+        # 1>>job.stdout 2>>job.stderr 
 
 
