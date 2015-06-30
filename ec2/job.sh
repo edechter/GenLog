@@ -53,6 +53,6 @@ else
     $CMD
 fi
 
-cp -fvr "$DATA_DIR" "/data/data_job_id_${JOB_ID}" 
+cp -fvr "$DATA_DIR" "${HOME}/data/data_job_id_${JOB_ID}" 
 
 
