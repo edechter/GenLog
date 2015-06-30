@@ -10,9 +10,9 @@ S3_URL='s3://edechter.genlog'
 # run 
 docker run \
     --env-file env_file \
-    -v $(pwd):/home/genlog/data \
-    -v $(pwd):/home/genlog/logs \
-    -it edechter/genlog  \
+    -v $(pwd)/data:/home/genlog/data \
+    -v $(pwd)/logs:/home/genlog/logs \
+    edechter/genlog  \
     '/home/genlog/GenLog/ec2/job.sh' "$JOB_ID" "$@"
 
 
