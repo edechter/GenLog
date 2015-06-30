@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/bin/bash -ex
+
+echo this is a check
 
 # create aws config file for genlog 
 mkdir -p /home/genlog/.aws
@@ -25,13 +27,11 @@ sudo chmod 700 ~/.ssh/git
 sudo chown genlog ~/.ssh/git/*
 sudo chmod 600 ~/.ssh/git/*
 
-
 # add GitHub to known_hosts
 touch  ~/.ssh/known_hosts
 chown genlog  ~/.ssh/known_hosts
 chmod 660  ~/.ssh/known_hosts
 ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-
 
 GENLOG_ROOT=~/GenLog
 export GENLOG_ROOT
@@ -40,7 +40,6 @@ export GENLOG_ROOT
 git clone git@github.com:edechter/GenLog.git $GENLOG_ROOT
 
 cd $GENLOG_ROOT
-
 
 # build GenLog
 export CPPFLAGS="-I/usr/lib/swi-prolog/include/ -I/usr/include/"
