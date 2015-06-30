@@ -1,7 +1,5 @@
 #!/bin/bash -ex
 
-echo this is a check
-
 # create aws config file for genlog 
 mkdir -p /home/genlog/.aws
 touch /home/genlog/.aws/config
@@ -45,5 +43,6 @@ cd $GENLOG_ROOT
 export CPPFLAGS="-I/usr/lib/swi-prolog/include/ -I/usr/include/"
 export LDGLAGS="-L/usr/lib/"
 make lib
+
 
 exec "$@"

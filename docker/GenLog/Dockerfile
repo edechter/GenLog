@@ -62,4 +62,9 @@ RUN chmod +x ./boot.sh
 
 USER genlog
 
+RUN mkdir -p /home/genlog/data \
+    && chown genlog /home/genlog/data
+RUN mkdir -p /home/genlog/logs \
+    && chown genlog /home/genlog/logs
+
 ENTRYPOINT ["/home/genlog/boot.sh"]
