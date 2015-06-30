@@ -15,22 +15,7 @@ GL_ITER=$3
 NUMBERS="${@:4:$#}"
 
 echo "job.sh: Running..." 
-EXEC_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/number_loglike.pl"
-
-# build gl url
-S3_GL_URL="${S3_URL}"
-S3_GL_URL+="/data/data_job_id_${GL_JOB_ID}"
-S3_GL_URL+="/ovbem_gl_$(printf "%04d\n" ${GL_ITER}).gl.gz"
-
-# fetch gl.gz file 
-aws s3 cp "$S3_GL_URL" $GL_PATH.gz
-gunzip -fv $GL_PATH.gz
-if [[ $? -ne 0 ]]; then 
-    echo "job.sh: * Unable to retrieve gl file $S3_GL_URL" 
-    exit 1
-else 
-    echo "job.sh: gl file $S3_GL_URL retrieved and uncompressed" 
-fi
+RUNNER_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/runner.pl"
 
 # Make data dir for script data
 DATA_DIR=/tmp/data_job_id_${JOB_ID}
