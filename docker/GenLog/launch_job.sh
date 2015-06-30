@@ -20,6 +20,10 @@ docker run \
     -v $(pwd)/"$DATADIR"/:/home/genlog/data \
     -v $(pwd)/"$LOGDIR"/:/home/genlog/logs \
     edechter/genlog  \
-    '/home/genlog/GenLog/ec2/job.sh' "$SUBJOB_ID" "${@:2:$#}" 1>>job.stdout 2>>job.stderr 
+    '/home/genlog/GenLog/ec2/job.sh' \
+        "$JOB_ID" \
+        "$SUBJOB_ID" \
+        "${@:2:$#}" \
+        1>>job.stdout 2>>job.stderr 
 
 

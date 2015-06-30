@@ -10,34 +10,25 @@ GL_PATH='/tmp/tmp.gl'
 
 # Input arguments
 JOB_ID=$1
-GL_JOB_ID=$2
-GL_ITER=$3
-NUMBERS="${@:4:$#}"
+SUBJOD_ID=$2
 
-echo "job.sh: Running..." 
+echo "job.sh: Running..." >&2
 RUNNER_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/runner.pl"
 
 # Make data dir for script data
-DATA_DIR=/tmp/data_job_id_${JOB_ID}
+DATA_DIR="${GENLOG_ROOT}"/data/"$JOB_ID"/"$SUBJOD_ID"
 mkdir -p ${DATA_DIR}
-DATA_PATH="${DATA_DIR}/job.out"
+chown genlog "$DATA_DIR"
 
-# number arguments 
-if [ ${#NUMBERS[@]} -eq 0 ];  then 
-    echo "job.sh: ** No numbers provided. **" 
-    exit 1
-fi
 
 # run executable
-if [[ ! -x ${EXEC_PATH} ]] 
+if [[ ! -x ${RUNNER_PATH} ]] 
 then
     echo "job.sh: ** Cannot run $EXEC_PATH **" 
 else
-    CMD="$EXEC_PATH $DATA_PATH $GL_PATH $NUMBERS"
-    echo "job.sh: executing $CMD"
+    CMD="$EXEC_PATH $RUNNER_PATH $DATA_DIR"
+    echo "job.sh: executing $CMD" >&2
     $CMD
 fi
-
-cp -fvr "$DATA_DIR" "${HOME}/data/data_job_id_${JOB_ID}" 
 
 
