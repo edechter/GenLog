@@ -17,7 +17,7 @@ RUNNER_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/runner.pl"
 EXEC_PATH="${GENLOG_ROOT}/src/run.pl"
 
 # Make data dir for script data
-DATA_DIR="${GENLOG_ROOT}"/data/"$JOB_ID"/"$SUBJOD_ID"
+DATA_DIR="$HOME"/data/"$JOB_ID"/"$SUBJOD_ID"
 mkdir -p ${DATA_DIR}
 chown genlog "$DATA_DIR"
 
