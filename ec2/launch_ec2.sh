@@ -36,7 +36,7 @@ GO="$CMD \
     ${IMAGE_ID} \
     --instance-count ${INSTANCE_COUNT} \
     --user-data-file ${USERDATA_SCRIPT} \
-    --instance-type ${INSTANCE_TYPE} \
+    --instance-type ${gINSTANCE_TYPE} \
     --key ${KEY_PAIR} \
     ${PRICE_OPT}"
 echo $GO

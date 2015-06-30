@@ -16,6 +16,7 @@ mkdir -p ./logs/${JOB_ID}
 
 # run 
 docker run \
+    -d \
     --env-file env_file \
     -v $(pwd)/"$DATADIR"/:/home/genlog/data \
     -v $(pwd)/"$LOGDIR"/:/home/genlog/logs \
@@ -24,6 +25,6 @@ docker run \
         "$JOB_ID" \
         "$SUBJOB_ID" \
         "${@:2:$#}" \
-        # 1>>job.stdout 2>>job.stderr 
+        1>>job.stdout 2>>job.stderr 
 
 
