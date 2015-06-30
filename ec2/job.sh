@@ -18,8 +18,8 @@ EXEC_PATH="${GENLOG_ROOT}/src/run.pl"
 
 # Make data dir for script data
 DATA_DIR="$HOME"/data/"$JOB_ID"/"$SUBJOD_ID"
-mkdir -p ${DATA_DIR}
-chown genlog "$DATA_DIR"
+# mkdir -p ${DATA_DIR}
+# chown genlog "$DATA_DIR"
 
 
 # run executable

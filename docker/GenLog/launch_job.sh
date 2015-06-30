@@ -9,10 +9,8 @@ S3_URL='s3://edechter.genlog'
 
 # make data and log dirs
 JOB_ID=$1
-DATADIR="./data/${JOB_ID}"
-LOGDIR="./logs/${JOB_ID}"
-mkdir -p ./data/${JOB_ID}
-mkdir -p ./logs/${JOB_ID}
+DATADIR="./data/"
+LOGDIR="./logs/"
 
 # run 
 docker run \
