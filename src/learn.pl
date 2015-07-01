@@ -265,6 +265,9 @@ run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         format(atom(File), "~w~|~`0t~d~4+.gl", ['ovbem_gl_', Iter]),
         directory_file_path(SaveDir, File, Path),
         save_gl(Path, [ovbem_info(Info)]),
+        format(atom(Cmd), 'gzip ~w', [Path]),
+        shell(Cmd),
+        print_message(informational, shell(Cmd)),
         
         online_vbem_options_max_iter(OptRecord, MaxIter),        
         (Iter >= MaxIter ->
