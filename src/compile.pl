@@ -576,7 +576,7 @@ save_gl(File, Options) :-
          listing(compile:gl_rule_group_rules/3),
          write_global_vars_,
          (member(ovbem_info(Info), Options) ->
-          portray_clause(Info)),
+          portray_clause(ovbem_info(Info))),
          told
         ).
 
