@@ -35,7 +35,7 @@ docker-machine create \
     --swarm \
     --swarm-master \
     --swarm-discovery token://"$SWARM_TOKEN" \
-    swarm-master-"${driver_label}" &
+    swarm-master-"${driver_label}" & 
 
 # create swarm agents
 parallel  \
