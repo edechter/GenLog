@@ -16,8 +16,8 @@ logs_dir="$swarm_master_dir"/logs
 docker run \
     -d \
     --env-file env_file \
-    -v "$data_dir":/home/genlog/data \
-    -v "$logs_dir":/home/genlog/logs \
+    --volumes-from data \
+    --volumes-from logs \
     edechter/genlog  \
     '/home/genlog/GenLog/ec2/job.sh' \
         "$JOB_ID" \

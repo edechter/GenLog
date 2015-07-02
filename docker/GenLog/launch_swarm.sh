@@ -3,13 +3,17 @@
 # Launch a swarm of docker machines
 # ----------------------------------------------------------------------
 
-NUMBER_AGENTS=1
-# DRIVER=virtualbox
-DRIVER=amazonec2
+NUMBER_AGENTS=2
+DRIVER=virtualbox
+# DRIVER=amazonec2
 
 # ----------------------------------------------------------------------
-
 source env_file
+
+docker pull ubuntu:latest
+docker pull swarm:latest
+
+
 SWARM_TOKEN="$(docker run swarm create)"
 export SWARM_TOKEN
 
@@ -23,8 +27,6 @@ else
 fi
 
 swarm_master_name="swarm-master-${driver_label}"
-
-
 
 docker-machine create \
     -d "$DRIVER" \
@@ -57,15 +59,20 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
-# create data and logs directory on master
-docker-machine ssh "${swarm_master_name}" \
-    'mkdir -p ~/data \
-     && mkdir -p ~/logs'
+# # create data and logs directory on master
+# docker-machine ssh "${swarm_master_name}" \
+#     'mkdir -p ~/data \
+#      && mkdir -p ~/logs'
 
 if [[ $? -ne 0 ]]; then 
     echo "** Error: unable to create ~/data and ~/logs directory" > &2
     exit 1
 fi
+
+docker create -v /home/genlog/data --name data ubuntu /bin/bash -c 'chmod 777 /home/genlog/data'
+docker create -v /home/genlog/logs --name data ubuntu /bin/bash -c 'chmod 777 /home/genlog/logs'
+
+
 
 
 

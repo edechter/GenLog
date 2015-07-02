@@ -1,0 +1,46 @@
+# docker-compose.yml 
+#
+# Service: genlog_agent
+# Maintainer: Eyal Dechter eyaldechter@gmail.com
+#
+# ----------------------------------------------------------------------
+
+# --------------------------------------------------
+# Process Containers
+# --------------------------------------------------
+
+genlog: 
+  image: edechter/genlog
+  volumes_from:
+    - data
+    - logs
+  env_file:
+    - ./env_file
+  links: 
+    - sync
+
+sync:
+  image: edechter/sync2s3
+  volumes_from:
+    - data
+    - logs
+  env_file:
+    - ./env_file
+  command: 
+    ./sync.sh -i 1 s3://edechter.genlog/data /home/genlog/data
+
+# --------------------------------------------------
+# Data Volume Containers
+# --------------------------------------------------
+
+data:
+  image: ubuntu
+  volumes:
+    - /home/genlog/data
+  command: bash -c 'chmod 777 /home/genlog/data'
+
+logs:
+  image: ubuntu
+  volumes:
+    - /home/genlog/logs
+  command: bash -c 'chmod 777 /home/genlog/logs'
