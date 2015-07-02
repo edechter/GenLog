@@ -9,18 +9,39 @@ S3_URL="s3://edechter.genlog"
 GL_PATH='/tmp/tmp.gl'
 
 # Input arguments
-JOB_ID=$1
-SUBJOD_ID=$2
+JOB_ID="$1"
+SUBJOD_ID="$2"
+S3_GL_URL="$3"
+NUMBERS="${@:4:$#}"
 
 echo "job.sh: Running..." >&2
-RUNNER_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/runner.pl"
-EXEC_PATH="${GENLOG_ROOT}/src/run.pl"
+EXEC_PATH="${GENLOG_ROOT}/experiments/scripts/learn_number_morph/number_loglike.pl"
 
 # Make data dir for script data
 sudo chown genlog "$HOME"/data
 sudo chown genlog "$HOME"/logs
 DATA_DIR="$HOME"/data/"$JOB_ID"/"$SUBJOD_ID"
 mkdir -p "${DATA_DIR}"
+DATA_FILE="${DATA_DIR}"/out.json
+
+# get gl file from s3
+aws s3 cp "$S3_GL_URL" ./in.gl.gz
+if [[ $? -ne 0 ]] 
+then
+    echo "job.sh: ** Cannot fetch $S3_GL_URL. **"
+    exit 1 
+fi
+
+# gunzip file
+gunzip ./in.gl.gz
+if [[ ?! -ne 0 ]] 
+then
+    echo "job.sh: ** Could not uncompress ./in.gl.gz **" 
+    exit 1
+fi
+
+
+
 
 
 # run executable
@@ -28,7 +49,7 @@ if [[ ! -x "${EXEC_PATH}" ]]
 then
     echo "job.sh: ** Cannot run $EXEC_PATH **" 
 else
-    CMD="$EXEC_PATH $RUNNER_PATH $DATA_DIR"
+    CMD="${EXEC_PATH} ${DATA_FILE} $(pwd)/in.gl $NUMBERS"
     echo "job.sh: executing $CMD" >&2
     $CMD
 fi
