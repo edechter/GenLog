@@ -95,6 +95,7 @@ run(ResultStream, GlFile, Numbers) :-
                  (member(N, Numbers), 
                   number_goal(N, Goal)),
                  NGoals),
+         write(ResultStream, '['),
          forall(member(N-Goal, NGoals),
                 (
                  beam_width(BeamWidth),
@@ -107,9 +108,11 @@ run(ResultStream, GlFile, Numbers) :-
                                gl_file:GlFile,
                                dsearch_results:D1,
                                loglikelihood:L},
-                 json_write_dict(ResultStream, Result)
+                 json_write_dict(ResultStream, Result),
+                 writeln(ResultStream, ', ')
                 )
-               )
+               ),
+         write(ResultStream, ']')
         ).
 
 main :-
