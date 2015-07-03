@@ -172,7 +172,7 @@ pprint_rule_map(Assoc, Out, Options) :-
 
 % worker predicate
 pprint_rule_map_in_rule_group(Options, Assoc, RuleGroup, Out) :-
-        rule_group_rules(RuleGroup, RuleIds),
+        get_rule_group_rules(RuleGroup, RuleIds),
         maplist(pprint_rule, RuleIds, Xs),
         pairs_keys_values(Pairs, RuleIds, Xs),
         option(thresh(Thresh), Options), 
