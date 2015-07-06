@@ -12,17 +12,24 @@ swarm_master_dir="$(docker-machine ssh "$DOCKER_MACHINE_NAME" pwd)"
 data_dir="$swarm_master_dir"/data
 logs_dir="$swarm_master_dir"/logs
 
-# run 
-docker run \
-    -d \
-    --env-file env_file \
-    --volumes-from data \
-    --volumes-from logs \
-    edechter/genlog  \
-    '/home/genlog/GenLog/ec2/job.sh' \
-        "$JOB_ID" \
-        "$SUBJOB_ID" \
-        "${@:2:$#}" \
-        1>>job.stdout 2>>job.stderr 
+docker-compose \
+    --verbose \
+    -f "${GENLOG_ROOT}"/docker/compose_genlog/docker-compose.yml \
+    up \
+    -d 
+
+
+# # run 
+# docker run \
+#     -d \
+#     --env-file env_file \
+#     --volumes-from data \
+#     --volumes-from logs \
+#     edechter/genlog  \
+#     '/home/genlog/GenLog/ec2/job.sh' \
+#         "$JOB_ID" \
+#         "$SUBJOB_ID" \
+#         "${@:2:$#}" \
+#         1>>job.stdout 2>>job.stderr 
 
 

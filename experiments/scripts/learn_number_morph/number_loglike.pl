@@ -19,7 +19,7 @@
 
 :- module(number_loglike, [main/0]).
 
-:- initialization main.
+% :- initialization main.
 
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
@@ -95,6 +95,7 @@ run(ResultStream, GlFile, Numbers) :-
                  (member(N, Numbers), 
                   number_goal(N, Goal)),
                  NGoals),
+         last(Numbers, LastN),
          write(ResultStream, '['),
          forall(member(N-Goal, NGoals),
                 (
@@ -109,7 +110,10 @@ run(ResultStream, GlFile, Numbers) :-
                                dsearch_results:D1,
                                loglikelihood:L},
                  json_write_dict(ResultStream, Result),
-                 writeln(ResultStream, ', ')
+                 (N\=LastN -> 
+                  writeln(ResultStream, ', ')
+                 ;
+                  true)
                 )
                ),
          write(ResultStream, ']')

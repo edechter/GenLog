@@ -3,6 +3,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+import glob
+import json
 
 # These are the "Tableau 20" colors as RGB.  
 tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),  
@@ -16,22 +18,23 @@ for i in range(len(tableau20)):
     r, g, b = tableau20[i]  
     tableau20[i] = (r / 255., g / 255., b / 255.)  
 
-# read in data from data.txt
-data = eval(open('data1_20_first50.py').readlines()[0])
-data = np.array(data)[:,::-1]
+files = glob.glob('out_gl*json')
+
+min_val = -70
 
 fig = plt.figure()
-ax = fig.add_subplot(111)
-for i, row in enumerate(data.T): 
-    ax.plot(row, 
-            label=i, 
-            color=tableau20[i],
-            linewidth=2
-    )
-    
-ax.set_ylim(-80, 0)
-ax.legend()
-plt.show()
+
+num_files = len(files)
+for i, file in enumerate(files):
+    print file
+    ax = fig.add_subplot(num_files, 1, i+1)
+
+    obj = json.load(open(file, 'r'))
+    xs = np.array([[x['number'], x['loglikelihood']] for x in obj])
+    xs[xs < min_val]=min_val
+    ax.bar(xs[:,0], -xs[:,1], color=tableau20[np.mod(i, 20)])
+    ax.set_yticks([])
+    ax.set_xticks(range(1, 100))
 
 
 

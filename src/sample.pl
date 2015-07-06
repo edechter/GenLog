@@ -5,6 +5,7 @@
 :- module(sample, []).
 
 :- use_module(sdcl).
+:- use_module(gl_rule).
 :- use_module(compile).
 :- use_module(pgen).
 
@@ -29,7 +30,7 @@ sample_(Goal, LogProb, OptRecord) :-
         ).
 
 sample_constrained_(Goal, LogProb, OptRecord) :-
-        mi_best_first_all(Goal, Derivations, _, OptRecord),
+        mi_best_first_all(Goal, Derivations, _, OptRecord), 
         sample_from_derivations_(Goal, Derivations, LogProb).        
 
 sample_from_derivations_(Goal, [], LogProb) :- fail, !.

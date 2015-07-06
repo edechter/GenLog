@@ -18,6 +18,8 @@ genlog:
     - ./env_file
   links: 
     - sync
+    - data
+    - logs
 
 sync:
   image: edechter/sync2s3

@@ -55,7 +55,7 @@ parallel  \
 # connect to swarm-master
 eval "$(docker-machine env --swarm "${swarm_master_name}")"
 if [[ $? -ne 0 ]]; then 
-    echo "** Error: unable to connect to ${swarm_master_name}" > &2
+    echo "** Error: unable to connect to ${swarm_master_name}" 
     exit 1
 fi
 
@@ -65,7 +65,7 @@ fi
 #      && mkdir -p ~/logs'
 
 if [[ $? -ne 0 ]]; then 
-    echo "** Error: unable to create ~/data and ~/logs directory" > &2
+    echo "** Error: unable to create ~/data and ~/logs directory" 
     exit 1
 fi
 
