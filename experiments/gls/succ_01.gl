@@ -1,0 +1,108 @@
+
+
+:- ensure_loaded(experiment(number_words)).
+
+
+
+num_preds(1).
+
+pred(Index, Pred) :-
+        num_preds(N), 
+        between(1, N, Index),
+        format(atom(Pred), "A(~w)", [Index]).
+
+pred(Pred) :- pred(_, Pred).
+
+
+lexeme(L) :-
+        lexemes(Ls), 
+        member(L, Ls).
+
+lexemes(Ls) :- setof(L,
+                     (
+                      between(1, 99, N),
+                      number_word(N, Ls),
+                      member(L, Ls)),
+                     Ls
+                    ).
+        
+
+
+:- begin(genlog).
+
+succ(X, Y) ---> 'A(1)'(X | Y).
+
+macro(
+      ('?A'(Xi-Yf| Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Z))
+     :-
+     (pred('?A'),
+      pred('?B'),
+      pred('?C')
+      )
+     ).
+
+macro(
+      ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
+     :-
+     (pred('?A'),
+      pred('?B'),
+      pred('?C')
+      )
+     ).
+
+macro(
+      ('?A'([X|P]-P | Y-R) @ [Y \= R, Y = [A|Z]] ---> '?B'([X|P]-P | A) )
+     :-
+     (pred('?A'),
+      pred('?B')
+      )
+     ).
+
+macro(
+      ('?A'([X|P]-P | Y-R) @ [Y \= R, Y = [A|Z]] ---> '?B'([X|P]-P | Z) )
+     :-
+     (pred('?A'),
+      pred('?B')
+      )
+     ).
+
+
+macro(
+      ('?A'([X|R]-R | Y-Y))
+     :-
+     (pred('?A'),
+      lexeme(X))
+     ).
+
+macro(
+      ('?A'([X|R]-R | Y))
+     :-
+     (pred('?A'),
+      lexeme(X),
+      lexeme(Y)
+     )
+     ).
+
+% macro(
+%       ('?A'(R-R | Y))
+%      :-
+%      (pred('?A'),
+%       lexeme(Y)
+%      )
+%      ).
+
+% macro(
+%       ('?A'(R-R | Y-Y))
+%      :-
+%      (pred('?A'))
+%      ).
+
+id(X | X) ---> true.
+macro(
+      ('?A'([X|P]-P|Y) ---> id(X | Y) )
+     :-
+     (pred('?A'))
+     ).
+
+
+:- end(genlog).

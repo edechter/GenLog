@@ -65,7 +65,7 @@ The following grammar reflects the following rules:
 
 hear(X-Y) ---> 'A(word, 1)'(X-Y|[]-[]).
 
-% &p_i(X Y | Z ) &&\leftarrow p_j(X | Z) p_k(Y | X) 
+% &p_i(X Y | Z ) &&\leftarrow p_j(X | Z) p_k(Y | X) x
 % macro(
 %       ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
 %      :-

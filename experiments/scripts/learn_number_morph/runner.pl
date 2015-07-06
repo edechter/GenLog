@@ -1,5 +1,5 @@
 
-
+ 
 :- module(runner, [main/1]).
 
 :- multifile user:file_search_path/2.
@@ -99,6 +99,7 @@ main(Options) :-
         power_law_goals(0.75, 1, 99, 100, GoalWeights),
         list_to_categorical(GoalWeights, GoalGen),
         run_online_vbem(GoalGen, Data, Options1).
+        
 
 %% ----------------------------------------------------------------------
 %%    analyze

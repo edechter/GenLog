@@ -370,6 +370,7 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
         % If the next best is not a solution
         % generate a new beam from the current one
         extend_all(Beam, NewBeam),
+        % pq_show(Beam),
         % writeln(NewBeam),
         
         % NewBeam=pq(_, S, _),
