@@ -4,7 +4,7 @@
 
 
 
-num_preds(1).
+num_preds(5).
 
 pred(Index, Pred) :-
         num_preds(N), 
