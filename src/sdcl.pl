@@ -290,6 +290,7 @@ mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
         % initialize priority queue. Each element of priority queue is
         % of the form deriv_info(CurrentGoalList-OrigGoal, DerivationGraph)
         DGraph0 = dgraph(NodeId, [goal(NodeId, GoalTr, UnBoundGoalTr)], []),
+        
         pq_singleton(deriv_info(GoalList-UnBoundGoalTr, 0, DGraph0),
                      0,
                      BeamWidth,
@@ -352,8 +353,10 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
                  DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
         %% return any of the solutions
         PQ = pq(PqElems, Size, MaxSize),
- 
-        select(pq_elem(deriv_info([]-OrigGoal, LogProbMax, DGraph), _), PqElems, PqElems1),
+
+        DInfo = deriv_info([]-OrigGoal, LogProbMax, DGraph),
+        
+        select(_-DInfo, PqElems, PqElems1),
         !,
         Size1 is Size - 1,
         NewPQ = pq(PqElems1, Size1, MaxSize),
@@ -397,40 +400,56 @@ extend_all(BeamIn, BeamOut) :-
         BeamOut = pq(PqElemsNew, N, MaxSize),
         !.
 
-extend_all_go(MaxSize, _, [], [], PqIn, PqElemsOut) :-
+% extend_all_go(MaxSize, -- maximum size of queue
+%               Inf,     -- Infinum of queue (smallest element)
+%               PqElems, -- elements left to extend
+%               Elems,   -- extended elements, to be inserted into queue
+%               PqIn,    -- current queue
+%               PqOut,   -- final queue out
+extend_all_go(_, _, [], [], PqIn, PqOut) :-
+        % if no elements to extend and no elements to insert
         !, 
-        pqueue_to_list(PqIn, VKs),
-        findall(pq_elem(K, V),
-                member(V-K, VKs),
-                PqElemsOut),        
-        !.
-extend_all_go(MaxSize, Inf, [pq_elem(K, V)|PqElems], [], PqIn, PqElemsOut) :-
+        PqIn = PqOut.
+extend_all_go(MaxSize, Inf, [V-K|PqElems], [], PqIn, PqOut) :-
+        !, 
+        % if no elements left to insert, choose extend next element
         pqueue_size(PqIn, Size),
-        ( (Size > MaxSize, V < Inf) ->
-          extend_all_go(MaxSize, Inf, PqElems, [], PqIn, PqElemsOut)
+        ( (Size >= MaxSize, V < Inf) ->
+          % if queue is saturated and element to be extended is worse
+          % than current queue infinum, there's no point in extending
+          % this element or any subsequent one (since the elements are
+          % in decreasing order)
+          PqIn = PqOut
         ;
-          extend(K, Ks),
-          !,
-          findall(pq_elem(D, L),
+          % otherwise, extend the next element
+          extend(K, Ks),          
+          findall(L-D,
                   (D=deriv_info(_, L, _),
                    member(D, Ks)),
-                  Elems),
-          extend_all_go(MaxSize, Inf, PqElems, Elems, PqIn, PqElemsOut)
+                  Elems0),
+          keysort(Elems0, Elems1),
+          reverse(Elems1, Elems),
+          extend_all_go(MaxSize, Inf, PqElems, Elems, PqIn, PqOut)
         ).
-extend_all_go(MaxSize, Inf, PqElems, [pq_elem(K, V)|Elems], PqIn, PqElemsOut) :-
+extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut) :-
         pqueue_size(PqIn, Size),
-        ((Size > MaxSize, V < Inf)  -> 
-         extend_all_go(MaxSize, Inf, PqElems, Elems, PqIn, PqElemsOut)
+        ((Size >= MaxSize, V < Inf)  ->
+         % if pqueue is saturated and next element to be inserted is
+         % worse than current queue infinfum, there's no point in
+         % inserting it or any subsequent elements
+         PqIn = PqOut
         ;
-         V < Inf -> 
-         add_to_pqueue(PqIn, V, K, PqTmp0),
-         take(MaxSize, PqTmp0, PqTmp),
-         extend_all_go(MaxSize, V, PqElems, Elems, PqTmp, PqElemsOut)
-        ;
-         add_to_pqueue(PqIn, V, K, PqTmp0),
-         take(MaxSize, PqTmp0, PqTmp),
-         extend_all_go(MaxSize, Inf, PqElems, Elems, PqTmp, PqElemsOut)
+         % otherwise, insert element
+         add_to_pqueue(PqIn, V, K, PqTmp),
+         % if V is smaller than infinum, set new infinum to V
+         (V < Inf ->
+          Inf1 = V
+         ;
+          Inf1 = Inf
+         ),
+         extend_all_go(MaxSize, Inf1, PqElems, Elems, PqTmp, PqOut)
         ).
+        
         
                  
         
@@ -487,6 +506,24 @@ test(extend2,
 %% - Goals is not empty
 %% - Goals is a list of structures of the form goal(GoalId, Goal, UnBoundGoal) where Goal is an sdcl_term/3.
 %% - Extensions is a list of deriv_info(Goals-OrigGoal, LogProb, DGraph) where LogProb is the unconditional probability of the derivation
+
+foo(ChildNodes, BodyList, ChildNodeIds) :-        
+                         
+        (
+         bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
+               (
+                member(ChildGoal-UnBoundChildGoal, BodyList),
+                gen_node_id(ChildNodeId)
+               ),
+               ChildNodes) -> true
+        ;
+         ChildNodes = []
+        ),
+
+        findall(ChildNodeId,
+                member(goal(ChildNodeId, _, _), ChildNodes),
+                ChildNodeIds).
+
 extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
         G = goal(_, Goal, _),
         unconstrained(Goal),
@@ -506,7 +543,8 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                 (
                  % find a matching rule for the current goal
                  G = goal(NodeId, Goal, UnBoundGoal),
-                 match(Goal-UnBoundGoal, BodyList, RuleId, Prob),
+
+                 match(Goal, UnBoundGoal, BodyList, RuleId, Prob),
                  
                  (
                   bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
@@ -518,11 +556,12 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                   ;
                   ChildNodes = []
                  ),
-                 
+
                  findall(ChildNodeId,
                          member(goal(ChildNodeId, _, _), ChildNodes),
                          ChildNodeIds),
 
+                 
                  %% append new goal nodes onto the list of nodes for the derivation graph
                  append(ChildNodes, Nodes, Nodes_new),
                  
@@ -537,15 +576,17 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
 
                  %% assert dgraph is a tree
                  %% i.e. number of nodes is number of edge children plus 1
-                 assert_dgraph_tree_property(DGraph_new), 
+                 % assert_dgraph_tree_property(DGraph_new), 
                          
                  %% calculate the updated log probability of the
                  %% current derivation
                  LogProb_new is LogProb + log(Prob),
+
+
                  % writeln(LogProb_new is LogProb + log(Prob)),
                  %% calculate conditional prefix probability
                  % nl, 
-                 assertion(LogProb_new =< LogProb),
+                 % assertion(LogProb_new =< LogProb),
 
                  %% prepend the new goal nodes onto the goal stack
                  append(ChildNodes, Rest, G_new)
@@ -564,8 +605,8 @@ gen_node_id(Id) :-
 
 
 %% match goal against SDCL DB
-%% match(Goal-UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
-match(Goal-UnBoundGoal, BodyList, RuleId, Prob) :-
+%% match(Goal, UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
+match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
         Rule=gl_rule(RuleId, Goal, Guard, Body, _),
         call(Rule),
@@ -600,7 +641,7 @@ test(match,
     translate_to_gl_term(X, G),
     
     findall(RuleId, 
-            match(G-G, RuleId, _, _),
+            match(G, G, RuleId, _, _),
             MatchingRuleIds),
     length(MatchingRuleIds, NMatch).
         
@@ -717,7 +758,7 @@ log_likelihood(Goal, LogP, Options) :-
 %%
 %% Description: a maximum priority queue. The queue is a term
 %% pq(PQ_elements, Size, MaxSize) where PQ_elements is a sorted list of terms
-%% pq_elem(Elem, Score).
+%% Score-Elem.
 %%
 %% MaxSize: the maximum length of the priority queue (default:
 %% infinity). Will reject adding an element worse equal to or worse
@@ -733,8 +774,8 @@ pairs_sort_on_value(PairsIn, PairsOut) :-
         flip_pairs(SortedFlipped, PairsOut).
         
 
-pq_singleton(Elem, Score, pq([pq_elem(Elem, Score)], 1, infinity)).
-pq_singleton(Elem, Score, MaxSize, pq([pq_elem(Elem, Score)], 1, MaxSize)).
+pq_singleton(Elem, Score, pq([Score-Elem], 1, infinity)).
+pq_singleton(Elem, Score, MaxSize, pq([Score-Elem], 1, MaxSize)).
 
 pq_empty(MaxSize, pq([], 0, MaxSize)).
 pq_empty(pq([], 0, infinity)).
@@ -744,7 +785,7 @@ pq_empty(pq([], 0, infinity)).
 list_to_pq(Elems, PqSize, PQ) :-
         pairs_sort_on_value(Elems, Sorted0),
         reverse(Sorted0, Sorted),
-        findall(pq_elem(E, S),
+        findall(S-E,
                member(E-S, Sorted),
                PqElems0),
         take(PqSize, PqElems0, PqElems),
@@ -761,7 +802,7 @@ pq_find_max(PQ, _, _, _) :-
         pq_empty(PQ),
         !, 
         throw(error(pq_find_max_of_empty(PQ))).
-pq_find_max(pq([pq_elem(MaxElem, Score)|Rest], Size, MaxSize),
+pq_find_max(pq([Score-MaxElem|Rest], Size, MaxSize),
             MaxElem,
             Score,
             pq(Rest, Size1, MaxSize)) :-
@@ -774,7 +815,7 @@ pq_size(pq(_, Size, _), Size).
 % pq_show(PQ) pretty prints priority queues
 pq_show(pq(Elems, Size, _)) :-
         format("Size: ~w\n", [Size]),
-        member(pq_elem(Elem, Score), Elems),
+        member(Score-Elem, Elems),
         Elem = deriv_info(_, _, DGraph),
         pprint_dgraph(DGraph),
         writeln(score-Score), 
@@ -789,7 +830,7 @@ pq_show(_).
 % returns a list of keys in the priority queue
 pq_keys(pq(Elems, _, _), Keys) :-
         findall(K,
-                member(pq_elem(K, _V), Elems),
+                member(_V-K, Elems),
                 Keys).
 
 dgraph_size(dgraph(_, _, Hs), M) :-
@@ -1124,7 +1165,7 @@ prolog:message(beam_terms(Beam)) -->
         beam_terms_go_(Elems).
 
 beam_terms_go_([]) --> expl_search_prefix, [nl].
-beam_terms_go_([pq_elem(deriv_info(Goals-_, _, _), W) | Es]) -->
+beam_terms_go_([W-deriv_info(Goals-_, _, _) | Es]) -->
         {(Goals = [goal(_, T, _)|_] ->
           pprint_term(T, TString)
          ;
@@ -1136,7 +1177,9 @@ beam_terms_go_([pq_elem(deriv_info(Goals-_, _, _), W) | Es]) -->
          beam_terms_go_(Es).
 
 % ----------------------------------------------------------------------
-%%  max_list a list sorted in descending order
+%%  A maximum priority queue of finite size.
+
+
 
 empty_pqueue([]).
 
