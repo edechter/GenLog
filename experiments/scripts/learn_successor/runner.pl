@@ -45,7 +45,7 @@
 %% select genlog file
 gl_file(GlFile) :-
    getenv('GENLOG_ROOT', Dir),
-   atomic_list_concat([Dir, '/', experiments, '/', gls, '/', 'succ_01.gl'], GlFile).
+   atomic_list_concat([Dir, '/', experiments, '/', gls, '/', 'succ_04.gl'], GlFile).
 
 %% ------------------------------------------
 %% make number data
@@ -53,7 +53,8 @@ succ_goal(N, Count, Goal) :-
         number_word(N, W),
         N1 is N+1,
         number_word(N1, W1),
-        Goal = count(succ(W-[], W1-[]), Count).
+        % append(W, W1, W2),
+        Goal = count(succ(W, W1), Count).
 
 succ_goals(Lo, Hi, Count, Goals) :-
         findall(Goal,
@@ -74,13 +75,13 @@ power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
 %%                               Constants
 exp_constants(
    constants{beam_width:100,
-             time_limit_seconds:2,
+             time_limit_seconds:5,
              max_iter:2000,
 
-             exp:0.75,
+             exp:0.85,
              c:10,
              lo:1,
-             hi:99}).
+             hi:98}).
 
 %% ----------------------------------------------------------------------
 %% ----------------------------------------------------------------------
@@ -151,3 +152,5 @@ bench :-
             
 
 
+df_list(X-X, []) :- !.
+df_list([X|Y]-Z, [X|Xs]) :- df_list(Y-Z, Xs).

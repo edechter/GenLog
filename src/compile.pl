@@ -189,6 +189,8 @@ rule_group_rules(RuleGroup, Rules) :-
 rule_group_id_rules(RuleGroupId, Rules) :-
         'gl_rule_group_rules'(RuleGroupId, _, _),
         !.
+
+       
         
 
         

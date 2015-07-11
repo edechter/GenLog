@@ -4,7 +4,7 @@
 
 
 
-num_preds(1).
+num_preds(2).
 
 pred(Index, Pred) :-
         num_preds(N), 
@@ -30,10 +30,26 @@ lexemes(Ls) :- setof(L,
 
 :- begin(genlog).
 
-succ(X) ---> 'A(1)'(X | Y-Y).
+succ(X,Y) ---> 'A(1)'(X | Y), 'A(2)'(Y | []).
 
 macro(
-      ('?A'(Xi-Yf| Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Z))
+      ('?A'(XY| Z) @ [append(X, Y, XY)]---> '?B'(X | Z), '?C'(Y | Z))
+     :-
+     (pred('?A'),
+      pred('?B'),
+      pred('?C')
+      )
+     ).
+macro(
+      ('?A'(XY| Z) @ [append(X, Y, [XY])]---> '?B'(X | Z), '?C'(Y | X))
+     :-
+     (pred('?A'),
+      pred('?B'),
+      pred('?C')
+      )
+     ).
+macro(
+      ('?A'(XY| Z) @ [append(X, Y, [XY])]---> '?B'(Y | Z), '?C'(X | Y))
      :-
      (pred('?A'),
       pred('?B'),
@@ -42,25 +58,7 @@ macro(
      ).
 
 macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Xi-Yi | Z), '?C'(Yi-Yf | Xi-Yi))
-     :-
-     (pred('?A'),
-      pred('?B'),
-      pred('?C')
-      )
-     ).
-
-macro(
-      ('?A'(Xi-Yf|Z) ---> '?B'(Yi-Yf | Z), '?C'(Xi-Yi | Yi-Yf))
-     :-
-     (pred('?A'),
-      pred('?B'),
-      pred('?C')
-      )
-     ).
-
-macro(
-      ('?A'(X|Ui-Uf) ---> '?B'(X | Ui-Um))
+      ('?A'(X | UV) @ [append(U, V, UV)] ---> '?B'(X | U))
      :-
      (pred('?A'),
       pred('?B')
@@ -68,35 +66,37 @@ macro(
      ).
 
 macro(
-      ('?A'(X|Ui-Uf) ---> '?B'(X | Um-Uf))
+      ('?A'(X| UV) @ [append(U, V, UV)] ---> '?B'(X | V))
      :-
      (pred('?A'),
       pred('?B')
       )
      ).
-
+ 
 macro(
-      ('?A'([X|R]-R | [Y|S]-S))
+      ('?A'(X | Y))
      :-
      (pred('?A'),
-      lexeme(X),
-      lexeme(Y))
-     ).
-
-macro(
-      ('?A'([X|R]-R | S-S))
-     :-
-     (pred('?A'),
-      lexeme(X))
+      (X = []
+      ;
+       lexeme(L),
+       X = [L]
+      ),
+      (Y = []
+      ;
+       lexeme(G),
+       Y = [G])
+      )
      ).
 
 
 id(X | X) ---> true.
 macro(
-      ('?A'(X|Y) ---> id(X | Y) )
+      ('?A'(X|Y) @ [X=Y] ---> id(X | Y) )
      :-
      (pred('?A'))
      ).
 
 
 :- end(genlog).
+

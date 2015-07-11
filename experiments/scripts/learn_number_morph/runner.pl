@@ -1,6 +1,7 @@
 
  
-:- module(runner, [main/1]).
+:- module(runner, [main/1,
+                   number_phones/2]).
 
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
@@ -29,7 +30,7 @@
 :- use_module(genlog(pprint)).
 
 :- use_module(genlog(data_utils)).
-:- use_module(genlog(number_words)).
+:- use_module(experiment(number_words)).
 
 :- ensure_loaded(genlog(number_syllables)).
 :- ensure_loaded(genlog(consonants)).

@@ -86,6 +86,7 @@ init_vb_params(uniform(Lo, Hi), VBParams) :-
                  P is A + V
                 ),
                 IdPs),
+        %% TODO: replace with an array instead of assoc
         list_to_assoc(IdPs, VBParams).
 
 init_vb_params(norm(Mean, StdDev), VBParams) :-
@@ -96,6 +97,7 @@ init_vb_params(norm(Mean, StdDev), VBParams) :-
         length(RuleIds, NRules),
         Ps <- rnorm(NRules, Mean, StdDev), 
         pairs_keys_values(RPs, RuleIds, Ps),
+        %% TODO: replace with an array instead of assoc
         list_to_assoc(RPs, VBParams).
                  
                  
@@ -177,6 +179,7 @@ compute_vb_fixed_point(DSearchResults,
         %% compute new vb params
         get_rule_alphas(PriorHyperParams),
 
+        %% TODO: replace with an array instead of assoc
         add_assocs(0, PriorHyperParams, ExpectedCounts, VBParamsOut),
         compute_variational_weights(VBParamsOut, WeightsOut),
 

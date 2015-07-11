@@ -142,7 +142,7 @@ rule_group(RuleGroup) :-
         
 
 rule_group_norm(RuleGroup, Z) :-
-        get_rule_group_rules(RuleGroup, RuleIds),
+        rule_group_rules(RuleGroup, RuleIds),
         findall(Prob,
                 (member(RuleId, RuleIds), 
                  get_rule_prob(RuleId, Prob)
@@ -151,7 +151,7 @@ rule_group_norm(RuleGroup, Z) :-
         sum_list(Ws, Z).
 
 rule_group_norm(RuleGroup, RuleAssoc, Z) :-
-        get_rule_group_rules(RuleGroup, RuleIds),
+        rule_group_rules(RuleGroup, RuleIds),
         findall(Prob,
                 (member(RuleId, RuleIds), 
                  get_assoc(RuleId, RuleAssoc, Prob)
@@ -373,7 +373,8 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
         % If the next best is not a solution
         % generate a new beam from the current one
         extend_all(Beam, NewBeam),
-        % pq_show(Beam),
+        
+        % pq_show(Beam, 3),
         % writeln(NewBeam),
         
         % NewBeam=pq(_, S, _),
@@ -384,6 +385,7 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
         
         !, 
         print_message(informational, beam_size(NewBeam)),
+        
 
         mi_best_first_go(NewBeam, TargetGoal-UbTargetGoal, LogProb,
                          DGraphOut, PrefixMassList1, TimeInfo, OptionsRecord).
@@ -395,7 +397,8 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
 extend_all(BeamIn, BeamOut) :-
         BeamIn = pq(PqElemsIn, Size, MaxSize),
         empty_pqueue(EmptyPQ),
-        extend_all_go(MaxSize, 0, PqElemsIn, [], EmptyPQ, PqElemsNew),
+        extend_all_go(MaxSize, 0, PqElemsIn, [], EmptyPQ, PqElemsNew0),
+        take(MaxSize, PqElemsNew0, PqElemsNew),
         length(PqElemsNew, N),
         BeamOut = pq(PqElemsNew, N, MaxSize),
         !.
@@ -608,27 +611,33 @@ gen_node_id(Id) :-
 %% match(Goal, UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
 match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
+        % writeln(Goal),
         Rule=gl_rule(RuleId, Goal, Guard, Body, _),
         call(Rule),
         acyclic_term(Goal),
         call_list(Guard),
-
+        
+        % writeln(RuleId),
+        % writeln(Goal),
+        % writeln(Guard),
   
 
         get_rule_prob(RuleId, Prob),
         % writeln(prob-Prob),
         RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundGuard, UnBoundBody, _),
         call(RuleCopy),
+        % writeln(RuleCopy),
         % call_list(UnBoundGuard),
 
         
         and_to_list(Body, TargetBodyList),
         and_to_list(UnBoundBody, UnBoundBodyList),
         pairs_keys_values(BodyList, TargetBodyList, UnBoundBodyList).
+        % writeln(BodyList).
 
 call_list([]).
 call_list([G|Gs]) :-
-        once(G),
+        call(G),
         call_list(Gs).
 
 :- begin_tests(match).
@@ -813,6 +822,11 @@ pq_find_max(pq([Score-MaxElem|Rest], Size, MaxSize),
 pq_size(pq(_, Size, _), Size).
 
 % pq_show(PQ) pretty prints priority queues
+pq_show(pq(Elems, Size, M), N) :-
+        take(N, Elems, Elems1),
+        length(Elems1, M1),
+        pq_show(pq(Elems1, Size, M1)).
+
 pq_show(pq(Elems, Size, _)) :-
         format("Size: ~w\n", [Size]),
         member(Score-Elem, Elems),
