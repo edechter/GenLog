@@ -42,7 +42,7 @@ macro(
      (preds(['?A', '?B']))).
 
 macro(
-      ('?A'(XY| Z) @ [append1(X, Y, XY)]---> '?B'(X | Z), '?C'(Y | Z))
+      ('?A'(XY| Z) ---> [append1(X, Y, XY)] # '?B'(X | Z), '?C'(Y | Z))
      :-
      (pred('?A'),
       pred('?B'),
@@ -50,7 +50,7 @@ macro(
       )
      ).
 macro(
-      ('?A'(XY| Z) @ [append1(X, Y, [XY])]---> '?B'(X | Z), '?C'(Y | X))
+      ('?A'(XY| Z) ---> [append1(X, Y, [XY])] # '?B'(X | Z), '?C'(Y | X))
      :-
      (pred('?A'),
       pred('?B'),
@@ -58,7 +58,7 @@ macro(
       )
      ).
 macro(
-      ('?A'(XY| Z) @ [append1(X, Y, [XY])]---> '?B'(Y | Z), '?C'(X | Y))
+      ('?A'(XY| Z) ---> [append1(X, Y, [XY])] # '?B'(Y | Z), '?C'(X | Y))
      :-
      (pred('?A'),
       pred('?B'),
@@ -67,7 +67,7 @@ macro(
      ).
 
 macro(
-      ('?A'(X | UV) @ [append1(U, V, UV)] ---> '?B'(X | U))
+      ('?A'(X | UV) ---> [append1(U, V, UV)] #  '?B'(X | U))
      :-
      (pred('?A'),
       pred('?B')
@@ -75,7 +75,7 @@ macro(
      ).
 
 macro(
-      ('?A'(X| UV) @ [append1(U, V, UV)] ---> '?B'(X | V))
+      ('?A'(X| UV) --->  [append1(U, V, UV)] # '?B'(X | V))
      :-
      (pred('?A'),
       pred('?B')
@@ -96,7 +96,7 @@ macro(
 
 id(X | X) ---> true.
 macro(
-      ('?A'(X|Y) @ [X=Y] ---> id(X | Y) )
+      ('?A'(X|Y) ---> [ X=Y ] # id(X | Y) )
      :-
      (pred('?A'))
      ).

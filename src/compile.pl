@@ -18,7 +18,12 @@
            save_gl/2,
            save_gl/3,
 
-           load_gl/1
+           load_gl/1,
+
+           op(1100, xfy, --->),
+           op(1200, xfy, ::),
+           op(950, xfy, @),
+           op(1050, yfx, #)
           
            ]).
 
@@ -32,10 +37,11 @@
 % :- add_import_module(compile,
                       % user, end).
 
-:- op(1000, xfy, --->).
+:- op(1100, xfy, --->).
 
 :- op(1200, xfy, ::).
 :- op(950, xfy, @).
+:- op(1050, yfx, #).
 %% ----------------------------------------------------------------------
 /*
   gl_rule/5.
@@ -280,7 +286,7 @@ translate_to_gl_rule(Clause, Rule, RuleWeight) :-
         \+ var(Clause),
         copy_term(Clause, ClauseCopy), 
         numbervars(ClauseCopy), 
-        Rule = gl_rule(_, RuleHead, RuleGuards, RuleBody, RuleGroup),
+        Rule = gl_rule(_, RuleHead, RuleGuards-BodyGuards, RuleBody, RuleGroup),
         % strip rule weight if present
         (
          ClauseCopy = (Clause1 :: RuleWeight)
@@ -290,28 +296,38 @@ translate_to_gl_rule(Clause, Rule, RuleWeight) :-
         ),
         % extract body
         (
-         Clause1 = (HG ---> B) -> true
+         Clause1 = (HG ---> B) ->
+         true
         ;
          Clause1 = HG,
          B = true
         ),
         % extract list of guards
         (
-         HG = (H @ G) -> true
+         HG = (H @ G) ->
+         true
         ;
          H = HG,
          G = []
         ),
-        % we always set default alpha value to 1
-        RuleAlpha = 1.0,
-        and_to_list(B, BList),
+        % extract list of body guards
+        (
+         B = (BG # B1) ->
+         true
+        ;
+         B1 = B,
+         BG = []
+        ),
+        and_to_list(B1, BList),
         maplist(tr_numbered_gl_term, BList, BList1),
         list_to_and(BList1, RuleBody0), 
         tr_numbered_gl_term(H, RuleHead0),
         RuleGuards0 = G,
+        BodyGuards0 = BG,
         % unnumber the variables NB: both head and body are unnumbered
         % at once so that we preserve the correspondence between variables
-        varnumbers((RuleHead0, RuleGuards0, RuleBody0), (RuleHead, RuleGuards, RuleBody)),
+        varnumbers((RuleHead0, RuleGuards0, BodyGuards0, RuleBody0),
+                   (RuleHead, RuleGuards, BodyGuards, RuleBody)),
         goal_to_rule_group(RuleHead, RuleGuards, RuleGroup),
         !.
 

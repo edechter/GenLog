@@ -151,7 +151,7 @@ run_batch_vbem(Goals, Options) :-
 
         (NResults > 0 -> % if there are derivations
          compute_vb_fixed_point(DSearchResults, VBStateIn, VBStateOut, OptRecord),
-         set_rule_alphas(VBStateOut.vb_params),
+         set_rule_alphas(VBStateOut.vb_params)
         ;
          print_message(informational, online_vbem(no_derivations_found))
         ).
@@ -207,13 +207,9 @@ compute_vb_fixed_point(DSearchResults,
                                 },
         vbem_options_epsilon(OptRecord, Eps),
         (
-         writeln(1), 
          abs(VBStateIn.free_energy - FreeEnergy) < Eps ->
-         writeln(2),
          VBStateOut = VBStateNext,
-         writeln(3), 
          debug(learning, "Batch VBEM: Converged ... Finished. \n", []),
-         writeln(4)
         ;
          compute_vb_fixed_point(DSearchResults, VBStateNext, VBStateOut, OptRecord)
         ).

@@ -49,19 +49,25 @@ pprint_rule(Head, Guard, Body, Out) :-
         ;
          BodyN = BodyList
         ),
-        (GuardN = [] -> GuardString = ''
+        GuardN=HGuardN-BGuardN,
+        (HGuardN = [] -> HGuardString = ''
         ;
-         format(atom(GuardString), "@ ~w", [GuardN])
+         format(atom(HGuardString), "@ ~w", [HGuardN])
         ),
+        (BGuardN = [] -> BGuardString = ''
+        ;
+         format(atom(BGuardString), "~w #", [BGuardN])
+        ),
+
         (
          BodyList = [gl_term(_, _, _)|_] ->
          maplist(pprint_term, BodyList, BodyStrings),
          maplist(call(atomic_concat, ''), BodyStrings, BodyStrings1), 
          atomic_list_concat(BodyStrings1, ', ', BodyString),
-         format(atom(Out), "~w ~w ---> ~w", [HeadString, GuardString, BodyString])
+         format(atom(Out), "~w ~w ---> ~w ~w", [HeadString, HGuardString, BGuardString, BodyString])
          ;
-         BodyList = [] ->
-         format(atom(Out), "~w ~w", [HeadString, GuardString])
+         (BodyList = [], BGuardN = []) ->
+         format(atom(Out), "~w ~w", [HeadString, HGuardString])
         ).
 
 pprint_rule(R) :-

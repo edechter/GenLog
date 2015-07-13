@@ -616,10 +616,10 @@ gen_node_id(Id) :-
 match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
         % writeln(Goal),
-        Rule=gl_rule(RuleId, Goal, Guard, Body, _),
+        Rule=gl_rule(RuleId, Goal, HGuard-BGuard, Body, _),
         call(Rule),
-        acyclic_term(Goal),
-        call_list(Guard),
+        call_list(HGuard),
+        call_list(BGuard),
         
         % writeln(RuleId),
         % writeln(Goal),
