@@ -3,6 +3,8 @@
 
 :- module(sdcl,
           [rules/1,
+           num_rules/1,
+           num_rule_groups/1,
            rule/1,
            rule_functor/2,
            functor_rules/2,
@@ -14,7 +16,7 @@
            rule_group_norm/3,           
            rule_group_norms/1,
            rule_group_norms/2,
-           normalize_rule_group/3,
+           % normalize_rule_group/3,
            normalize_rules/0,
 
            
@@ -62,6 +64,7 @@
 :- use_module(plunit_extra).
 :- use_module(compile).
 :- use_module(pprint).
+:- use_module(array).
 
 
 % :- r(library("matrixStats")).
@@ -73,6 +76,10 @@ rules(RuleIds) :-
         findall(RuleId, (
                          gl_rule(RuleId, _, _, _, _)),
                 RuleIds).
+
+num_rules(N) :-
+        rules(Rs),
+        length(Rs, N).
 
 rule(RuleId) :-
         gl_rule(RuleId, _, _, _, _).
@@ -150,68 +157,65 @@ rule_group_norm(RuleGroup, Z) :-
                 Ws),
         sum_list(Ws, Z).
 
-rule_group_norm(RuleGroup, RuleAssoc, Z) :-
-        rule_group_rules(RuleGroup, RuleIds),
+rule_group_id_norm(RuleGroupId, Z) :-
+        rule_group_id_rules(RuleGroupId, RuleIds),
         findall(Prob,
                 (member(RuleId, RuleIds), 
-                 get_assoc(RuleId, RuleAssoc, Prob)
+                 get_rule_prob(RuleId, Prob)
                 ),
                 Ws),
         sum_list(Ws, Z).
 
-rule_group_norms(RuleGroupAssoc) :-
-        rule_groups(RuleGroups),
-        findall(RG-0,
-                member(RG, RuleGroups),
-                Xs),
-        list_to_assoc(Xs, Assoc0),
-        findall(Id-G,
-                gl_rule(Id, _, _, _, G),
-                IdsToGroups),
-        rule_group_norms_(IdsToGroups, Assoc0, RuleGroupAssoc).
+rule_group_id_norm(RuleGroupId, RuleArray, Z) :-
+        rule_group_id_rules(RuleGroupId, RuleIds),
+        findall(W,
+                (member(RuleId, RuleIds), 
+                 get(RuleId, RuleArray, W)
+                ),
+                Ws),
+        sum_list(Ws, Z).
 
-rule_group_norms_([], AssocIn, AssocOut) :-
-        !,
-        AssocIn = AssocOut.
-rule_group_norms_([Id-RG|RuleIdValues], AssocIn, AssocOut) :-
-        get_assoc(RG, AssocIn, V_old),
-        get_rule_prob(Id, W), 
-        V_new is V_old + W,
-        put_assoc(RG, AssocIn, V_new, AssocTmp),
-        rule_group_norms_(RuleIdValues, AssocTmp, AssocOut).
+rule_group_norm(RuleGroup, RuleArray, Z) :-
+        rule_group_rules(RuleGroup, RuleIds),
+        findall(Prob,
+                (member(RuleId, RuleIds), 
+                 get(RuleId, RuleArray, Prob)
+                ),
+                Ws),
+        sum_list(Ws, Z).
+
+rule_group_norms(RuleGroupNorms) :-
+        num_rule_groups(N),
+        array(N, RuleGroupNorms),
+        forall(between(1, N, RGID),
+               (rule_group_id_norm(RGID, Z),
+                set(RGID, RuleGroupNorms, Z))).
+
+num_rule_groups(N) :-
+        rule_groups(Gs),
+        length(Gs, N).
 
 % %% Collapse rule assoc over rule group, summing the corresponding
 % %% values.
-rule_group_norms(RuleAssoc, RuleGroupAssoc) :-
-        rule_groups(RuleGroups),
-        findall(RuleGroup-Z,
-                (member(RuleGroup, RuleGroups),
-                 rule_group_norm(RuleGroup, RuleAssoc, Z)),
-                RuleGroupValList),
-        list_to_assoc(RuleGroupValList, RuleGroupAssoc).
+rule_group_norms(RuleArray, RuleGroupNorms) :-
+        num_rule_groups(N),
+        array(N, RuleGroupNorms),
+        forall(between(1, N, RGID),
+               (rule_group_id_norm(RGID, RuleArray, Z),
+                set(RGID, RuleGroupNorms, Z))).
 
                  
 
-normalize_rule_group(RuleGroup, RuleGroupRuleAssoc, RuleGroupNorms) :-
-        get_assoc(RuleGroup, RuleGroupRuleAssoc, RuleIds),
-        get_assoc(RuleGroup, RuleGroupNorms, Z),
-        forall(
-               member(RuleId, RuleIds),
-               (
-                get_rule_prob(RuleId, P),
-                P1 is P/Z, 
-                set_rule_prob(RuleId, P1)
-               )).
-
 normalize_rules :-
-        rule_group_rule_assoc(RuleGroupRuleAssoc),
         rule_group_norms(RuleGroupNorms),
-        rule_groups(RuleGroups),
-        !,
-        forall(
-               member(RuleGroup, RuleGroups),
-               normalize_rule_group(RuleGroup, RuleGroupRuleAssoc, RuleGroupNorms)
-               ).
+        num_rule_groups(N),
+        forall((between(1, N, RGId),
+                rule_group_id_rules(RGId, Rules),
+                get(RGId, RuleGroupNorms, Z),
+                member(Rule, Rules)), 
+               (get_rule_prob(Rule, P),
+                P1 is P / Z,
+                set_rule_prob(Rule, P1))).
 
 
 % a term is unconstrained if all of its arguments are variables.

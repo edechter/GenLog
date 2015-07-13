@@ -37,6 +37,7 @@
 :- use_module(sdcl).
 :- use_module(plunit_extra).
 :- use_module(assoc_extra).
+:- use_module(array).
 
 %% ----------------------------------------------------------------------
 %%                The gl_rule data type.
@@ -101,35 +102,35 @@ set_rule_probs(normal(Mean, StdDev)) :-
         length(RuleIds, NRules),
         Ps <- rnorm(NRules, Mean, StdDev), 
         pairs_keys_values(RPs, RuleIds, Ps),
-        list_to_assoc(RPs, PAssoc), 
-        set_rule_probs(PAssoc).
+        list_array(RPs, PArray), 
+        set_rule_probs(PArray).
 
-set_rule_probs(RuleIdProbAssoc) :-
-        rule(RuleId),
-        get_assoc(RuleId, RuleIdProbAssoc, W),
-        set_rule_prob(RuleId, W),
-        fail
-        ;
-        true.
+set_rule_probs(RuleIdArray) :-
+        array(N, RuleIdArray),
+        forall(between(1, N, I),
+               (get(I, RuleIdArray, P),
+                set_rule_prob(I, P))).
 
-get_rule_probs(RuleIdProbAssoc) :-
-        findall(RuleId-W,
-                (rule(RuleId),
-                 get_rule_prob(RuleId, W)),
-                RuleProbs),
-        list_to_assoc(RuleProbs, RuleIdProbAssoc).
+
+get_rule_probs(RuleIdProbArray) :-
+        num_rules(N),
+        array(N, RuleIdProbArray),
+        forall(between(1, N, RuleId),
+               (
+                get_rule_prob(RuleId, W),
+                set(RuleId, RuleIdProbArray, W))).
 
 % accessors and setters for rule alpha values
 get_rule_alpha(RuleId, Alpha) :-
         term_to_atom(gl_rule_alpha(RuleId), Name), 
         nb_getval(Name, Alpha).
 
-get_rule_alphas(AlphaAssoc) :-
-        findall(RuleId-Alpha,
-                (rule(RuleId),
-                 get_rule_alpha(RuleId, Alpha)),
-                RAs),
-        list_to_assoc(RAs, AlphaAssoc).
+get_rule_alphas(AlphaArray) :-
+        num_rules(N),
+        array(N, AlphaArray),
+        forall(between(1, N, RuleId),
+                (get_rule_alpha(RuleId, Alpha),
+                 set(RuleId, AlphaArray,  Alpha))).
 
 set_rule_alpha(RuleId, default) :-
         !,
@@ -157,13 +158,13 @@ set_rule_alphas(uniform(K)) :-
         assertion(number(K)),
         forall(rule_group(RuleGroup),
                (get_rule_group_rules(RuleGroup, RuleIds),
-               length(RuleIds, N),
-               assertion(N>0),
-               Alpha is 1.0/(K*N),
-               constant_assoc(RuleIds, Alpha, AlphaAssoc),
-               set_rule_alphas(AlphaAssoc)
-               )
-              ).
+                length(RuleIds, N),
+                assertion(N>0),
+                Alpha is 1.0/(K*N),
+                forall( member(RuleId, RuleIds),
+                        set_rule_alpha(RuleId, Alpha))
+               )).
+
               
 set_rule_alphas(normal(Mean, StdDev)) :-
         !,
@@ -174,17 +175,18 @@ set_rule_alphas(normal(Mean, StdDev)) :-
         length(RuleIds, NRules),
         Alphas <- rnorm(NRules, Mean, StdDev), 
         pairs_keys_values(RAs, RuleIds, Alphas),
-        list_to_assoc(RAs, AlphasAssoc), 
-        set_rule_alphas(AlphasAssoc).
+        list_array(Alphas, AlphasArray), 
+        set_rule_alphas(AlphasArray).
                  
-set_rule_alphas(Assoc) :-
-        is_assoc(Assoc), !,
-        assoc_to_list(Assoc, RAs),
-        findall(_,
-                (member(R-A, RAs),
-                 set_rule_alpha(R, A)),
-                _).
-                
+set_rule_alphas(Array) :-
+        array(N, Array),
+        forall(between(1, N, RuleId),
+                (
+                 get(RuleId, Array, A),
+                 set_rule_alpha(RuleId, A)
+                 )).
+
+
 
         
 

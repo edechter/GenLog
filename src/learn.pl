@@ -35,6 +35,7 @@
 :- use_module(assoc_extra).
 :- use_module(pprint).
 :- use_module(pgen).
+:- use_module(array).
 
 :- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/lib/'], LIB),
@@ -76,18 +77,18 @@
 
 
 init_vb_params(uniform(Lo, Hi), VBParams) :-
-        assertion(Hi > Lo), 
-        findall(Id-P,
+        assertion(Hi > Lo),
+        num_rules(N), 
+        findall(P,
                 (
-                 rule(Id),
+                 between(1, N, Id),
                  get_rule_alpha(Id, A), 
                  random(X),
                  V is X * (Hi - Lo) + Lo,
                  P is A + V
                 ),
-                IdPs),
-        %% TODO: replace with an array instead of assoc
-        list_to_assoc(IdPs, VBParams).
+                Ps),
+        list_array(Ps, VBParams).
 
 init_vb_params(norm(Mean, StdDev), VBParams) :-
         assertion(Mean > 0),
@@ -97,8 +98,7 @@ init_vb_params(norm(Mean, StdDev), VBParams) :-
         length(RuleIds, NRules),
         Ps <- rnorm(NRules, Mean, StdDev), 
         pairs_keys_values(RPs, RuleIds, Ps),
-        %% TODO: replace with an array instead of assoc
-        list_to_assoc(RPs, VBParams).
+        list_array(Ps, VBParams).
                  
                  
         
@@ -151,7 +151,7 @@ run_batch_vbem(Goals, Options) :-
 
         (NResults > 0 -> % if there are derivations
          compute_vb_fixed_point(DSearchResults, VBStateIn, VBStateOut, OptRecord),
-         set_rule_alphas(VBStateOut.vb_params)
+         set_rule_alphas(VBStateOut.vb_params),
         ;
          print_message(informational, online_vbem(no_derivations_found))
         ).
@@ -180,7 +180,15 @@ compute_vb_fixed_point(DSearchResults,
         get_rule_alphas(PriorHyperParams),
 
         %% TODO: replace with an array instead of assoc
-        add_assocs(0, PriorHyperParams, ExpectedCounts, VBParamsOut),
+        array_like(PriorHyperParams, VBParamsOut),
+        array(N, VBParamsOut, 0),
+        forall(between(1, N, I),
+               (
+                get(I, PriorHyperParams, P),
+                get_assoc(I, ExpectedCounts, C),
+                P1 is P + C,
+                set(I, VBParamsOut, P1))),
+        
         compute_variational_weights(VBParamsOut, WeightsOut),
 
         free_energy(PriorHyperParams,
@@ -199,9 +207,13 @@ compute_vb_fixed_point(DSearchResults,
                                 },
         vbem_options_epsilon(OptRecord, Eps),
         (
+         writeln(1), 
          abs(VBStateIn.free_energy - FreeEnergy) < Eps ->
+         writeln(2),
          VBStateOut = VBStateNext,
-         debug(learning, "Batch VBEM: Converged ... Finished. \n", [])
+         writeln(3), 
+         debug(learning, "Batch VBEM: Converged ... Finished. \n", []),
+         writeln(4)
         ;
          compute_vb_fixed_point(DSearchResults, VBStateNext, VBStateOut, OptRecord)
         ).
@@ -316,20 +328,24 @@ free_energy(PriorHyperParams,
             LogLikelihood,
             FreeEnergy
             ) :-
+        writeln(1), 
         loglikelihood(DSearchResults,
                       MultinomialWeights,
                       LogLikelihood),
+        writeln(2), 
         assertion(LogLikelihood < 0),
         % terms 2 and 3 in Eq 8.
         free_energy1(PriorHyperParams,
                      HyperParams, 
                      FreeEnergy1),
+        writeln(3),
         % term 4 in Eq 8.
         free_energy2(PriorHyperParams,
                      HyperParams,
                      MultinomialWeights, 
                      FreeEnergy2
                      ),
+        writeln(4),
         FreeEnergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2,
         print_message(informational, (freeenergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2)).
 
@@ -389,9 +405,10 @@ loglikelihood([D|Ds], MultinomialWeights, LIn, LOut) :-
 % calls r to compute the actual loglikelihood
 multinomial_loglikelihood(MultinomialWeights, Counts, LogLikelihood) :-
         findall(W-C,
-                (gen_assoc(Id, Counts, C),
-                 get_assoc(Id, MultinomialWeights, W)),
-                WCs),
+              (
+               gen_assoc(I, Counts, C),
+               get(I, MultinomialWeights, W)),
+               WCs),
         pairs_keys_values(WCs, Ws, Cs),
         multinomial_lnpdf(Cs, Ws, LogLikelihood).
         
@@ -422,15 +439,15 @@ free_energy1(PriorHyperParams,
         Mu_r_Star = HyperParams,
         sdcl:rule_group_norms(PriorHyperParams, Mu_A),
         sdcl:rule_group_norms(HyperParams, Mu_A_Star),
-        assoc_to_values(Mu_r, Mu_r_Vals),
-        assoc_to_values(Mu_r_Star, Mu_r_Star_Vals),
-        assoc_to_values(Mu_A, Mu_A_Vals),
-        assoc_to_values(Mu_A_Star, Mu_A_Star_Vals),
+        list_array(Mu_r_Vals, Mu_r),
+        list_array(Mu_r_Star_Vals, Mu_r_Star),
+        % writeln(Mu_A),
+        list_array(Mu_A_Vals, Mu_A),
+        list_array(Mu_A_Star_Vals, Mu_A_Star),
         FreeEnergy1 <- (sumOfLnGamma(Mu_A_Star_Vals)
                        - sumOfLnGamma(Mu_A_Vals)
                        - sumOfLnGamma(Mu_r_Star_Vals)
-                       + sumOfLnGamma(Mu_r_Vals)).
-                        
+                       + sumOfLnGamma(Mu_r_Vals)).                        
 
 
 %% ----------        
@@ -442,9 +459,9 @@ free_energy2(PriorHyperParams,
             ) :-
         Mu_r = PriorHyperParams,
         Mu_r_Star = HyperParams,
-        assoc_to_values(Mu_r, Mu_r_Vals),
-        assoc_to_values(Mu_r_Star, Mu_r_Star_Vals),
-        assoc_to_values(MultinomialWeights, Pi),
+        list_array(Mu_r_Vals, Mu_r),
+        list_array(Mu_r_Star_Vals, Mu_r_Star),
+        list_array(Pi, MultinomialWeights),
         FreeEnergy2 <- sum((Mu_r_Star_Vals - Mu_r_Vals) * log(Pi)).
 
         
@@ -462,14 +479,14 @@ free_energy2(PriorHyperParams,
 %%      compute_variational_weights(+VariationalParams,
 %%      VariationalWeights) is det
 %%
-%%      VariationalParams is an assoc of ruleIds and corresponding
+%%      VariationalParams is an array of ruleIds and corresponding
 %%      updated variational parameters. Pass these through a digamma
 %%      and normalize by functor to get the Variational Weights. 
 %%      
 
 compute_variational_weights(VariationalParams, VariationalWeights) :-
-        map_assoc(digamma, VariationalParams, VariationalWeightsNum),
-        sum_rule_assoc_across_rule_groups(VariationalParams,
+        map_array(digamma, VariationalParams, VariationalWeightsNum),
+        sum_rule_array_across_rule_groups(VariationalParams,
                                           VariationalWeightsDen),
         normalize_variational_weights(VariationalWeightsNum,
                                       VariationalWeightsDen,
@@ -478,39 +495,27 @@ compute_variational_weights(VariationalParams, VariationalWeights) :-
 normalize_variational_weights(VariationalWeightsNum, %% numerator
                               VariationalWeightsDen,  %% denominator
                               VariationalWeights) :-
-        findall(RuleId-VariationalWeight,
-                (gen_assoc(RuleId, VariationalWeightsNum, VNum), 
-                 gl_rule(RuleId, _, _, _, RuleGroup),
-                 get_assoc(RuleGroup, VariationalWeightsDen, VDen),
-                 digamma(VDen, DigamVDen), 
-                 VariationalWeight is exp(VNum - DigamVDen)
-                 ),
-                RVs),
-        list_to_assoc(RVs, VariationalWeights).
-                           
+        num_rules(N),
+        array(N, VariationalWeights, 0),
+        forall(between(1, N, RuleId),
+               (get(RuleId, VariationalWeightsNum, VNum), 
+                gl_rule(RuleId, _, _, _, RuleGroup),
+                rule_group_id(RuleGroupId, RuleGroup),
+                get(RuleGroupId, VariationalWeightsDen, VDen),
+                digamma(VDen, DigamVDen), 
+                VariationalWeight is exp(VNum - DigamVDen),
+                set(RuleId, VariationalWeights, VariationalWeight))
+              ).
 
-sum_rule_assoc_across_rule_groups(RuleAssoc, RuleGroupAssoc) :-
-        assoc_to_list(RuleAssoc, RuleVals), 
-        sum_rule_assoc_across_rule_groups_go(RuleVals, RuleGroupAssoc).
-
-sum_rule_assoc_across_rule_groups_go(RuleVals, RuleGroupAssoc) :-
-        empty_assoc(Empty),
-        sum_rule_assoc_across_rule_groups_go(RuleVals, Empty, RuleGroupAssoc).
-
-sum_rule_assoc_across_rule_groups_go([], AssocIn, AssocOut) :- !, AssocIn = AssocOut.
-sum_rule_assoc_across_rule_groups_go([RuleId-Val|Rest], AssocIn, AssocOut) :-
-        gl_rule(RuleId, _, _, _, RuleGroup),
-        !,
-        (
-         get_assoc(RuleGroup, AssocIn, V_Old, AssocTmp, V_New) -> 
-         V_New is V_Old + Val
-        ;
-         put_assoc(RuleGroup, AssocIn, Val, AssocTmp)
-        ),
-        sum_rule_assoc_across_rule_groups_go(Rest, AssocTmp, AssocOut).
-        
-       
-
+sum_rule_array_across_rule_groups(RuleArray, RuleGroupArray) :-
+        sdcl:num_rule_groups(N),
+        array(N, RuleGroupArray, 0),
+        forall(between(1, N, RuleGroupId),
+               (rule_group_id_rules(RuleGroupId, RuleIds),
+                gets(RuleIds, RuleArray, Values),
+                sum_list(Values, V),
+                set(RuleGroupId, RuleGroupArray, V))).
+                
 
 :- begin_tests(variational_weights).
 
@@ -603,6 +608,7 @@ prove_goals([Goal|Goals], DsIn, DsOut, Options) :-
 %%
 %%      Options: takes the same options as mi_best_first_all.
 %%
+
 expected_rule_counts(DSearchResults, Assoc) :-
         expected_rule_counts(DSearchResults, Assoc, []).
 
@@ -630,6 +636,7 @@ expected_rule_counts_go([dsearch_result(_, Count, Derivations)|Goals], Weights, 
         scalar_multiply_assoc(Count, Assoc0, Assoc1),
         add_assocs(0, Assoc1, AssocIn, AssocTmp),
         expected_rule_counts_go(Goals, Weights, AssocTmp, AssocOut, Options).
+        
         
 
 
@@ -675,6 +682,8 @@ expected_rule_counts1(Ds, Weights, Assoc) :-
                 CondPs),
         maplist(scalar_multiply_assoc, CondPs, Counts, WeightedCounts),
         sum_assocs(0, WeightedCounts, Assoc).
+
+
 %         expected_rule_counts1(Ds, Weights, Empty, Assoc).
 
 % expected_rule_counts1([], _, AssocIn, AssocIn).

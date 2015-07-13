@@ -6,7 +6,9 @@
            remove_rule/1,
            remove_all_rules/0,
 
+           rule_group_id/2,
            rule_group_rules/2,
+           rule_group_id_rules/2,
            
            translate_to_gl_term/2,
            translate_to_gl_rule/3,
@@ -187,12 +189,12 @@ rule_group_rules(RuleGroup, Rules) :-
         !.
 
 rule_group_id_rules(RuleGroupId, Rules) :-
-        'gl_rule_group_rules'(RuleGroupId, _, _),
+        'gl_rule_group_rules'(RuleGroupId, _, Rules),
         !.
 
-       
-        
-
+rule_group_id(RuleGroupId, RuleGroup) :-
+        'gl_rule_group_rules'(RuleGroupId, RuleGroup, _),
+        !.
         
 
 %% display compiled rules

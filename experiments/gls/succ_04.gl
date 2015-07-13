@@ -4,7 +4,7 @@
 
 
 
-num_preds(8).
+num_preds(10).
 
 pred(Index, Pred) :-
         num_preds(N), 
@@ -21,10 +21,10 @@ lexeme(L) :-
         member(L, Ls).
 
 lexemes(Ls) :- setof(L,
-                     (
+                     N^W^(
                       between(1, 99, N),
-                      number_word(N, Ls),
-                      member(L, Ls)
+                      number_word(N, W),
+                      member(L, W)
                      ;
                       L='START'),
                      Ls
