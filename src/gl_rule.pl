@@ -60,6 +60,7 @@
                   group).
 
 
+        
 
 %%           find_rule_by_id(+RuleId, -Rule).
 %%

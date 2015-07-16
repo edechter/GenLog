@@ -19,7 +19,7 @@
            % normalize_rule_group/3,
            normalize_rules/0,
 
-           
+           is_gl_term/1,
            unconstrained/1,
            call_list_with_occurs_check/1,
            
@@ -226,7 +226,10 @@ get_rule_group_id_alphas(RuleGroupId, RAs) :-
                 (member(R, Rules),
                  get_rule_alpha(R, A)),
                 RAs). 
-        
+
+is_gl_term(Term) :-
+        functor(Term, gl_term, 3).
+
 % a term is unconstrained if all of its arguments are variables.
 unconstrained(gl_term(_, Args, _)) :-
         !, 
@@ -566,6 +569,8 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                  G = goal(NodeId, Goal, UnBoundGoal),
 
                  match(Goal, UnBoundGoal, BodyList, RuleId, Prob),
+                 % writeln(Goal),
+                 % writeln(BodyList), 
                  
                  (
                   bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
@@ -608,7 +613,7 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
                  %% calculate conditional prefix probability
                  % nl, 
                  % assertion(LogProb_new =< LogProb),
-
+ 
                  %% prepend the new goal nodes onto the goal stack
                  append(ChildNodes, Rest, G_new)
                                  
@@ -639,8 +644,12 @@ match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
         
         get_rule_prob(RuleId, Prob),
 
-        RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundGuard, UnBoundBody, _),
+        RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundHGuard-UnBoundBGuard, UnBoundBody, _),
         call(RuleCopy),
+        % call_list(UnBoundHGuard),
+        % call_list(UnBoundBGuard),
+        % writeln(Rule), 
+        
         % writeln(RuleCopy),
         % call_list(UnBoundGuard),
 
