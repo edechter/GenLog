@@ -132,6 +132,8 @@ get_rule_alphas(AlphaArray) :-
                 (get_rule_alpha(RuleId, Alpha),
                  set(RuleId, AlphaArray,  Alpha))).
 
+        
+
 set_rule_alpha(RuleId, default) :-
         !,
         set_rule_alpha(RuleId, 1.0).

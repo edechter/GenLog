@@ -11,7 +11,9 @@
            prove_goals/2,
            prove_goals/3,
 
-           loglikelihood/2
+           loglikelihood/2,
+           
+           set_probs_from_alphas/0
           
            ]).
 
@@ -209,7 +211,7 @@ compute_vb_fixed_point(DSearchResults,
         (
          abs(VBStateIn.free_energy - FreeEnergy) < Eps ->
          VBStateOut = VBStateNext,
-         debug(learning, "Batch VBEM: Converged ... Finished. \n", []),
+         debug(learning, "Batch VBEM: Converged ... Finished. \n", [])
         ;
          compute_vb_fixed_point(DSearchResults, VBStateNext, VBStateOut, OptRecord)
         ).
@@ -465,7 +467,12 @@ free_energy2(PriorHyperParams,
         
         
         
-        
+%% ----------------------------------------------------------------------
+%%      set_probs_from_alphas
+set_probs_from_alphas :-
+        get_rule_alphas(Alphas),
+        compute_variational_weights(Alphas, Weights),
+        set_rule_probs(Weights).
         
 
 
@@ -498,6 +505,7 @@ normalize_variational_weights(VariationalWeightsNum, %% numerator
                 gl_rule(RuleId, _, _, _, RuleGroup),
                 rule_group_id(RuleGroupId, RuleGroup),
                 get(RuleGroupId, VariationalWeightsDen, VDen),
+
                 digamma(VDen, DigamVDen), 
                 VariationalWeight is exp(VNum - DigamVDen),
                 set(RuleId, VariationalWeights, VariationalWeight))

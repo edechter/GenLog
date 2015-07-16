@@ -81,6 +81,11 @@ pprint_term(gl_term(F/_, Vars, Conds), Out) :-
         % copy_and_numbervars((Vars, Conds), (VarsN, CondsN)),
         pprint_vars_conds(Vars, Conds, VarConds),
         format(atom(Out), "~w(~w)", [F, VarConds]).
+pprint_term((A,B), Out) :-
+       pprint_term(A, O1),
+       pprint_term(B, O2),
+       format(atom(Out), '~w, ~w', [O1, O2]).
+pprint_term(true, '').
 
 %% ----------------------------------------------------------------------
 %% pretty print derivations

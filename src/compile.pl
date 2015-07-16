@@ -11,7 +11,7 @@
            rule_group_id_rules/2,
            
            translate_to_gl_term/2,
-           translate_to_gl_rule/3,
+           translate_to_gl_rule/4,
            
            save_gl/0,
            save_gl/1,
@@ -113,14 +113,20 @@ compile_gl(File) :-
         open(File, read, FileId),
         remove_all_rules,
         reset_gensym,
+        nb_setval(rule_group_ind, 0), 
         !,
         repeat,
         read_clause(FileId, Clause, []),
         (Clause = end_of_file ->
          true, !
-        ; 
-         compile_sdcl_clause(Clause),
-         fail
+        ;
+         nb_getval(rule_group_ind, RuleGroupInd),
+         writeln(rgind-RuleGroupInd),
+         (compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd1, many_rule_groups) ->
+          RuleGroupInd2 is RuleGroupInd1 + 1,
+          nb_setval(rule_group_ind, RuleGroupInd2)
+         ),
+          fail
         ).
        
 
@@ -130,25 +136,35 @@ compile_sdcl_file(File) :-
         split_gl_file(File, PTmp, GLTmp),
         load_files([PTmp], [module(compile)]),
         compile_gl(GLTmp),
-        record_rule_groups, 
+        record_rule_groups,
         normalize_rules,
         
         debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
 
-                  
-compile_sdcl_clause(macro(Macro)) :-
+%% compile_sdcl_clause(RuleGroup, RuleGroupInd)
+%% compile_sdcl_clause(Macro, RuleGroupInd)
+%% compile_sdcl_clause(Clause, RuleGroupInd)
+%% 
+compile_sdcl_clause(RuleGroup, RuleGroupInd, RuleGroupInd, How) :-
+        RuleGroup =.. [rule_group|Clauses],
+        
         !,
-        expand_macro(Macro, Rules),
-        compile_sdcl_clauses(Rules).
-compile_sdcl_clause(Clause) :-
-        !, 
+        forall(member(Clause, Clauses),
+               compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd, one_rule_group)).
+compile_sdcl_clause(macro(Head, Body), RuleGroupInd, RuleGroupInd1, How) :-
+        !,
+        expand_macro(Head, Body, Rules),
+        writeln(expanded), 
+        compile_sdcl_clauses(Rules, RuleGroupInd, RuleGroupInd1, How).
+compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd, How) :-
+        !,
         (
          gensym('', RuleNum),
          atom_number(RuleNum, RuleNum1),
          RuleId = RuleNum1
         ),
          
-        translate_to_gl_rule(Clause, TrClause, Prob),
+        translate_to_gl_rule(Clause, RuleGroupInd, TrClause, Prob),
         TrClause = gl_rule(RuleId, _, _, _, _),
         assert(TrClause),
         term_to_atom(gl_rule_prob(RuleId), NameP),
@@ -157,11 +173,21 @@ compile_sdcl_clause(Clause) :-
         nb_setval(NameA, 1.0).
 
 
-compile_sdcl_clauses(Clauses) :-
-        findall(_,
-                (member(Clause, Clauses),
-                 compile_sdcl_clause(Clause)),
-                _).        
+
+compile_sdcl_clauses(C, R, R1,How) :-
+        \+ is_list(C),
+        !,
+        compile_sdcl_clauses([C], R, R1, How).
+                     
+compile_sdcl_clauses(Clauses, RuleGroupInd, RuleGroupInd, one_rule_group) :-
+        forall(member(Clause, Clauses),
+               compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd, one_rule_group)).
+
+compile_sdcl_clauses([], RuleGroupInd, RuleGroupInd, many_rule_groups).
+compile_sdcl_clauses([C|Cs], RuleGroupInd, RuleGroupInd2, many_rule_groups) :-
+        compile_sdcl_clause(C, RuleGroupInd, RuleGroupInd0, many_rule_groups), 
+        RuleGroupInd1 is RuleGroupInd0 + 1,
+        compile_sdcl_clauses(Cs, RuleGroupInd1, RuleGroupInd2, many_rule_groups).
 
 
 remove_rule_params(RuleId) :- 
@@ -282,7 +308,7 @@ test(translate_to_gl_term2,
 %%
 %% Note: RuleId is not bound here. It must be bound later to provide
 %% unique id to the rule.
-translate_to_gl_rule(Clause, Rule, RuleWeight) :-
+translate_to_gl_rule(Clause, RuleGroupInd, Rule, RuleWeight) :-
         \+ var(Clause),
         copy_term(Clause, ClauseCopy), 
         numbervars(ClauseCopy), 
@@ -328,13 +354,11 @@ translate_to_gl_rule(Clause, Rule, RuleWeight) :-
         % at once so that we preserve the correspondence between variables
         varnumbers((RuleHead0, RuleGuards0, BodyGuards0, RuleBody0),
                    (RuleHead, RuleGuards, BodyGuards, RuleBody)),
-        goal_to_rule_group(RuleHead, RuleGuards, RuleGroup),
+        goal_to_rule_group(RuleHead, RuleGroupInd, RuleGroup),
         !.
 
-goal_to_rule_group(gl_term(F/A, _, Args), Guards, RuleGroup) :-
-        copy_term((Args, Guards), (Args1, Guards1)),
-        numbervars((Args1, Guards1)), 
-        RuleGroup = rule_group(F/A, Args1, Guards1).
+goal_to_rule_group(gl_term(F/A, _, Args), RuleGroupInd, RuleGroup) :-
+        RuleGroup = rule_group(F, A, RuleGroupInd).
 
         
         
@@ -411,16 +435,18 @@ tr_split_args([A|In], Vars, [A|Conds], conds) :-
 %%     whose body defines a copy of that rule for each binding of the
 %%     body variables.
 
-
-expand_macro( (Head :- Body), Rules) :-
-        replace_qvars_with_vars((Head :- Body),
-                                (Head1 :- Body1)),
+expand_macro( Head, Body, Rules) :-
+        writeln(1),
+        term_qvars(Body, QVars),
+        writeln(QVars), 
+        replace_qvars_with_vars((Head, Body), QVars,
+                                (Head1, Body1)),
         findall(Head1,
                 call_comp(Body1),
                 Rules1),
         findall(Rule,
                 (member(Rule1, Rules1),
-                 comp_to_term(Rule1, Rule)
+                  comp_to_term(Rule1, Rule)
                  ),
                 Rules).
                  
@@ -470,12 +496,44 @@ is_qvar(X) :-
         atom(X), 
         sub_atom(X, 0, _, _, '?').
 
-replace_qvars_with_vars(TermIn, TermOut) :-
-        empty_assoc(Empty), 
-        replace_qvars_with_vars(Empty, TermIn, _, TermOut).
+term_qvars(Term, QVars) :-
+        term_qvars(Term, [], QVars).
 
-replace_qvars_with_vars(AssocIn, Q, AssocOut, TermOut) :-
+term_qvars(Term, QOut, QOut) :-
+        var(Term),
+        !.
+term_qvars(Term, QIn, QOut) :-
+        (is_list(Term) ->
+         Xs=Term
+        ;
+         Term =.. Xs),
+        term_qvars_lp(Xs, QIn, QOut).
+
+term_qvars_lp([], QOut, QOut).
+term_qvars_lp([X|Xs], QIn, QOut) :-
+        is_qvar(X),
+        !,
+        (\+ memberchk(X, QIn) ->
+         QTmp = [X|QIn]
+        ;
+         QTmp=QIn),
+        term_qvars_lp(Xs, QTmp, QOut).         
+term_qvars_lp([X|Xs], QIn, QOut) :-
+        (atomic(X) -> QTmp=QIn
+        ;
+         term_qvars(X, QIn, QTmp)
+        ),
+        term_qvars_lp(Xs, QTmp, QOut).
+        
+        
+
+replace_qvars_with_vars(TermIn, QVars, TermOut) :-
+        empty_assoc(Empty), 
+        replace_qvars_with_vars(Empty, TermIn, QVars, _, TermOut).
+
+replace_qvars_with_vars(AssocIn, Q, QVars, AssocOut, TermOut) :-
         is_qvar(Q),
+        member(Q, QVars),
         !,
         (
          get_assoc(Q, AssocIn, V) ->
@@ -485,48 +543,48 @@ replace_qvars_with_vars(AssocIn, Q, AssocOut, TermOut) :-
          put_assoc(Q, AssocIn, V, AssocOut),
          TermOut = V
         ).
-replace_qvars_with_vars(AssocIn, V, AssocOut, TermOut) :-
+replace_qvars_with_vars(AssocIn, V, _QVars, AssocOut, TermOut) :-
         var(V),
         !,
         AssocOut = AssocIn,
         TermOut = V.
-replace_qvars_with_vars(AssocIn, [], AssocIn, []) :- !.
-replace_qvars_with_vars(AssocIn, [X|Xs], AssocOut, TermOut) :-
+replace_qvars_with_vars(AssocIn, [], _QVars, AssocIn, []) :- !.
+replace_qvars_with_vars(AssocIn, [X|Xs], QVars, AssocOut, TermOut) :-
         !,
-        replace_qvars_with_vars(AssocIn, X, AssocTmp, XOut),
-        replace_qvars_with_vars(AssocTmp, Xs, AssocOut, XsOut),
+        replace_qvars_with_vars(AssocIn, X, QVars, AssocTmp, XOut),
+        replace_qvars_with_vars(AssocTmp, Xs, QVars, AssocOut, XsOut),
         TermOut = [XOut|XsOut].
-replace_qvars_with_vars(AssocIn, A, AssocOut, AOut) :-
+replace_qvars_with_vars(AssocIn, A, QVars, AssocOut, AOut) :-
         atomic(A),
         !,
         AssocIn = AssocOut,
         A = AOut.
 % if Term is an explicit compound term
-replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
+replace_qvars_with_vars(AssocIn, Term, QVars, AssocOut, TermOut) :-
         compound(Term),
         Term =.. ['$COMP'|As],
         !,
-        replace_qvars_with_vars(AssocIn, As, AssocOut, AsOut),
+        replace_qvars_with_vars(AssocIn, As, QVars, AssocOut, AsOut),
         TermOut =.. ['$COMP'|AsOut].
 % if it has a qvar as a functor
-replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
+replace_qvars_with_vars(AssocIn, Term, QVars, AssocOut, TermOut) :-
         compound(Term),
         Term =.. [F|As],
         is_qvar(F),
         !,
         Term1 = '$COMP'(F,As),
-        replace_qvars_with_vars(AssocIn, Term1, AssocOut, TermOut).
+        replace_qvars_with_vars(AssocIn, Term1, QVars, AssocOut, TermOut).
 % if it is any other compound term
-replace_qvars_with_vars(AssocIn, Term, AssocOut, TermOut) :-
+replace_qvars_with_vars(AssocIn, Term, QVars, AssocOut, TermOut) :-
         compound(Term),
         Term =.. [F|As],
         !,
-        replace_qvars_with_vars(AssocIn, As, AssocOut, AsOut),
+        replace_qvars_with_vars(AssocIn, As, QVars, AssocOut, AsOut),
         TermOut =.. [F|AsOut].
 
 %% comp_to_term(+CompTerm, -Term) translates between an explicit
 %% compound term '$COMP'(Functor, Args) and a Prolog compound term
-%% Functor(Args). Ignores functors :-/2 and any built in predicates.
+%% Functor(Args). Ignores functors :-/2 and any built in predicates.
 
 comp_to_term(X, X) :-
         var(X),

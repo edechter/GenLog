@@ -43,7 +43,9 @@
            op(1200, xfy, ::),
            
            and_to_list/2,
-           list_to_and/2
+           list_to_and/2,
+
+           get_rule_group_id_alphas/2
 
                  ]).
 
@@ -218,10 +220,21 @@ normalize_rules :-
                 set_rule_prob(Rule, P1))).
 
 
+get_rule_group_id_alphas(RuleGroupId, RAs) :-
+        rule_group_id_rules(RuleGroupId, Rules),
+        findall(R-A,
+                (member(R, Rules),
+                 get_rule_alpha(R, A)),
+                RAs). 
+        
 % a term is unconstrained if all of its arguments are variables.
 unconstrained(gl_term(_, Args, _)) :-
+        !, 
         maplist(var, Args),
         vars_all_different(Args).
+unconstrained(Term) :-
+        translate_to_gl_term(Term, Translated),
+        unconstrained(Translated).
 
 vars_all_different(List):-
         term_variables(List, Vs),
@@ -283,7 +296,7 @@ mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
         % unbind the head variables from initial goal,
         % so that we can keep track of generalized prefix
         unbind_sdcl_head_vars(GoalTr, UnBoundGoalTr), 
-
+ 
         % initialize priority queue
         reset_gen_node,
         gen_node_id(NodeId), 
@@ -324,7 +337,6 @@ test(mi_best_first,
         TimeLimit=1, 
         mi_best_first(G, _, _, StartTime-TimeLimit),
         !.
-        
 
 :- end_tests(mi_best_first).
 
@@ -335,6 +347,7 @@ test(mi_best_first,
 :- record bf_options(beam_width=100,
                      time_limit_seconds=1
                     ).
+
 %% ----------------------------------------------------------------------
 %% mi_best_first_go/7.
 %% main worker predicate for mi_best_first
@@ -531,6 +544,7 @@ foo(ChildNodes, BodyList, ChildNodeIds) :-
                 member(goal(ChildNodeId, _, _), ChildNodes),
                 ChildNodeIds).
 
+
 extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
         G = goal(_, Goal, _),
         unconstrained(Goal),
@@ -616,18 +630,15 @@ gen_node_id(Id) :-
 match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
         % writeln(Goal),
+        
         Rule=gl_rule(RuleId, Goal, HGuard-BGuard, Body, _),
+        
         call(Rule),
         call_list(HGuard),
         call_list(BGuard),
         
-        % writeln(RuleId),
-        % writeln(Goal),
-        % writeln(Guard),
-  
-
         get_rule_prob(RuleId, Prob),
-        % writeln(prob-Prob),
+
         RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundGuard, UnBoundBody, _),
         call(RuleCopy),
         % writeln(RuleCopy),

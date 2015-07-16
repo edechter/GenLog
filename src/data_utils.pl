@@ -6,7 +6,8 @@
 
 :- module(data_utils,
           [atom_split_list/2,
-           sentence_data_set/3
+           sentence_data_set/3,
+           normalize/2
            ]).
 
 %% ----------------------------------------------------------------------
@@ -57,4 +58,12 @@ test(sentence_data_set,
 
 
 %% ----------------------------------------------------------------------
-        
+normalize([], []) :- !.
+normalize(KVs,KVs1) :-
+        pairs_keys_values(KVs, Ks, Vs),
+        sum_list(Vs, Z),
+        findall(V1,
+                (member(V, Vs),
+                 V1 is V / Z),
+                Vs1),
+        pairs_keys_values(KVs1, Ks, Vs1).

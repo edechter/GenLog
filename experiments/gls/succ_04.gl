@@ -4,16 +4,17 @@
 
 
 
-num_preds(10).
+num_preds(1, 5).
+num_preds(2, 5).
 
-pred(Index, Pred) :-
-        num_preds(N), 
+pred(Type, Index, Pred) :-
+        num_preds(Type, N), 
         between(1, N, Index),
-        format(atom(Pred), "A(~w)", [Index]).
+        format(atom(Pred), "A(t=~w, i=~w)", [Type, Index]).
 
-pred(Pred) :- pred(_, Pred).
+pred(Type, Pred) :- pred(Type, _, Pred).
 
-preds(As) :- maplist(pred, As).
+preds(Type, As) :- maplist(call(pred, Type), As).
 
 
 lexeme(L) :-
@@ -29,77 +30,137 @@ lexemes(Ls) :- setof(L,
                       L='START'),
                      Ls
                     ).
-        
-append1([H], [L|Ls], [H, L|Ls]).
-append1([H|T], L, [H|R]) :-
-	append1(T, L, R).
+
+append1(X, Y, Z) :- append1_(X, Y, Z).
+
+append1d(X, Y, Z) :-
+         when((ground(X) ; ground(Y); ground(Z)),
+              append1_(X, Y, Z)).
+
+
+append1_([H], [L|Ls], [H, L|Ls]).
+append1_([H|T], L, [H|R]) :-
+        L \= [],
+	append1_(T, L, R).
+
 
 :- begin(genlog).
 
-macro(
-      (succ(X,Y) ---> '?A'(X | ['START']), '?B'(Y | X))
-      :-
-     (preds(['?A', '?B']))).
+rule_group(
+  macro(
+        (succ(X,Y) ---> '?A'(X | ['START']), '?B'(Y | X))
+       ,
+        (preds(1, ['?A', '?B'])))
+          ).
+          
+% conditioning on string of length > 1
+rule_group(
+   macro(
+         ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | Z))
+        ,
+        (pred(1, '?A'),
+         pred(1, '?B'),
+         pred(1, '?C')
+        )
+        ),
+           
+   macro(
+         ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | X))
+        ,
+        (pred(1, '?A'),
+         pred(1, '?B'),
+         pred(1, '?C')
+        )
+        ),
+
+   macro(
+         ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y))
+        ,
+        (pred(1, '?A'),
+         pred(1, '?B'),
+         pred(1, '?C')
+        )
+        ),
+           
+   macro(
+         ('?A'(X | UV) @ [append1d(U, V, UV)] ---> '?B'(X | U))
+        ,
+        (
+         pred(1, '?A'),
+         pred(1, '?B')
+        )
+     ),
+           
+   macro(
+         ('?A'(X| UV) @ [append1d(U, V, UV)]  ---> '?B'(X | V))
+        ,
+        (pred(1, '?A'),
+         pred(1, '?B')
+        )
+        )
+          ).
+
+
+rule_group(
+   macro(
+         ('?A'(XY| Z) @ [Z=[_]] ---> [append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | Z))
+        ,
+        (pred(1, '?A'),
+         pred(1, '?B'),
+         pred(1, '?C')
+        )
+        ),
+           
+   macro(
+         ('?A'(XY| Z)  @ [Z=[_]]---> [append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | X))
+        ,
+        (pred(1, '?A'),
+         pred(1, '?B'),
+         pred(1, '?C')
+        )
+        ),
+
+   macro(
+         ('?A'(XY| Z) @ [Z=[_]] ---> [append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y))
+        ,
+        (pred(1, '?A'),
+         pred(1, '?B'),
+         pred(1, '?C')
+        )
+        ),
+
+   macro(
+         ('?A'(X | Y) @ [Y=[_]] --->'?B'(X  | Y))
+        ,
+        (pred(1, '?A'),
+         pred(2, '?B')
+        )
+        ),
+  
+           
+   macro(
+         ('?A'(X|Y) @ [Y=[_]] ---> id(X | Y) )
+        ,
+        (pred(1, '?A'))
+        )
+          ).
 
 macro(
-      ('?A'(XY| Z) ---> [append1(X, Y, XY)] # '?B'(X | Z), '?C'(Y | Z))
-     :-
-     (pred('?A'),
-      pred('?B'),
-      pred('?C')
-      )
-     ).
-macro(
-      ('?A'(XY| Z) ---> [append1(X, Y, [XY])] # '?B'(X | Z), '?C'(Y | X))
-     :-
-     (pred('?A'),
-      pred('?B'),
-      pred('?C')
-      )
-     ).
-macro(
-      ('?A'(XY| Z) ---> [append1(X, Y, [XY])] # '?B'(Y | Z), '?C'(X | Y))
-     :-
-     (pred('?A'),
-      pred('?B'),
-      pred('?C')
-      )
-     ).
-
-macro(
-      ('?A'(X | UV) ---> [append1(U, V, UV)] #  '?B'(X | U))
-     :-
-     (pred('?A'),
-      pred('?B')
-      )
-     ).
-
-macro(
-      ('?A'(X| UV) --->  [append1(U, V, UV)] # '?B'(X | V))
-     :-
-     (pred('?A'),
-      pred('?B')
-      )
-     ).
- 
-macro(
-      ('?A'(X | Y))
-     :-
-     (pred('?A'),
-      lexeme(L),
-      X = [L],
+      (rule_group(
+                 macro(
+                       ('?A'(X | Y))
+                      ,
+                      (pred(2, '?A'),
+                       lexeme(L),
+                       X = [L]))))
+     ,
+     (
       lexeme(G),
       Y = [G]
-      )
+     )
      ).
-
 
 id(X | X) ---> true.
-macro(
-      ('?A'(X|Y) ---> [ X=Y ] # id(X | Y) )
-     :-
-     (pred('?A'))
-     ).
 
 
 :- end(genlog).
