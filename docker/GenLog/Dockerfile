@@ -34,7 +34,7 @@ RUN wget http://cran.r-project.org/src/contrib/matrixStats_0.14.2.tar.gz \
     && R CMD INSTALL matrixStats_0.14.2.tar.gz \ 
     && wget http://cran.wustl.edu/src/contrib/coda_0.17-1.tar.gz \ 
     && R CMD INSTALL coda_0.17-1.tar.gz \ 
-    && wget http://mcmcpack.berkeley.edu/files/MCMCpack_1.3-4.tar.gz
+    && wget http://mcmcpack.berkeley.edu/files/MCMCpack_1.3-4.tar.gz \
     && R CMD INSTALL MCMCpack_1.3-4.tar.gz
 
 # install aws-cli
