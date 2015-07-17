@@ -78,7 +78,7 @@ exp_constants(
              time_limit_seconds:5,
              max_iter:2000,
 
-             exp:0.85,
+             exp:0.75,
              c:10,
              lo:1,
              hi:98}).
@@ -94,7 +94,7 @@ main(Options) :-
                     time_limit_seconds(Const.time_limit_seconds),
                     max_iter(Const.max_iter)],
         merge_options(Options, Options0, Options1),
-        set_rule_alphas(uniform(0.01)),
+        set_rule_alphas(uniform(0.1)),
 
         power_law_goals(Const.exp,
                         Const.lo,
