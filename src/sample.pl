@@ -11,6 +11,7 @@
 :- use_module(compile).
 :- use_module(pgen).
 :- use_module(pprint).
+:- use_module(misc).
 
 :- use_module(library(pairs)).
 :- use_module(library(real)).

@@ -67,6 +67,7 @@
 :- use_module(compile).
 :- use_module(pprint).
 :- use_module(array).
+:- use_module(misc).
 
 
 % :- r(library("matrixStats")).
@@ -1240,19 +1241,6 @@ pqueue_to_list(In, In).
 
 pqueue_size(Pq, N) :-
         length(Pq, N).
-
-%% ----------------------------------------------------------------------
-append1(X, Y, Z) :- append1_(X, Y, Z).
-
-append1d(X, Y, Z) :-
-         when((ground(X) ; ground(Y); ground(Z)),
-              append1_(X, Y, Z)).
-
-
-append1_([H], [L|Ls], [H, L|Ls]).
-append1_([H|T], L, [H|R]) :-
-        L \= [],
-	append1_(T, L, R).
 
         
         
