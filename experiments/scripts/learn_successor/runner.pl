@@ -78,7 +78,7 @@ exp_constants(
              time_limit_seconds:5,
              max_iter:100000,
 
-             exp:0.75,
+             exp:0.7,
              c:10,
              lo:1,
              hi:98}).
