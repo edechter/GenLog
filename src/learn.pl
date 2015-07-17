@@ -237,8 +237,8 @@ run_online_vbem(GoalGen, Data, Options) :-
         print_message(informational, online_vbem(start(OptRecord))),
 
         %% initialize the alpha hyperparams
-        online_vbem_options_init_params(OptRecord, InitParams), 
-        set_rule_alphas(InitParams),        
+        % online_vbem_options_init_params(OptRecord, InitParams), 
+        % set_rule_alphas(InitParams),        
         
         %% initiate loop
         run_online_vbem(GoalGen, 1, Data, Options).
