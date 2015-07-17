@@ -74,7 +74,7 @@ power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
 %% ----------------------------------------------------------------------
 %%                               Constants
 exp_constants(
-   constants{beam_width:100,
+   constants{beam_width:200,
              time_limit_seconds:5,
              max_iter:100000,
 
@@ -94,7 +94,7 @@ main(Options) :-
                     time_limit_seconds(Const.time_limit_seconds),
                     max_iter(Const.max_iter)],
         merge_options(Options, Options0, Options1),
-        set_rule_alphas(normal(0.1, 0.01)),
+        set_rule_alphas(normal(0.9, 0.005)),
 
         power_law_goals(Const.exp,
                         Const.lo,
