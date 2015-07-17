@@ -94,7 +94,7 @@ main(Options) :-
                     time_limit_seconds(Const.time_limit_seconds),
                     max_iter(Const.max_iter)],
         merge_options(Options, Options0, Options1),
-        set_rule_alphas(uniform(0.1)),
+        set_rule_alphas(normal(0.1, 0.01)),
 
         power_law_goals(Const.exp,
                         Const.lo,
