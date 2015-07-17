@@ -4,8 +4,8 @@
 
 
 
-num_preds(1, 5).
-num_preds(2, 5).
+num_preds(1, 10).
+num_preds(2, 10).
 
 pred(Type, Index, Pred) :-
         num_preds(Type, N), 
