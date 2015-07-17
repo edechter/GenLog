@@ -38,8 +38,8 @@
 :- ensure_loaded(experiment(number_words)).
 
 %% experiment root directory
-:- getenv('GENLOG_ROOT', Dir),
-   atomic_list_concat([Dir, '/', experiments, '/', data], Root), 
+:- getenv('HOME', Dir),
+   atomic_list_concat([Dir, '/', data], Root), 
    set_setting(experiment:root, Root).
 
 %% select genlog file
