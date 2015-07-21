@@ -54,9 +54,11 @@ sample_(Goal, LogProb, OptRecord) :-
 %% sample from those.
 sample_constrained_(Goal, LogProb, OptRecord) :-
         writeln(mid1-Goal),
-        mi_best_first_all(Goal, Derivations, _, OptRecord),
+        mi_best_first_all(Goal, Derivations, L0, OptRecord),
         writeln(mid-Goal),
-        sample_from_derivations_(Goal, Derivations, LogProb, OptRecord).        
+        sample_from_derivations_(Goal, Derivations, L1, OptRecord),
+        LogProb is L0 + L1. 
+        
 
 %% sample_from_derivations_(+Goal, +Derivations, LogProb)
 %% sample_from_derivations_(+Goal, +Derivations, Derivation, LogProb)
@@ -85,7 +87,7 @@ sample_from_derivations_(Goal, Derivations, LogProb, OptRecord) :-
         
         Derivation = deriv(Goal, dgraph(_, Nodes, _), _),
         %% bind goal of this sample to its realization in this derivation
-
+        writeln(Nodes), 
         sample_remaining_(Nodes, LogProb1, OptRecord),
         % findall(G-LogProb,
         %         (member(goal(_, G, _), Nodes),
@@ -170,7 +172,7 @@ sample_unconstrained_(GlTerm, LogProb, OptRecord) :-
                sample_time_limit(T), 
                sample_unconstrained_(GlTerm, LogProb, Now-T, OptRecord)),
               time_limit_exceeded,
-              (read(_),
+              (
                sample_unconstrained_(GlTerm, LogProb, OptRecord))).
               
 sample_unconstrained_(true, _LogProb, StartTime-TimeLimit, _OptRecord) :-
@@ -179,17 +181,13 @@ sample_unconstrained_(true, _LogProb, StartTime-TimeLimit, _OptRecord) :-
         !,
         throw(time_limit_exceeded).
 sample_unconstrained_(true, LogProb, _TimeInfo, _OptRecord) :- !,
-        writeln(true), 
         LogProb = 0.
 sample_unconstrained_((Goal, Rest), LogProb, TimeInfo, OptRecord) :-
-        pprint_term((Goal, Rest)), nl, 
         !,
         sample_unconstrained_(Goal, LogProb0, TimeInfo, OptRecord),
         sample_unconstrained_(Rest, LogProb1, TimeInfo, OptRecord),
         LogProb is LogProb0 + LogProb1.
 sample_unconstrained_(Goal, LogProb, TimeInfo, OptRecord) :-
-        pprint_term(Goal, Out),
-        writeln(Out),
         findall(RuleId-Prob,
                 (Rule = gl_rule(RuleId, Goal, HGuard-BGuard, Body, _),
                  call(Rule),
@@ -202,11 +200,10 @@ sample_unconstrained_(Goal, LogProb, TimeInfo, OptRecord) :-
 
         yield(Gen, RuleId, _),
         member(RuleId-Prob, RuleDistribution),
-        format('~w -- ', [RuleId]), pprint_rule(RuleId), format('with prob ~w', [Prob]), nl,
+        % format('~w -- ', [RuleId]), pprint_rule(RuleId), format('with prob ~w', [Prob]), nl,
         !,
         Rule = gl_rule(RuleId, Goal, HGuard-BGuard, Body, _),
         call(Rule),
-        pprint_rule(RuleId), nl, 
         
         call_list(HGuard),
         !, 

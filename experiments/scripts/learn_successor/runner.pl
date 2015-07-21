@@ -74,14 +74,14 @@ power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
 %% ----------------------------------------------------------------------
 %%                               Constants
 exp_constants(
-   constants{beam_width:200,
+   constants{beam_width:100,
              time_limit_seconds:5,
              max_iter:100000,
 
-             exp:0.7,
+             exp:0.85,
              c:10,
              lo:1,
-             hi:98}).
+             hi:30}).
 
 %% ----------------------------------------------------------------------
 %% ----------------------------------------------------------------------
@@ -94,14 +94,18 @@ main(Options) :-
                     time_limit_seconds(Const.time_limit_seconds),
                     max_iter(Const.max_iter)],
         merge_options(Options, Options0, Options1),
-        set_rule_alphas(normal(0.9, 0.005)),
+        set_rule_alphas(normal(0.1, 0.005)),
 
-        power_law_goals(Const.exp,
-                        Const.lo,
-                        Const.hi,
-                        Const.c,
-                        GoalWeights),
-        list_to_categorical(GoalWeights, GoalGen),
+        % power_law_goals(Const.exp,
+        %                 Const.lo,
+        %                 Const.hi,
+        %                 Const.c,
+        %                 GoalWeights),
+        succ_goals(1, 8, 10, Gs0),
+        succ_goals(1, 99, 1, Gs1), 
+        append(Gs0, Gs1, Goals),
+        % list_to_categorical(GoalWeights, GoalGen),xo
+        list_to_random_choice(Goals, GoalGen),
         run_online_vbem(GoalGen, Data, Options1).
 
 % %% ----------------------------------------------------------------------

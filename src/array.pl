@@ -41,12 +41,12 @@ get(N, Array, X) :-
 set(N, Array, X) :-
         nb_setarg(N, Array, X).
 
-gets([], Array, []).
+gets([], _Array, []).
 gets([N|Ns], Array, [X|Xs]) :-
         get(N, Array, X),
         gets(Ns, Array, Xs).
 
-sets([], Array).
+sets([], _Array).
 sets([X|Xs], Array) :-
         set(X, Array),
         sets(Xs, Array).
@@ -91,6 +91,27 @@ map_array(F, In, Out) :-
                call(F, XI, YI),
                set(I, Out, YI))).
 
+:- multifile
+        user:portray/1.
+
+nshow(5).
+user:portray(Arr) :-
+        functor(Arr, '$array', N),
+        !,
+        nshow(K), 
+        Arr =.. [_|Xs],
+        write('arr('), 
+        portray_arr(Xs, K),
+        write(')').
+
+portray_arr([], _) :- !.
+portray_arr([_|_], 0) :-
+        write('...').
+portray_arr([X|Xs], N) :-
+        format('~p,', X),
+        N1 is N - 1,
+        portray_arr(Xs, N1).
+        
         
     
 

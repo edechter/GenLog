@@ -83,7 +83,7 @@ rule_group(
         ),
            
    macro(
-         ('?A'(X | UV) @ [append1d(U, V, UV)] ---> '?B'(X | U))
+         ('?A'(X | [U, W|V]) ---> '?B'(X | [U]))
         ,
         (
          pred(1, '?A'),
@@ -92,7 +92,7 @@ rule_group(
      ),
            
    macro(
-         ('?A'(X| UV) @ [append1d(U, V, UV)]  ---> '?B'(X | V))
+         ('?A'(X| [U, W|V])  ---> '?B'(X | [W|V]))
         ,
         (pred(1, '?A'),
          pred(1, '?B')

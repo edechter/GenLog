@@ -503,7 +503,7 @@ normalize_variational_weights(VariationalWeightsNum, %% numerator
         forall(between(1, N, RuleId),
                (get(RuleId, VariationalWeightsNum, VNum), 
                 gl_rule(RuleId, _, _, _, RuleGroup),
-                rule_group_id(RuleGroupId, RuleGroup),
+                rule_group_id_rule_group(RuleGroupId, RuleGroup),
                 get(RuleGroupId, VariationalWeightsDen, VDen),
 
                 digamma(VDen, DigamVDen), 

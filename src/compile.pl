@@ -6,7 +6,7 @@
            remove_rule/1,
            remove_all_rules/0,
 
-           rule_group_id/2,
+           rule_group_id_rule_group/2,
            rule_group_rules/2,
            rule_group_id_rules/2,
            
@@ -224,7 +224,7 @@ rule_group_id_rules(RuleGroupId, Rules) :-
         'gl_rule_group_rules'(RuleGroupId, _, Rules),
         !.
 
-rule_group_id(RuleGroupId, RuleGroup) :-
+rule_group_id_rule_group(RuleGroupId, RuleGroup) :-
         'gl_rule_group_rules'(RuleGroupId, RuleGroup, _),
         !.
         

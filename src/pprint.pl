@@ -18,8 +18,7 @@
            pprint_rule_alphas/2,
 
            pprint_rule_map/1,
-           pprint_rule_map/2,
-           pprint_rule_map/3,
+           pprint_rule_array/2,
 
            pprint_pairs/1
            ]).
@@ -28,8 +27,9 @@
 :- use_module(library(option)).
 
 :- use_module(gl_rule).
-:- use_module(sdcl). 
-
+:- use_module(sdcl).
+:- use_module(compile). 
+:- use_module(array). 
 %% ----------------------------------------------------------------------
 %% pretty print gl_terms and corresponding rules
 
@@ -123,9 +123,9 @@ pprint_derivs(Derivs, Options) :-
         ).
 
 %% ----------------------------------------------------------------------
-%%        pprint_rule_map(Assoc, Out, Options)
-%%        pprint_rule_map(Assoc, Options)
-%%        pprint_rule_map(Assoc)
+%%        pprint_rule_array(Assoc, Out, Options)
+%%        pprint_rule_array(Assoc, Options)
+%%        pprint_rule_array(Assoc)
 %%
 %%        pprint_rule_weights(Out, Options)
 %%        pprint_rule_weights(Options)
@@ -166,34 +166,40 @@ pprint_rule_map(Assoc) :-
         pprint_rule_map(Assoc, []).
 
 
-pprint_rule_map(Assoc, Options) :-
+%% pprint_rule_array(Arr, Options)
+pprint_rule_array(Arr, Options) :-
         pprint_rule_probs_def_options(DefOptions),
-        merge_options(Options, DefOptions, Options1), 
-        pprint_rule_map(Assoc, Out, Options1),
-        write(Out).
+        merge_options(Options, DefOptions, Options1),
+        pprint_rule_array_(Arr, Options1).
 
-pprint_rule_map(Assoc, Out, Options) :-
-        rule_groups(RuleGroups),
-        maplist(call(pprint_rule_map_in_rule_group, Options, Assoc), RuleGroups, Xs),
-        findall(X,
-                (member(X, Xs),
-                 X \= ''),
-                Ys),
-        atomic_list_concat(Ys, '\n\n', Out).
+pprint_rule_array_(Arr, Options) :-
+        num_rule_groups(N), 
+        pprint_rule_array_go(Arr, 1, N, Options).
 
-% worker predicate
-pprint_rule_map_in_rule_group(Options, Assoc, RuleGroup, Out) :-
-        get_rule_group_rules(RuleGroup, RuleIds),
-        maplist(pprint_rule, RuleIds, Xs),
-        pairs_keys_values(Pairs, RuleIds, Xs),
-        option(thresh(Thresh), Options), 
-        findall(Line,
-                (member(RuleId-String, Pairs),
-                 get_assoc(RuleId, Assoc, Val),
-                 Val > Thresh,
-                 format(atom(Line), "~|~w: ~10+~|~w ~`.t ~60+~g\n", [RuleId, String, Val])),
-                Lines),
-        atomic_list_concat(Lines, Out).
+pprint_rule_array_go(Arr, M, N, _) :-
+        M > N,
+        !.
+pprint_rule_array_go(Arr, I, N, Options) :-
+        nl,
+        pprint_rule_map_in_rule_group(Arr, I, N, Options).
+
+pprint_rule_map_in_rule_group(_, M, N, _) :-
+        M > N,
+        !.
+pprint_rule_map_in_rule_group(Arr, RuleGroupId, N, Options) :-
+        rule_group_id_rules(RuleGroupId, Rules),
+        rule_group_id_rule_group(RuleGroupId, RuleGroup),
+        format("--- Rule Group ~w: ~w ---\n", [RuleGroupId, RuleGroup]),
+        forall(member(RuleId, Rules),
+               (pprint_rule(RuleId, S),
+                get(RuleId, Arr, Val),
+                member(thresh(T), Options),
+                (Val > T -> 
+                 format("~|~w: ~10+~|~w ~`.t ~90+~g\n", [RuleId, S, Val]))
+               ;
+                true)),
+        RuleGroupId1 is RuleGroupId + 1,
+        pprint_rule_map_in_rule_group(Arr, RuleGroupId1, N, Options).
 
 
 %% ----------------------------------------------------------------------

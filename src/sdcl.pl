@@ -279,7 +279,8 @@ test(unconstrained_is_false, [fail]) :-
 mi_best_first_options_default(
       [
        beam_width(1000),
-       time_limit_seconds(1)
+       time_limit_seconds(1),
+       constrained_only(true)
        ]).
 
 mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit) :-
@@ -349,7 +350,8 @@ test(mi_best_first,
 %% Options record for mi_best_first
 
 :- record bf_options(beam_width=100,
-                     time_limit_seconds=1
+                     time_limit_seconds=1,
+                     constrained_only=true
                     ).
 
 %% ----------------------------------------------------------------------
@@ -365,7 +367,6 @@ mi_best_first_go(_, _, _, _, _, StartTime-TimeLimit, _) :-
         !,
         fail.
 mi_best_first_go(PQ, _, _, _, _, _, _) :-
-
         % if PQ is empty, fail.
         PQ=pq(_, 0, _),
         !,
@@ -374,6 +375,7 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
                  DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
         %% return any of the solutions
         PQ = pq(PqElems, Size, MaxSize),
+        % pq_show(PQ, 1),
 
         DInfo = deriv_info([]-OrigGoal, LogProbMax, DGraph),
         
@@ -393,9 +395,9 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
                  DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
         % If the next best is not a solution
         % generate a new beam from the current one
-        extend_all(Beam, NewBeam),
+        extend_all(Beam, NewBeam, OptionsRecord),
         
-        % pq_show(Beam, 3),
+        
         % writeln(NewBeam),
         
         % NewBeam=pq(_, S, _),
@@ -413,12 +415,12 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
 
 
 %% ----------------------------------------------------------------------
-%%      extend_all(BeamIn, BeamOut)
+%%      extend_all(BeamIn, BeamOut, OptRec)
 %%
-extend_all(BeamIn, BeamOut) :-
+extend_all(BeamIn, BeamOut, OptRec) :-
         BeamIn = pq(PqElemsIn, Size, MaxSize),
         empty_pqueue(EmptyPQ),
-        extend_all_go(MaxSize, 0, PqElemsIn, [], EmptyPQ, PqElemsNew0),
+        extend_all_go(MaxSize, 0, PqElemsIn, [], EmptyPQ, PqElemsNew0, OptRec),
         take(MaxSize, PqElemsNew0, PqElemsNew),
         length(PqElemsNew, N),
         BeamOut = pq(PqElemsNew, N, MaxSize),
@@ -430,11 +432,12 @@ extend_all(BeamIn, BeamOut) :-
 %               Elems,   -- extended elements, to be inserted into queue
 %               PqIn,    -- current queue
 %               PqOut,   -- final queue out
-extend_all_go(_, _, [], [], PqIn, PqOut) :-
+%               OptRec   -- options record
+extend_all_go(_, _, [], [], PqIn, PqOut, _) :-
         % if no elements to extend and no elements to insert
         !, 
         PqIn = PqOut.
-extend_all_go(MaxSize, Inf, [V-K|PqElems], [], PqIn, PqOut) :-
+extend_all_go(MaxSize, Inf, [V-K|PqElems], [], PqIn, PqOut, OptRec) :-
         !, 
         % if no elements left to insert, choose extend next element
         pqueue_size(PqIn, Size),
@@ -446,16 +449,20 @@ extend_all_go(MaxSize, Inf, [V-K|PqElems], [], PqIn, PqOut) :-
           PqIn = PqOut
         ;
           % otherwise, extend the next element
-          extend(K, Ks),          
-          findall(L-D,
-                  (D=deriv_info(_, L, _),
-                   member(D, Ks)),
-                  Elems0),
-          keysort(Elems0, Elems1),
-          reverse(Elems1, Elems),
-          extend_all_go(MaxSize, Inf, PqElems, Elems, PqIn, PqOut)
+          extend(K, Ks, OptRec),
+          (Ks = [] ->
+           extend_all_go(MaxSize, Inf, PqElems, [], PqIn, PqOut, OptRec)
+          ;
+           findall(L-D,
+                   (D=deriv_info(_, L, _),
+                    member(D, Ks)),
+                   Elems0),
+           keysort(Elems0, Elems1),
+           reverse(Elems1, Elems),
+           extend_all_go(MaxSize, Inf, PqElems, Elems, PqIn, PqOut, OptRec)
+          )
         ).
-extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut) :-
+extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut, OptRec) :-
         pqueue_size(PqIn, Size),
         ((Size >= MaxSize, V < Inf)  ->
          % if pqueue is saturated and next element to be inserted is
@@ -471,11 +478,8 @@ extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut) :-
          ;
           Inf1 = Inf
          ),
-         extend_all_go(MaxSize, Inf1, PqElems, Elems, PqTmp, PqOut)
+         extend_all_go(MaxSize, Inf1, PqElems, Elems, PqTmp, PqOut, OptRec)
         ).
-        
-        
-                 
         
 %% ----------------------------------------------------------------------
 %%      unbind_sdcl_head_vars(Goal, UnboundGoal)
@@ -531,30 +535,16 @@ test(extend2,
 %% - Goals is a list of structures of the form goal(GoalId, Goal, UnBoundGoal) where Goal is an sdcl_term/3.
 %% - Extensions is a list of deriv_info(Goals-OrigGoal, LogProb, DGraph) where LogProb is the unconditional probability of the derivation
 
-foo(ChildNodes, BodyList, ChildNodeIds) :-        
-                         
-        (
-         bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
-               (
-                member(ChildGoal-UnBoundChildGoal, BodyList),
-                gen_node_id(ChildNodeId)
-               ),
-               ChildNodes) -> true
-        ;
-         ChildNodes = []
-        ),
-
-        findall(ChildNodeId,
-                member(goal(ChildNodeId, _, _), ChildNodes),
-                ChildNodeIds).
 
 
-extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
+extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
         G = goal(_, Goal, _),
-        unconstrained(Goal),
+        (bf_options_constrained_only(OptRec, true) ->
+         unconstrained(Goal)
+        ), 
         !, 
         Extensions = [deriv_info(Rest-OrigGoal, LogProb, DGraph)].        
-extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
+extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
         % the current derivation graph
         DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
 
@@ -563,12 +553,12 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions) :-
         %% of top level bindings in this derivation)
         %% - DGraph_new: the new derivation graph generated by a
         %% choice of extending rule
-
+        bf_options_beam_width(OptRec, Width),
         findall(deriv_info(G_new-OrigGoal, LogProb_new, DGraph_new),
                 (
                  % find a matching rule for the current goal
                  G = goal(NodeId, Goal, UnBoundGoal),
-
+                 % writeln(Goal), 
                  match(Goal, UnBoundGoal, BodyList, RuleId, Prob),
                  % writeln(Goal),
                  % writeln(BodyList), 
@@ -647,8 +637,8 @@ match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
 
         RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundHGuard-UnBoundBGuard, UnBoundBody, _),
         call(RuleCopy),
-        % call_list(UnBoundHGuard),
-        % call_list(UnBoundBGuard),
+        call_list(UnBoundHGuard),
+        call_list(UnBoundBGuard),
         % writeln(Rule), 
         
         % writeln(RuleCopy),
@@ -1048,14 +1038,6 @@ test_dtree(Tree) :-
 
 :- end_tests(dtree_nodes).
 
-
-canonical_goal(GoalIn, Canonical) :-
-        copy_term(GoalIn, Canonical),
-        numbervars(Canonical, 0, _). 
-
-canonical_rule(Rule :: _, Canonical) :-
-        copy_term(Rule, Canonical), 
-        numbervars(Canonical, 0, _). 
                
 %% ----------------------------------------------------------------------
 
