@@ -1,16 +1,17 @@
 
 
 :- module(compile,
-          [compile_sdcl_file/1,
+          [compile_gl_file/1,
+           open_gl/3,
            
            remove_rule/1,
            remove_all_rules/0,
+           remove_rule_params/1,
 
            rule_group_id_rule_group/2,
            rule_group_rules/2,
            rule_group_id_rules/2,
            
-           translate_to_gl_term/2,
            translate_to_gl_rule/4,
            
            save_gl/0,
@@ -71,11 +72,11 @@
 %% Send regular prolog clauses into the prolog stream and anything
 %% inside a genlog block into the genlog stream.
 split_gl_file(File, PTmp, GLTmp) :-
-       open(File, read, FileId),
+       open_gl(File, read, FileId),
        PTmp = './.__genlog_tmp_pl',
        GLTmp = './.__genlog_tmp_gl', 
        open(PTmp, write, PrologStream),
-       open(GLTmp, write, GenLogStream),
+       open_gl(GLTmp, write, GenLogStream),
        Mode0 = prolog,
        split_gl_file(FileId, Mode0, PrologStream, GenLogStream).
 
@@ -108,9 +109,24 @@ split_gl_file_go(_, FileId,_,PrologStream,GenLogStream) :-
         close(GenLogStream),
         throw(error(evaluation_error, context(split_gl_file/3, 'Cannot parse gl file.'))).
         
-%%
+%% ----------------------------------------------------------------------
+%%      compile_gl_file(+File)
+%% 
+compile_gl_file(File) :-
+        absolute_file_name(File, File1), 
+        print_message(informational, format("Compiling rules in file ~w...", [File])),
+              
+        split_gl_file(File1, PTmp, GLTmp),
+        load_files([PTmp], [module(compile)]),
+        compile_gl(GLTmp),
+        record_rule_groups,
+        normalize_rules,
+        
+        debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
+
 compile_gl(File) :-
-        open(File, read, FileId),
+        absolute_file_name(File, File1), 
+        open_gl(File1, read, FileId),
         remove_all_rules,
         reset_gensym,
         nb_setval(rule_group_ind, 0), 
@@ -121,8 +137,7 @@ compile_gl(File) :-
          true, !
         ;
          nb_getval(rule_group_ind, RuleGroupInd),
-         writeln(rgind-RuleGroupInd),
-         (compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd1, many_rule_groups) ->
+         (compile_gl_clause(Clause, RuleGroupInd, RuleGroupInd1, many_rule_groups) ->
           RuleGroupInd2 is RuleGroupInd1 + 1,
           nb_setval(rule_group_ind, RuleGroupInd2)
          ),
@@ -130,33 +145,32 @@ compile_gl(File) :-
         ).
        
 
-compile_sdcl_file(File) :-
-        debug(compile, "Compiling rules in file ~w...", [File]),
-              
-        split_gl_file(File, PTmp, GLTmp),
-        load_files([PTmp], [module(compile)]),
-        compile_gl(GLTmp),
-        record_rule_groups,
-        normalize_rules,
-        
-        debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
+%% ----------------------------------------------------------------------
+%%      open_gl(+File, +Mode, -Stream)
+%%
+open_gl(File, Mode, Stream) :-
+        exists_file(File),
+        !, 
+        open(File, Mode, Stream).
+open_gl(File, Mode, Stream) :-
+        atomic_list_concat([File, '.gl'], File1),
+        open(File1, Mode, Stream).
 
-%% compile_sdcl_clause(RuleGroup, RuleGroupInd)
-%% compile_sdcl_clause(Macro, RuleGroupInd)
-%% compile_sdcl_clause(Clause, RuleGroupInd)
+%% compile_gl_clause(RuleGroup, RuleGroupInd)
+%% compile_gl_clause(Macro, RuleGroupInd)
+%% compile_gl_clause(Clause, RuleGroupInd)
 %% 
-compile_sdcl_clause(RuleGroup, RuleGroupInd, RuleGroupInd, How) :-
+compile_gl_clause(RuleGroup, RuleGroupInd, RuleGroupInd, _How) :-
         RuleGroup =.. [rule_group|Clauses],
         
         !,
         forall(member(Clause, Clauses),
-               compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd, one_rule_group)).
-compile_sdcl_clause(macro(Head, Body), RuleGroupInd, RuleGroupInd1, How) :-
+               compile_gl_clause(Clause, RuleGroupInd, RuleGroupInd, one_rule_group)).
+compile_gl_clause(macro(Head, Body), RuleGroupInd, RuleGroupInd1, How) :-
         !,
         expand_macro(Head, Body, Rules),
-        writeln(expanded), 
-        compile_sdcl_clauses(Rules, RuleGroupInd, RuleGroupInd1, How).
-compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd, How) :-
+        compile_gl_clauses(Rules, RuleGroupInd, RuleGroupInd1, How).
+compile_gl_clause(Clause, RuleGroupInd, RuleGroupInd, _How) :-
         !,
         (
          gensym('', RuleNum),
@@ -174,20 +188,20 @@ compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd, How) :-
 
 
 
-compile_sdcl_clauses(C, R, R1,How) :-
+compile_gl_clauses(C, R, R1,How) :-
         \+ is_list(C),
         !,
-        compile_sdcl_clauses([C], R, R1, How).
+        compile_gl_clauses([C], R, R1, How).
                      
-compile_sdcl_clauses(Clauses, RuleGroupInd, RuleGroupInd, one_rule_group) :-
+compile_gl_clauses(Clauses, RuleGroupInd, RuleGroupInd, one_rule_group) :-
         forall(member(Clause, Clauses),
-               compile_sdcl_clause(Clause, RuleGroupInd, RuleGroupInd, one_rule_group)).
+               compile_gl_clause(Clause, RuleGroupInd, RuleGroupInd, one_rule_group)).
 
-compile_sdcl_clauses([], RuleGroupInd, RuleGroupInd, many_rule_groups).
-compile_sdcl_clauses([C|Cs], RuleGroupInd, RuleGroupInd2, many_rule_groups) :-
-        compile_sdcl_clause(C, RuleGroupInd, RuleGroupInd0, many_rule_groups), 
+compile_gl_clauses([], RuleGroupInd, RuleGroupInd, many_rule_groups).
+compile_gl_clauses([C|Cs], RuleGroupInd, RuleGroupInd2, many_rule_groups) :-
+        compile_gl_clause(C, RuleGroupInd, RuleGroupInd0, many_rule_groups), 
         RuleGroupInd1 is RuleGroupInd0 + 1,
-        compile_sdcl_clauses(Cs, RuleGroupInd1, RuleGroupInd2, many_rule_groups).
+        compile_gl_clauses(Cs, RuleGroupInd1, RuleGroupInd2, many_rule_groups).
 
 
 remove_rule_params(RuleId) :- 
@@ -247,15 +261,18 @@ show_rules :-
 
 :- begin_tests(compile).
 
-test(compile_sdcl_clause1,
+test(compile_gl_clause1,
      [setup(remove_all_rules),
       cleanup(remove_all_rules),
       true(AClause =@= TClause)]) :-
         reset_gensym,
-        Clause = (s(_X, _Y | [boy], _Y)),
-        compile_sdcl_clause(Clause),
-        TClause = gl_rule(1, gl_term(s/4, [_X1, _Y1], [[boy], _Y1]),[],
-                     true, rule_group(s/4, [[boy], '$VAR'(0)], [])),
+        Clause = (s(_X, Y | [boy], Y)),
+        compile_gl_clause(Clause, 0, _, one_rule_group),
+        TClause = gl_rule(1,
+                          gl_term(s/4, [_X1, Y1], [[boy], Y1]),
+                          []-[],
+                          true,
+                          rule_group(s, 4, 0)),
         call(TClause),
         AClause = gl_rule(_, _, _, _, _),
         call(AClause).
@@ -357,7 +374,7 @@ translate_to_gl_rule(Clause, RuleGroupInd, Rule, RuleWeight) :-
         goal_to_rule_group(RuleHead, RuleGroupInd, RuleGroup),
         !.
 
-goal_to_rule_group(gl_term(F/A, _, Args), RuleGroupInd, RuleGroup) :-
+goal_to_rule_group(gl_term(F/A, _, _Args), RuleGroupInd, RuleGroup) :-
         RuleGroup = rule_group(F, A, RuleGroupInd).
 
         
@@ -371,26 +388,24 @@ test('translate gl rule (no weight)',
      ]
     ) :- 
         RuleIn  = (s(X, Y | Y, Z) @ [Y = Z] ---> a(X | Y), b(Y)),
-        translate_to_gl_rule(RuleIn, TermOut, RuleWeight),
+        translate_to_gl_rule(RuleIn, RG, TermOut, RuleWeight),
         Head = gl_term(s/4, [X, Y], [Y, Z]),
         Body = (gl_term(a/2, [X], [Y]), gl_term(b/1, [Y], [])),
-        Guards = [Y=Z],
+        Guards = [Y=Z]-[],
         Weight = 1.0,
-        Alpha = 1.0, 
-        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)], ['$VAR'(0)='$VAR'(1)]),
+        RuleGroup = rule_group(s, 4, RG),
         assertion(RuleWeight = Weight).
 
 test('translate gl rule (with weight)',
      [true(TermOut =@= gl_rule(_, Head, Guards, Body, RuleGroup))]
     ) :- 
         RuleIn  = (s(X, Y | Y, Z) ---> a(X | Y), b(Y) :: 3.2),
-        translate_to_gl_rule(RuleIn, TermOut, Weight),
+        translate_to_gl_rule(RuleIn, _, TermOut, RuleWeight),
         Head = gl_term(s/4, [X, Y], [Y, Z]),
-        Guards = [],
+        Guards = []-[],
         Body = (gl_term(a/2, [X], [Y]), gl_term(b/1, [Y], [])),
         Weight = 3.2,
-        Alpha = 1.0,
-        RuleGroup = rule_group(s/4, ['$VAR'(0), '$VAR'(1)], []),
+        RuleGroup = rule_group(s, 4, _),
         assertion(Weight=RuleWeight).
                         
 :- end_tests('translate gl rules').
@@ -436,9 +451,7 @@ tr_split_args([A|In], Vars, [A|Conds], conds) :-
 %%     body variables.
 
 expand_macro( Head, Body, Rules) :-
-        writeln(1),
         term_qvars(Body, QVars),
-        writeln(QVars), 
         replace_qvars_with_vars((Head, Body), QVars,
                                 (Head1, Body1)),
         findall(Head1,
@@ -463,12 +476,9 @@ test_expanded(
 test(expand_macro,
      [setup(test_expanded(TRules)),
       all(Rule =@= TRules)]) :-
-        expand_macro( (
-                       (s(X | Y, Z) ---> a(X | Y), b(X | Y,Z))
-                       :- 
-                       (member(Y, [a, b]))
-                      ),
-                      Rules),
+        expand_macro((s(X | Y, Z) ---> a(X | Y), b(X | Y,Z)),
+                      member(Y, [a, b]),
+                     Rules),
         member(Rule, Rules).
 
 test_expanded_qvars([(a(X | Y, Z) ---> a(X | Y), b(X | Y,Z)),
@@ -477,12 +487,9 @@ test_expanded_qvars([(a(X | Y, Z) ---> a(X | Y), b(X | Y,Z)),
 test(expand_macro_qvars,
      [setup(test_expanded_qvars(TRules)),
       all(Rule =@= TRules)]) :-
-        expand_macro( (
-                       ('?X'(X | Y, Z) ---> a(X | Y), b(X | Y,Z))
-                       :- 
-                       (member('?X', [a, b]))
-                      ),
-                      Rules),
+        expand_macro(('?X'(X | Y, Z) ---> a(X | Y), b(X | Y,Z)),
+                     member('?X', [a, b]),
+                    Rules),
         member(Rule, Rules).
 
 :- end_tests(translate).
@@ -554,7 +561,7 @@ replace_qvars_with_vars(AssocIn, [X|Xs], QVars, AssocOut, TermOut) :-
         replace_qvars_with_vars(AssocIn, X, QVars, AssocTmp, XOut),
         replace_qvars_with_vars(AssocTmp, Xs, QVars, AssocOut, XsOut),
         TermOut = [XOut|XsOut].
-replace_qvars_with_vars(AssocIn, A, QVars, AssocOut, AOut) :-
+replace_qvars_with_vars(AssocIn, A, _QVars, AssocOut, AOut) :-
         atomic(A),
         !,
         AssocIn = AssocOut,
@@ -609,10 +616,7 @@ comp_to_term(X, X).
          
 %% call_comp(+CompTerm) is a meta_interpreter that evaluates explicit
 %% compound terms as generated by expand_macro; it evalutes an
-%% explicit compound if present, otherwise just calls
-% :- meta_predicate
-%         call_comp(0,:)
-        
+%% explicit compound if present, otherwise just calls        
 
 % :- add_import_module(compile, genlog, start).
 call_comp('$COMP'(F,As)) :-

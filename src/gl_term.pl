@@ -70,11 +70,15 @@ gl_term_surface_form(Term, Surface) :-
         ((var(Term), ! ; is_gl_term(Term))
         -> gl_term_surface_form_(Term, Surface)
         ;
-         throw_error(error(gl_term_surface_form/2,
-                           "First argument must be a variable or a gl_term."))
+         throw(error(gl_term_surface_form/2,
+                           context(instantiation_error, "First argument must be a variable or a gl_term.")))
         ).
-gl_term_surface_form_(gl_term(F/A, Args, Conds),
+gl_term_surface_form_(gl_term(F/_, Args, Conds),
                       SurfaceTerm) :-
+        (nonvar(SurfaceTerm) ->
+         SurfaceTerm =.. SurfaceAsList
+        ;
+          true), 
         SurfaceAsList = [F|SurfaceArgs],
         surface_args_conds(SurfaceArgs, Args, Conds),
         SurfaceTerm =.. SurfaceAsList.
@@ -123,4 +127,3 @@ test('convert gl_term to surface form') :-
         assertion(Surface =@= f(X, (a(X, Y) | 1), (2, 3))).
 
 :- end_tests('gl rules').
-

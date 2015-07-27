@@ -44,7 +44,7 @@ add_to_assoc(Key, Value, AssocIn, AssocOut) :-
 sum_assocs(V, Assocs, AssocOut) :-
         empty_assoc(Empty),
         sum_assocs(V, Assocs, Empty, AssocOut).
-sum_assocs(V, [], In, Out) :-
+sum_assocs(_, [], In, Out) :-
         !,
         In = Out.
 sum_assocs(V, [A|Rest], In, Out) :-

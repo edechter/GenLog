@@ -1,6 +1,7 @@
 
 :- module(array,
           [list_array/2,
+           is_array/1,
            array/2,
            array/3,
            array_like/2,
@@ -14,6 +15,9 @@
            add_arrays/3,
            scalar_multiply_array/3
           ]).
+
+is_array(X) :-
+        functor(X, '$array', _).
 
 list_array(Xs, Array) :-
         Array =.. ['$array'|Xs].
@@ -96,7 +100,7 @@ map_array(F, In, Out) :-
 
 nshow(5).
 user:portray(Arr) :-
-        functor(Arr, '$array', N),
+        functor(Arr, '$array', _),
         !,
         nshow(K), 
         Arr =.. [_|Xs],

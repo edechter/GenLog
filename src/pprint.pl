@@ -37,7 +37,7 @@ pprint_rule(gl_rule(_, Head, Guard, Body, _), Out) :-
         !, 
         pprint_rule(Head, Guard, Body, Out).
 pprint_rule(RuleN, Out) :-
-        find_rule_by_id(RuleN, Rule),
+        get_rule(RuleN, Rule),
         pprint_rule(Rule, Out).
 
 pprint_rule(Head, Guard, Body, Out) :-
@@ -142,8 +142,8 @@ pprint_rule_probs:-
         pprint_rule_probs([]).
 
 pprint_rule_probs(Options) :-
-        get_rule_probs(Assoc),
-        pprint_rule_map(Assoc, Options).
+        get_rule_probs(Arr),
+        pprint_rule_array(Assoc, Options).
 
 pprint_rule_probs(Out, Options) :-
         get_rule_probs(Assoc),
@@ -155,8 +155,8 @@ pprint_rule_alphas:-
         pprint_rule_alphas([]).
 
 pprint_rule_alphas(Options) :-
-        get_rule_alphas(Assoc),
-        pprint_rule_map(Assoc, Options).
+        get_rule_alphas(Arr),
+        pprint_rule_array(Arr, Options).
 
 pprint_rule_alphas(Out, Options) :-
         get_rule_alphas(Assoc),
@@ -176,7 +176,7 @@ pprint_rule_array_(Arr, Options) :-
         num_rule_groups(N), 
         pprint_rule_array_go(Arr, 1, N, Options).
 
-pprint_rule_array_go(Arr, M, N, _) :-
+pprint_rule_array_go(_Arr, M, N, _) :-
         M > N,
         !.
 pprint_rule_array_go(Arr, I, N, Options) :-
@@ -194,8 +194,9 @@ pprint_rule_map_in_rule_group(Arr, RuleGroupId, N, Options) :-
                (pprint_rule(RuleId, S),
                 get(RuleId, Arr, Val),
                 member(thresh(T), Options),
-                (Val > T -> 
-                 format("~|~w: ~10+~|~w ~`.t ~90+~g\n", [RuleId, S, Val]))
+                (Val > T ->
+                 format("~|~w: ~10+~|~w ~`.t ~90+~g\n", [RuleId, S, Val])
+                )
                ;
                 true)),
         RuleGroupId1 is RuleGroupId + 1,

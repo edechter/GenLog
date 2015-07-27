@@ -2,7 +2,11 @@
 %% author: Eyal Dechter
 
 :- module(sdcl,
-          [rules/1,
+          [
+           op(1000, xfy, --->),
+           op(1200, xfy, ::),
+           
+           rules/1,
            num_rules/1,
            num_rule_groups/1,
            rule/1,
@@ -19,7 +23,6 @@
            % normalize_rule_group/3,
            normalize_rules/0,
 
-           is_gl_term/1,
            unconstrained/1,
            call_list_with_occurs_check/1,
            
@@ -33,14 +36,6 @@
            pprint_dtree/1,
 
            dtree_nodes/2,
-           
-           setup_trivial_sdcl/0,
-           cleanup_trivial_sdcl/0,
-           setup_sdcl/1,
-           cleanup_sdcl/0,
-
-           op(1000, xfy, --->),
-           op(1200, xfy, ::),
            
            and_to_list/2,
            list_to_and/2,
@@ -61,6 +56,7 @@
 :- use_module(library(heaps)).
 
 %% Local imports
+:- use_module(gl_term).
 :- use_module(gl_rule).
 :- use_module(assoc_extra).
 :- use_module(plunit_extra).
@@ -89,7 +85,7 @@ rule(RuleId) :-
 
 
 rule_functor(RuleId, Functor/Arity) :-
-        find_rule_by_id(RuleId, Rule),
+        get_rule(RuleId, Rule),
         gl_rule_head(Rule, gl_term(Functor/Arity, _, _)).
 
 functor_rules(Functor/Arity, RuleIds) :-
@@ -228,8 +224,6 @@ get_rule_group_id_alphas(RuleGroupId, RAs) :-
                  get_rule_alpha(R, A)),
                 RAs). 
 
-is_gl_term(Term) :-
-        functor(Term, gl_term, 3).
 
 % a term is unconstrained if all of its arguments are variables.
 unconstrained(gl_term(_, Args, _)) :-
@@ -237,7 +231,7 @@ unconstrained(gl_term(_, Args, _)) :-
         maplist(var, Args),
         vars_all_different(Args).
 unconstrained(Term) :-
-        translate_to_gl_term(Term, Translated),
+        gl_term_surface_form(Translated, Term),
         unconstrained(Translated).
 
 vars_all_different(List):-
@@ -250,11 +244,11 @@ vars_all_different(List):-
 :- begin_tests(unconstrained).
 
 test(unconstrained_is_true) :-
-        Term = gl_term(a/4, [X, Y], [1, Z]),
+        Term = gl_term(a/4, [_X, _Y], [1, _Z]),
         unconstrained(Term).
 
 test(unconstrained_is_false, [fail]) :-
-        Term = gl_term(a/4, [s(X), Y], [1, Z]),
+        Term = gl_term(a/4, [s(_X), _Y], [1, _Z]),
         unconstrained(Term).
 
 :- end_tests(unconstrained).
@@ -278,9 +272,9 @@ test(unconstrained_is_false, [fail]) :-
 
 mi_best_first_options_default(
       [
-       beam_width(1000),
-       time_limit_seconds(1),
-       constrained_only(true)
+       beam_width(100),
+       time_limit_seconds(4),
+       constrained_only(false)
        ]).
 
 mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit) :-
@@ -296,7 +290,7 @@ mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
         print_message(informational, expl_search(start(OptionsRecord))), 
 
         % translate goal
-        translate_to_gl_term(Goal, GoalTr),
+        gl_term_surface_form(GoalTr, Goal),
         
         % unbind the head variables from initial goal,
         % so that we can keep track of generalized prefix
@@ -319,12 +313,9 @@ mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
                      PQ),
 
         bf_options_time_limit_seconds(OptionsRecord, TimeLimit),
-
-        % initialize prefix mass list
-        PrefixMassList = [], 
         
         mi_best_first_go(PQ, GoalTr-UnBoundGoalTr, Score,
-                         DGraph, PrefixMassList,
+                         DGraph, 
                          StartTime-TimeLimit,
                          OptionsRecord).
 
@@ -333,14 +324,17 @@ mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
 %% test that we get at least the first result correctly.
 test(mi_best_first,
      [
-      setup(setup_trivial_sdcl),
-      cleanup(cleanup_trivial_sdcl),
-      true(G=@= s([a], []))
+      setup(setup_test_gl),
+      cleanup(cleanup_test_gl),
+      true(G=@= s([a] | [a]))
      ]) :-
-        G=s(_X, []),
+        G=s(_X | [a]),
         get_time(StartTime),
-        TimeLimit=1, 
-        mi_best_first(G, _, _, StartTime-TimeLimit),
+        TimeLimit=2, 
+        mi_best_first(G, _, _, StartTime-TimeLimit,
+                      [beam_width(100),
+                       time_limit_seconds(TimeLimit),
+                       constrained_only(false)]),
         !.
 
 :- end_tests(mi_best_first).
@@ -359,23 +353,23 @@ test(mi_best_first,
 %% main worker predicate for mi_best_first
 %%
 %% mi_best_first_go(+PQ, OrigGoal, Score, DGraph,
-%%                   PrefixMassList, StartTime-TimeLimit, +OptionsRecord)
-mi_best_first_go(_, _, _, _, _, StartTime-TimeLimit, _) :-
+%%                   StartTime-TimeLimit, +OptionsRecord)
+mi_best_first_go(_, _, _, _, StartTime-TimeLimit, _) :-
         get_time(Now),
         Now-StartTime >= TimeLimit,
         writeln(Now-StartTime >= TimeLimit),
         !,
         fail.
-mi_best_first_go(PQ, _, _, _, _, _, _) :-
+mi_best_first_go(PQ, _, _, _, _, _) :-
         % if PQ is empty, fail.
         PQ=pq(_, 0, _),
         !,
         fail.
 mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
-                 DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
+                 DGraphOut, TimeInfo, OptionsRecord) :-
         %% return any of the solutions
         PQ = pq(PqElems, Size, MaxSize),
-        % pq_show(PQ, 1),
+        % pq_show(PQ, 3),
 
         DInfo = deriv_info([]-OrigGoal, LogProbMax, DGraph),
         
@@ -389,10 +383,10 @@ mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
          DGraphOut = DGraph
         ;
          mi_best_first_go(NewPQ, TargetGoal-UbTargetGoal,
-                          LogProb, DGraphOut, PrefixMassList, TimeInfo, OptionsRecord)
+                          LogProb, DGraphOut, TimeInfo, OptionsRecord)
         ).
 mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
-                 DGraphOut, PrefixMassList, TimeInfo, OptionsRecord) :-
+                 DGraphOut, TimeInfo, OptionsRecord) :-
         % If the next best is not a solution
         % generate a new beam from the current one
         extend_all(Beam, NewBeam, OptionsRecord),
@@ -411,14 +405,14 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
         
 
         mi_best_first_go(NewBeam, TargetGoal-UbTargetGoal, LogProb,
-                         DGraphOut, PrefixMassList1, TimeInfo, OptionsRecord).
+                         DGraphOut, TimeInfo, OptionsRecord).
 
 
 %% ----------------------------------------------------------------------
 %%      extend_all(BeamIn, BeamOut, OptRec)
 %%
 extend_all(BeamIn, BeamOut, OptRec) :-
-        BeamIn = pq(PqElemsIn, Size, MaxSize),
+        BeamIn = pq(PqElemsIn, _Size, MaxSize),
         empty_pqueue(EmptyPQ),
         extend_all_go(MaxSize, 0, PqElemsIn, [], EmptyPQ, PqElemsNew0, OptRec),
         take(MaxSize, PqElemsNew0, PqElemsNew),
@@ -503,27 +497,27 @@ unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
 
 :- begin_tests(extend).
 test(extend,
-     [setup(setup_trivial_sdcl),
-      true(Next=1)]
+     [setup(setup_test_gl),
+      true(Next=5)]
      ) :-
-    X = s(_, _),
-    translate_to_gl_term(X, T),
+    X = s(_ | [a]),
+    gl_term_surface_form(T, X),
     G = goal(1, T, T), 
     
     DInfo = deriv_info([G]-G, 0, dgraph(_, [1], [])),
-    extend(DInfo, Extensions),
+    extend(DInfo, Extensions, []),
     length(Extensions, Next).
 
 test(extend2,
-     [setup(setup_trivial_sdcl),
+     [setup(setup_test_gl),
       true(Next=1)]
      ) :-
-    X = s([a, a,a], []),
-    translate_to_gl_term(X, T),
+    X = s([a,a,a,a], [a]),
+    gl_term_surfacetri_form(T, X),
     G = goal(1, T, T), 
     
     DInfo = deriv_info([G]-G, 0, dgraph(_, [1], [])),
-    extend(DInfo, Extensions),
+    extend(DInfo, Extensions, []),
     length(Extensions, Next).
 
 :- end_tests(extend). 
@@ -544,7 +538,7 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
         ), 
         !, 
         Extensions = [deriv_info(Rest-OrigGoal, LogProb, DGraph)].        
-extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
+extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, _OptRec) :-
         % the current derivation graph
         DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
 
@@ -553,15 +547,14 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
         %% of top level bindings in this derivation)
         %% - DGraph_new: the new derivation graph generated by a
         %% choice of extending rule
-        bf_options_beam_width(OptRec, Width),
         findall(deriv_info(G_new-OrigGoal, LogProb_new, DGraph_new),
                 (
                  % find a matching rule for the current goal
                  G = goal(NodeId, Goal, UnBoundGoal),
-                 % writeln(Goal), 
+                 % writeln(G),
+                 
                  match(Goal, UnBoundGoal, BodyList, RuleId, Prob),
-                 % writeln(Goal),
-                 % writeln(BodyList), 
+
                  
                  (
                   bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
@@ -578,6 +571,7 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
                          member(goal(ChildNodeId, _, _), ChildNodes),
                          ChildNodeIds),
 
+                 
                  
                  %% append new goal nodes onto the list of nodes for the derivation graph
                  append(ChildNodes, Nodes, Nodes_new),
@@ -611,6 +605,14 @@ extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
                 ),
                 Extensions
                ).
+        % (Extensions = [] ->
+        %  writeln(G)
+        %  nl
+        % ;
+        %  true
+        % ).
+        
+
 
 
 reset_gen_node :-
@@ -625,11 +627,11 @@ gen_node_id(Id) :-
 %% match(Goal, UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
 match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
-        % writeln(Goal),
-        
         Rule=gl_rule(RuleId, Goal, HGuard-BGuard, Body, _),
-        
         call(Rule),
+        % writeln(Rule), 
+
+        % writeln(bound),
         call_list(HGuard),
         call_list(BGuard),
         
@@ -637,8 +639,9 @@ match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
 
         RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundHGuard-UnBoundBGuard, UnBoundBody, _),
         call(RuleCopy),
-        call_list(UnBoundHGuard),
-        call_list(UnBoundBGuard),
+        % writeln(unbound-UnboundGoal),
+        % call_list(UnBoundHGuard),
+        % call_list(UnBoundBGuard),
         % writeln(Rule), 
         
         % writeln(RuleCopy),
@@ -658,11 +661,11 @@ call_list([G|Gs]) :-
 :- begin_tests(match).
 
 test(match,
-     [setup(setup_trivial_sdcl),
-      true(NMatch=2)]
+     [setup(setup_test_gl),
+      true(NMatch=5)]
      ) :-
-    X = s(_, _),
-    translate_to_gl_term(X, G),
+    X = s(_ | [a]),
+    gl_term_surface_form(G, X),
     
     findall(RuleId, 
             match(G, G, RuleId, _, _),
@@ -754,6 +757,7 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
 mi_best_first_all_go(StartTime-TimeLimit, _, _) :-
         get_time(Now),
         Now-StartTime > TimeLimit,
+        writeln((Now-StartTime > TimeLimit)),
         !.
 mi_best_first_all_go(StartTime-TimeLimit, Goal, Options) :- 
         (mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options),
@@ -837,7 +841,7 @@ pq_find_max(pq([Score-MaxElem|Rest], Size, MaxSize),
 pq_size(pq(_, Size, _), Size).
 
 % pq_show(PQ) pretty prints priority queues
-pq_show(pq(Elems, Size, M), N) :-
+pq_show(pq(Elems, Size, _M), N) :-
         take(N, Elems, Elems1),
         length(Elems1, M1),
         pq_show(pq(Elems1, Size, M1)).
@@ -995,7 +999,7 @@ pprint_dtree(dtree(goal(NodeId, Goal, _), RuleId, SubTrees), Indent, Cursor) :-
         tab(Cursor),
         write('+ '),
         pprint_term(Goal, GString),
-        find_rule_by_id(RuleId, Rule),
+        get_rule(RuleId, Rule),
         pprint_rule(Rule, RString), 
         format("~w: ~w -- ~w : ~w", [NodeId, GString, RuleId, RString]),
         nl,
@@ -1095,25 +1099,6 @@ print_current_frame :-
 %% ----------------------------------------------------------------------
 
         
-%% ----------------------------------------------------------------------
-%% Predicates for building unit tests
-
-trivial_sdcl_file('../example/trivial.gl').
-
-setup_trivial_sdcl :-
-        remove_all_rules,
-        trivial_sdcl_file(File), 
-        compile_sdcl_file(File).
-
-cleanup_trivial_sdcl :-
-        remove_all_rules.
-
-setup_sdcl(File) :-
-        remove_all_rules, 
-        compile_sdcl_file(File).
-
-cleanup_sdcl :-
-        remove_all_rules.
 
 
 log_sum_exp(Xs, Y) :-

@@ -2,22 +2,22 @@
 %% simple sdcl for English
 %% ----------------------------------------------------------------------
 
-delayed(on).
+% delayed(on).
 
 
 
-append1(X, Y, Z) :-
-        (
-         delayed(on) ->
-         when((ground(X) ; ground(Y); ground(Z)),
-              append1_(X, Y, Z))
-        ;
-         append1_(X, Y, Z)).
+% append1(X, Y, Z) :-
+%         (
+%          delayed(on) ->
+%          when((ground(X) ; ground(Y); ground(Z)),
+%               append1_(X, Y, Z))
+%         ;
+%          append1_(X, Y, Z)).
 
-append1_([H], [L|Ls], [H, L|Ls]).
-append1_([H|T], L, [H|R]) :-
-        L\=[],
-	append1_(T, L, R).
+% append1_([H], [L|Ls], [H, L|Ls]).
+% append1_([H|T], L, [H|R]) :-
+%         L\=[],
+% 	append1_(T, L, R).
 
 show_attrs(Vars) :-
         is_list(Vars),
@@ -35,17 +35,17 @@ show_attrs(Var).
 :- begin(genlog).
 
 rule_group(
-           ( s(X  | UV) @ [append1(U, V, UV)]---> s(X | U) :: 200),
-           ( s(X  | UV) @ [append1(U, V, UV)]---> s(X | V) :: 200),
-           ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
-           ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
-           ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1)
+           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | U) :: 200),
+           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | V) :: 200),
+           ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
+           ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
+           ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1)
            ).
 
 rule_group(
-           ( s(XY  | Z) @ [Z=[_]]---> [append1(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
-           ( s(XY  | Z) @ [Z=[_]]---> [append1(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
-           ( s(XY  | Z) @ [Z=[_]]---> [append1(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1),           
+           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
+           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
+           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1),           
            ( s([a] | [a]) :: 200 ), 
            ( s([b] | [a]) :: 200 )
            ).

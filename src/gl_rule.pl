@@ -11,8 +11,9 @@
 
 :- module(gl_rule,
           [gl_rule/5,
-
-           find_rule_by_id/2,
+           
+           get_rule/2,
+           
            get_rule_prob/2,
            get_rule_probs/1,
            set_rule_prob/2,
@@ -45,34 +46,34 @@
 %% The gl_rule data type is a record for GenLog rules.
 %%
 %% Fields:
-%% - id: the unique rule identifier, an integer.
-%% - head: the gl_term corresponding to the head of the rule.
-%% - guard: a list of regular prolog terms such that the rule only fires when all those terms are true
-%% - body: a conjunction of gl_terms
-%% - group: the rule group, i.e., an identifier for the group of rules that fires if this rule fires.
+%%      - id: the unique rule identifier, an integer.
+%%      - head: the gl_term corresponding to the head of the rule.
+%%      - guard: a list of regular prolog terms such that the rule only fires when all those terms are true
+%%      - body: a conjunction of gl_terms
+%%      - group: the rule group, i.e., an identifier for the group of rules that fires if this rule fires.
 
 :- dynamic gl_rule/5.
-
 :- record gl_rule(id,
                   head,
                   guard,
                   body,
                   group).
 
-
-        
-
-%%           find_rule_by_id(+RuleId, -Rule).
+%% ----------------------------------------------------------------------
+%%           get_rule(+Id, ?Rule).
 %%
 %% RuleId is an integer.
-%% Rule is a gl_rule term.
-find_rule_by_id(RuleId, Rule) :-
+%% Rule is a gl_rule. 
+get_rule(RuleId, Rule) :-
+        assertion(integer(RuleId)), 
         Rule = gl_rule(RuleId, _, _, _, _),
-        call(Rule), !
+        call(Rule),
+        ! % because RuleIds are unique identifiers
         ;
-        throw(error(domain_error(gl_rule, Rule),
-                    find_rule_by_id(RuleId, Rule))).
-        
+        throw(error(domain_error(integer, RuleId),
+                    get_rule(RuleId, Rule))).
+
+%% ----------------------------------------------------------------------
 %%           get_rule_prob(+RuleId, -P)
 %%
 %% RuleId is an integer.
@@ -81,6 +82,21 @@ get_rule_prob(RuleId, P) :-
         term_to_atom(gl_rule_prob(RuleId), Name),
         nb_getval(Name, P).
 
+%% ----------------------------------------------------------------------
+%%      get_rule_probs(Array)
+%%
+%% Get array whose values are the rule probs.
+get_rule_probs(Array) :-
+        num_rules(N),
+        array(N, Array),
+        forall(between(1, N, RuleId),
+               (
+                get_rule_prob(RuleId, W),
+                set(RuleId, Array, W))).
+
+
+
+%% ----------------------------------------------------------------------
 %%           set_rule_prob(+RuleId, -P)
 %%
 %% RuleId is an integer.
@@ -89,11 +105,29 @@ set_rule_prob(RuleId, P) :-
         term_to_atom(gl_rule_prob(RuleId), Name),
         nb_setval(Name, P).
 
-%%           set_rule_probs(Distribution)
-%%           set_rule_probs(Assoc)
+%% ----------------------------------------------------------------------
+%%           set_rule_probs(+Array)
+%%           set_rule_probs(+Distribution)
+%%           set_rule_probs(+Assoc)
 %%
-%% Distribution: currently only normal(Mean, StdDev)
-%% TODO: add uniform distribution at least.
+%%
+%% Array: array of floats whose indexes are rule ids.
+%% Distribution: normal(Mean, StdDev) | uniform
+%% Assoc: an assoc whose key is the id and whose values are floats.
+set_rule_probs(Array) :-
+        is_array(Array),
+        !, 
+        array(N, Array),
+        forall(between(1, N, I),
+               (get(I, Array, P),
+                set_rule_prob(I, P))).
+
+set_rule_probs(Assoc) :-
+        is_assoc(Assoc),
+        !, 
+        forall(gen_assoc(Assoc, Id, Val), 
+               set_rule_prob(Id, Val)).
+
 set_rule_probs(normal(Mean, StdDev)) :-
         !,
         assertion(Mean > 0),
@@ -106,61 +140,106 @@ set_rule_probs(normal(Mean, StdDev)) :-
         list_array(RPs, PArray), 
         set_rule_probs(PArray).
 
-set_rule_probs(RuleIdArray) :-
-        array(N, RuleIdArray),
-        forall(between(1, N, I),
-               (get(I, RuleIdArray, P),
-                set_rule_prob(I, P))).
-
-
-get_rule_probs(RuleIdProbArray) :-
+set_rule_probs(uniform) :-
         num_rules(N),
-        array(N, RuleIdProbArray),
-        forall(between(1, N, RuleId),
-               (
-                get_rule_prob(RuleId, W),
-                set(RuleId, RuleIdProbArray, W))).
+        forall(between(1, N, I),
+               set_rule_prob(I,1)),
+        normalize_rules.
 
-% accessors and setters for rule alpha values
+
+
+%% ----------------------------------------------------------------------
+%%           get_rule_alpha(+RuleId, -A)
+%%
+%% RuleId is an integer.
+%% P is a float whose value is the probability (or weight) associated with Rule.
 get_rule_alpha(RuleId, Alpha) :-
         term_to_atom(gl_rule_alpha(RuleId), Name), 
         nb_getval(Name, Alpha).
 
-get_rule_alphas(AlphaArray) :-
+
+%% ----------------------------------------------------------------------
+%%      get_rule_alphas(Array)
+%%
+%% Get array whose values are the rule alphas.
+
+get_rule_alphas(Array) :-
         num_rules(N),
-        array(N, AlphaArray),
+        array(N, Array),
         forall(between(1, N, RuleId),
                 (get_rule_alpha(RuleId, Alpha),
-                 set(RuleId, AlphaArray,  Alpha))).
+                 set(RuleId, Array,  Alpha))).
 
-        
+%% ----------------------------------------------------------------------
+%%      get_rule_alphas(Array)
+%%
+%% Get array whose values are the rule alphas.
+get_rule_alphas(Array) :-
+        num_rules(N),
+        array(N, Array),
+        forall(between(1, N, RuleId),
+               (
+                get_rule_alpha(RuleId, W),
+                set(RuleId, Array, W))).
 
-set_rule_alpha(RuleId, default) :-
-        !,
-        set_rule_alpha(RuleId, 1.0).
 
-set_rule_alpha(RuleId, A) :-
-        assertion(number(A)),
-        assertion(A>0),
-        !,
+
+%% ----------------------------------------------------------------------
+%%           set_rule_alpha(+RuleId, -P)
+%%
+%% RuleId is an integer.
+%% P is a float whose value is the alphaability (or weight) associated with Rule.
+set_rule_alpha(RuleId, P) :-
         term_to_atom(gl_rule_alpha(RuleId), Name),
-        nb_setval(Name, A).
+        nb_setval(Name, P).
 
-set_rule_alphas(default) :-
+%% ----------------------------------------------------------------------
+%%           set_rule_alphas(+Array)
+%%           set_rule_alphas(+Distribution)
+%%           set_rule_alphas(+Assoc)
+%%
+%%
+%% Array: array of floats whose indexes are rule ids.
+%% Distribution: normal(Mean, StdDev) | uniform | uniform(K) | K (for number K)
+%% Assoc: an assoc whose key is the id and whose values are floats.
+set_rule_alphas(Array) :-
+        is_array(Array),
         !,
-        forall(rule(RuleId),
-               set_rule_alpha(RuleId, 1.0)).
+        array(N, Array),
+        forall(between(1, N, I),
+               (get(I, Array, P),
+                set_rule_alpha(I, P))).
+
+set_rule_alphas(Assoc) :-
+        is_assoc(Assoc),
+        !, 
+        forall(gen_assoc(Assoc, Id, Val), 
+               set_rule_alpha(Id, Val)).
+
+set_rule_alphas(normal(Mean, StdDev)) :-
+        !,
+        assertion(Mean > 0),
+        assertion(StdDev > 0),
+
+        rules(RuleIds),
+        length(RuleIds, NRules),
+        Ps <- rnorm(NRules, Mean, StdDev),
+        pairs_keys_values(RPs, RuleIds, Ps),
+        list_array(Ps, PArray),
+        set_rule_alphas(PArray).
 
 set_rule_alphas(uniform) :-
-        !,
-        set_rule_alphas(uniform(1.0)).
-
+        set_rule_alphas(uniform(1.0)),
+        num_rules(N),
+        forall(between(1, N, I),
+               set_rule_alpha(I,1)),
+        normalize_rules.
 
 set_rule_alphas(uniform(K)) :-
         !,
         assertion(number(K)),
         forall(rule_group(RuleGroup),
-               (get_rule_group_rules(RuleGroup, RuleIds),
+               (rule_group_rules(RuleGroup, RuleIds),
                 length(RuleIds, N),
                 assertion(N>0),
                 Alpha is 1.0/(K*N),
@@ -168,7 +247,6 @@ set_rule_alphas(uniform(K)) :-
                         set_rule_alpha(RuleId, Alpha))
                )).
 
-              
 set_rule_alphas(normal(Mean, StdDev)) :-
         !,
         assertion(Mean > 0),
@@ -182,6 +260,8 @@ set_rule_alphas(normal(Mean, StdDev)) :-
         set_rule_alphas(AlphasArray).
                  
 set_rule_alphas(Array) :-
+        is_array(Array),
+        !, 
         array(N, Array),
         forall(between(1, N, RuleId),
                 (
@@ -189,54 +269,41 @@ set_rule_alphas(Array) :-
                  set_rule_alpha(RuleId, A)
                  )).
 
+set_rule_alphas(A) :-
+        number(A),
+        assertion(A > 0),
+        !,
+        num_rules(N),
+        forall(between(1, N, RuleId),
+               set_rule_alpha(RuleId, A)
+              ).
+
+
 
 
         
 
 :- begin_tests(alphas).
 
-test(set_default_rule_alpha,
-     [setup(setup_trivial_sdcl),
-      cleanup(cleanup_trivial_sdcl),
-      all(Alpha=[1.0, 1.0])]) :-
-        rule(RuleId),
-        find_rule_by_id(RuleId, _),
-        set_rule_alpha(RuleId, default),
-        get_rule_alpha(RuleId, Alpha).
-
-test(set_default_rule_alphas,
-     [setup(setup_trivial_sdcl),
-      cleanup(cleanup_trivial_sdcl),
-      all(Alpha=[1.0, 1.0])]) :-
-        set_rule_alphas(default),
-        rule(RuleId),
-        get_rule_alpha(RuleId, Alpha).
-
 test(set_uniform_rule_alpha,
-     [setup(setup_sdcl('../example/trivial_2.gl')),
-      cleanup(cleanup_sdcl),
-      true(RAs ~= [1-1.0, 2-0.5, 3-0.5,
-                          4-1.0, 5-1.0, 6-1.0,
-                          7-0.5, 8-0.5, 9-0.5,
-                          10-0.5, 11-0.333333333, 12-0.33333333,
-                          13-0.333333333])]) :-
+     [setup(setup_test_gl),
+      cleanup(cleanup_test_gl)]) :-
+        rule(RuleId),
+        get_rule(RuleId, _),
+        set_rule_alpha(RuleId, 1.0),
+        get_rule_alpha(RuleId, Alpha),
+        assertion(Alpha=1.0),
+        !.
+
+test(set_uniform_rule_alphas,
+     [setup(setup_test_gl),
+      cleanup(cleanup_test_gl)]) :- 
         set_rule_alphas(uniform),
-        get_rule_alphas(Assoc),
-        assoc_to_list(Assoc, RAs).
-
-test(set_uniform_k_rule_alpha,
-     [setup(setup_sdcl('../example/trivial_2.gl')),
-      cleanup(cleanup_sdcl),
-      true(RAs ~= [1-0.50, 2-0.25, 3-0.25,
-                          4-0.5, 5-0.5, 6-0.5,
-                          7-0.25, 8-0.25, 9-0.25,
-                          10-0.25, 11-0.1666666, 12-0.1666666,
-                          13-0.166666])]) :-
-        set_rule_alphas(uniform(2.0)),
-        get_rule_alphas(Assoc),
-        assoc_to_list(Assoc, RAs).
-
-
+        rule(RuleId),
+        forall(get_rule_alpha(RuleId, Alpha),
+               assertion(Alpha ~= 1.0)),
+        !.
+        
 
 
 :- end_tests(alphas).

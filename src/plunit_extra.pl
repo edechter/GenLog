@@ -1,7 +1,19 @@
 :- module(plunit_extra,
           [op(700, xfx, ~=),
-          (~=)/2
-           ]).
+           (~=)/2,
+           gl_test_file/1,
+           setup_test_gl/0,
+           setup_test_gl/1,
+           cleanup_test_gl/0]).
+
+:- use_module(compile).
+
+:- getenv('GENLOG_ROOT', Dir),
+   atomic_list_concat([Dir, '/experiments/gls/'], GlDir),
+   asserta(user:file_search_path(gl, GlDir)).
+
+
+
 
 :- op(700, xfx, ~=).
 
@@ -21,3 +33,27 @@ X ~= Y :-
 [X|Xs] ~= [Y|Ys] :-
         X ~= Y,
         Xs ~= Ys.
+
+
+%% ----------------------------------------------------------------------
+%% Setting up gl files for unit tests. 
+
+gl_test_file(gl(trivial)).
+
+setup_test_gl :-
+        remove_all_rules,
+        gl_test_file(File), 
+        compile_gl_file(File).
+
+setup_test_gl(File) :-
+        remove_all_rules, 
+        compile_gl_file(File).
+
+cleanup_test_gl :-
+        remove_all_rules.
+
+remove_all_rules :-
+        rules(RuleIds),
+        retractall(gl_rule(_, _, _, _, _)),
+        forall(member(RuleId, RuleIds),
+               remove_rule_params(RuleId)).

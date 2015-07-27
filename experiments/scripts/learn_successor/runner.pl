@@ -75,7 +75,7 @@ power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
 %%                               Constants
 exp_constants(
    constants{beam_width:100,
-             time_limit_seconds:5,
+             time_limit_seconds:30,
              max_iter:100000,
 
              exp:0.85,
@@ -89,24 +89,25 @@ exp_constants(
 main(Options) :-
         exp_constants(Const),
         gl_file(GlFile),
-        compile_sdcl_file(GlFile),
+        compile_gl_file(GlFile),
         Options0 = [beam_width(Const.beam_width),
                     time_limit_seconds(Const.time_limit_seconds),
+                    constrained_only(false),
                     max_iter(Const.max_iter)],
         merge_options(Options, Options0, Options1),
-        set_rule_alphas(normal(0.1, 0.005)),
+        set_rule_alphas(normal(0.7, 0.005)),
 
         % power_law_goals(Const.exp,
         %                 Const.lo,
         %                 Const.hi,
         %                 Const.c,
         %                 GoalWeights),
-        succ_goals(1, 8, 10, Gs0),
-        succ_goals(1, 99, 1, Gs1), 
+        succ_goals(1, 1, 1, Gs0),
+        succ_goals(20, 28, 1, Gs1), 
         append(Gs0, Gs1, Goals),
         % list_to_categorical(GoalWeights, GoalGen),xo
         list_to_random_choice(Goals, GoalGen),
-        run_online_vbem(GoalGen, Data, Options1).
+        run_online_vbem(GoalGen, _Data, Options1).
 
 % %% ----------------------------------------------------------------------
 % %%    analyze
@@ -153,7 +154,7 @@ bench :-
                     time_limit_seconds(Const.time_limit_seconds),
                     max_iter(Const.max_iter)],
         succ_goal(15, 1, G),
-        prove_goals([G], L, Options).
+        prove_goals([G], _L, Options).
             
 
 
