@@ -3,9 +3,6 @@
 
 :- module(sdcl,
           [
-           op(1000, xfy, --->),
-           op(1200, xfy, ::),
-           
            rules/1,
            num_rules/1,
            num_rule_groups/1,
@@ -26,11 +23,11 @@
            unconstrained/1,
            call_list_with_occurs_check/1,
            
-           mi_best_first/4,
-           mi_best_first/5,
+           prove/4,
+           prove/5,
 
-           mi_best_first_all/3,
-           mi_best_first_all/4,
+           prove_all/3,
+           prove_all/4,
 
            pprint_dgraph/1,
            pprint_dtree/1,
@@ -64,13 +61,9 @@
 :- use_module(pprint).
 :- use_module(array).
 :- use_module(misc).
+:- use_module(dgraph).
 
 
-% :- r(library("matrixStats")).
-
-:- op(1000, xfy, --->).
-
-:- op(1200, xfy, ::).
 rules(RuleIds) :-
         findall(RuleId, (
                          gl_rule(RuleId, _, _, _, _)),
@@ -253,76 +246,91 @@ test(unconstrained_is_false, [fail]) :-
 
 :- end_tests(unconstrained).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
         
 %% ----------------------------------------------------------------------
-%%      meta_best_first(Goal)
+%%      prove(+Goal, -Score, -DGraph, ?StartTime)
+%%      prove(+Goal, -Score, -DGraph, ?StartTime, +Options)
 %%
-%%      Description: A best first meta interpreter.
+%%      Description: A best first meta interpreter that finds a single
+%%      explanantion for Goal.
 %%
 %%      Options:
 %%
-%%       - BeamWidth: The maximal size of the priority queue of best
-%%       partial parses (default: infinite).
+%%       - beam_width: The maximal size of the priority queue of best
+%%       partial parses (default: 100).
 %%
-%%       - InferenceLimit: Limits the maximum number of inference
-%%       steps for each derivation of Goal (default: 1000).
-%%       ----------------------------------------------------------------------
+%%       - time_limit_seconds: a time limit on the time since
+%%       StartTime for running the search.
+%% ----------------------------------------------------------------------
 
 
-mi_best_first_options_default(
-      [
-       beam_width(100),
-       time_limit_seconds(4),
-       constrained_only(false)
-       ]).
+%% Options record for prove
+:- record options(beam_width=100,                     % beam_width: the size of the search beam
+                  time_limit_seconds=2                % time_limit_seconds: the maximum time spent searching for proofs of                                        
+                       ).
 
-mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit) :-
-        mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, []). 
+prove(Goal, Score, DGraph, StartTime) :-
+        prove(Goal, Score, DGraph, StartTime, []). 
 
-mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options) :-
+prove(Goal, Score, DGraph, StartTime, Options) :-
+
+        % set start time if not set
+        (var(StartTime) ->
+         get_time(StartTime)
+        ;
+         true),
         
         % make options record
-        mi_best_first_options_default(DefaultOptions),
-        merge_options(Options, DefaultOptions, AllOptions),
-        make_bf_options(AllOptions, OptionsRecord, _RestOptions),
+        (is_list(Options) -> 
+         make_options(Options, OptionsRecord, _RestOptions)
+        ;
+         Options=OptionsRecord
+        ),
 
         print_message(informational, expl_search(start(OptionsRecord))), 
 
         % translate goal
-        gl_term_surface_form(GoalTr, Goal),
+        (is_gl_term(Goal) ->
+         GoalTr=Goal
+        ;
+         gl_term_surface_form(GoalTr, Goal)
+        ),
+
         
-        % unbind the head variables from initial goal,
-        % so that we can keep track of generalized prefix
-        unbind_sdcl_head_vars(GoalTr, UnBoundGoalTr), 
- 
-        % initialize priority queue
+
+        % reset the node identifier for sub goal nodes
         reset_gen_node,
-        gen_node_id(NodeId), 
-        GoalList = [goal(NodeId, GoalTr, UnBoundGoalTr)],
-
-        bf_options_beam_width(OptionsRecord, BeamWidth),
-
-        % initialize priority queue. Each element of priority queue is
-        % of the form deriv_info(CurrentGoalList-OrigGoal, DerivationGraph)
-        DGraph0 = dgraph(NodeId, [goal(NodeId, GoalTr, UnBoundGoalTr)], []),
+        gen_node_id(NodeId),
         
-        pq_singleton(deriv_info(GoalList-UnBoundGoalTr, 0, DGraph0),
+        % initial list of goals
+        GoalList = [pterm(GoalTr)],
+
+
+        % Initialize priority queue. Each element of priority queue is
+        % of the form deriv_info(GoalList, OrigGoal, Parent, LogProb, DGraph)
+        % where Parent is either start or ParentId-ParentRuleId
+        DGraph0 = dgraph(NodeId, [NodeId-pterm(GoalTr)], []),
+
+        options_beam_width(OptionsRecord, BeamWidth),
+        pq_singleton(deriv_info(GoalList, GoalTr, start, 0, DGraph0),
                      0,
                      BeamWidth,
                      PQ),
 
-        bf_options_time_limit_seconds(OptionsRecord, TimeLimit),
-        
-        mi_best_first_go(PQ, GoalTr-UnBoundGoalTr, Score,
+        prove_go(PQ, GoalTr, Score,
                          DGraph, 
-                         StartTime-TimeLimit,
+                         StartTime,
                          OptionsRecord).
 
-:- begin_tests(mi_best_first).
+:- begin_tests(prove).
 
 %% test that we get at least the first result correctly.
-test(mi_best_first,
+test(prove_finds_first_solution,
      [
       setup(setup_test_gl),
       cleanup(cleanup_test_gl),
@@ -330,69 +338,72 @@ test(mi_best_first,
      ]) :-
         G=s(_X | [a]),
         get_time(StartTime),
-        TimeLimit=2, 
-        mi_best_first(G, _, _, StartTime-TimeLimit,
+        prove(G, _, _, StartTime,
                       [beam_width(100),
-                       time_limit_seconds(TimeLimit),
-                       constrained_only(false)]),
+                       time_limit_seconds(2)
+                       ]),
         !.
 
-:- end_tests(mi_best_first).
+test(prove_finds_more_than_one_solution,
+     [
+      setup(setup_test_gl),
+      cleanup(cleanup_test_gl),
+      all(G=@= [s([a] | [a]), s([b]|[a])])
+     ]) :-
+        G=s(_X | [a]),
+        get_time(StartTime),
+        prove(G, _, _, StartTime,
+                      [beam_width(100),
+                       time_limit_seconds(2)
+                       ]).
+        
+
+:- end_tests(prove).
 
         
-%% ----------------------------------------------------------------------
-%% Options record for mi_best_first
-
-:- record bf_options(beam_width=100,
-                     time_limit_seconds=1,
-                     constrained_only=true
-                    ).
 
 %% ----------------------------------------------------------------------
-%% mi_best_first_go/7.
-%% main worker predicate for mi_best_first
+%% prove_go/7.
+%% main worker predicate for prove
 %%
-%% mi_best_first_go(+PQ, OrigGoal, Score, DGraph,
-%%                   StartTime-TimeLimit, +OptionsRecord)
-mi_best_first_go(_, _, _, _, StartTime-TimeLimit, _) :-
+%% prove_go(+PQ, OrigGoal, Score, DGraph,
+%%                   StartTime, +OptionsRecord)
+prove_go(_, _, _, _, StartTime, Opts) :-
+        options_time_limit_seconds(Opts, TimeLimit),
         get_time(Now),
         Now-StartTime >= TimeLimit,
         writeln(Now-StartTime >= TimeLimit),
         !,
         fail.
-mi_best_first_go(PQ, _, _, _, _, _) :-
+prove_go(PQ, _, _, _, _, _) :-
         % if PQ is empty, fail.
         PQ=pq(_, 0, _),
         !,
         fail.
-mi_best_first_go(PQ, TargetGoal-UbTargetGoal, LogProb,
+prove_go(PQ, OrigGoal, LogProb,
                  DGraphOut, TimeInfo, OptionsRecord) :-
         %% return any of the solutions
         PQ = pq(PqElems, Size, MaxSize),
         % pq_show(PQ, 3),
-
-        DInfo = deriv_info([]-OrigGoal, LogProbMax, DGraph),
-        
+        DInfo = deriv_info([], OrigGoal1, _, LogProbMax, DGraph),
         select(_-DInfo, PqElems, PqElems1),
         !,
         Size1 is Size - 1,
         NewPQ = pq(PqElems1, Size1, MaxSize),
         (
-         TargetGoal = OrigGoal,
          LogProb=LogProbMax,
-         DGraphOut = DGraph
+         DGraphOut = DGraph,
+         OrigGoal1 = OrigGoal
         ;
-         mi_best_first_go(NewPQ, TargetGoal-UbTargetGoal,
+         prove_go(NewPQ, OrigGoal,
                           LogProb, DGraphOut, TimeInfo, OptionsRecord)
         ).
-mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
+prove_go(Beam, TargetGoal, LogProb,
                  DGraphOut, TimeInfo, OptionsRecord) :-
         % If the next best is not a solution
         % generate a new beam from the current one
         extend_all(Beam, NewBeam, OptionsRecord),
         
-        
-        % writeln(NewBeam),
         
         % NewBeam=pq(_, S, _),
         % (S = 0 ->
@@ -402,9 +413,8 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
         
         !, 
         print_message(informational, beam_size(NewBeam)),
-        
 
-        mi_best_first_go(NewBeam, TargetGoal-UbTargetGoal, LogProb,
+        prove_go(NewBeam, TargetGoal, LogProb,
                          DGraphOut, TimeInfo, OptionsRecord).
 
 
@@ -413,8 +423,7 @@ mi_best_first_go(Beam, TargetGoal-UbTargetGoal, LogProb,
 %%
 extend_all(BeamIn, BeamOut, OptRec) :-
         BeamIn = pq(PqElemsIn, _Size, MaxSize),
-        empty_pqueue(EmptyPQ),
-        extend_all_go(MaxSize, 0, PqElemsIn, [], EmptyPQ, PqElemsNew0, OptRec),
+        extend_all_go(MaxSize, 0, PqElemsIn, [], [], PqElemsNew0, OptRec),
         take(MaxSize, PqElemsNew0, PqElemsNew),
         length(PqElemsNew, N),
         BeamOut = pq(PqElemsNew, N, MaxSize),
@@ -443,12 +452,12 @@ extend_all_go(MaxSize, Inf, [V-K|PqElems], [], PqIn, PqOut, OptRec) :-
           PqIn = PqOut
         ;
           % otherwise, extend the next element
-          extend(K, Ks, OptRec),
+          extensions(K, Ks, OptRec),
           (Ks = [] ->
            extend_all_go(MaxSize, Inf, PqElems, [], PqIn, PqOut, OptRec)
           ;
            findall(L-D,
-                   (D=deriv_info(_, L, _),
+                   (D=deriv_info(_, _, _, L, _),
                     member(D, Ks)),
                    Elems0),
            keysort(Elems0, Elems1),
@@ -475,22 +484,6 @@ extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut, OptRec) :-
          extend_all_go(MaxSize, Inf1, PqElems, Elems, PqTmp, PqOut, OptRec)
         ).
         
-%% ----------------------------------------------------------------------
-%%      unbind_sdcl_head_vars(Goal, UnboundGoal)
-%%
-%%      Given a goal of the form gl_term(F/A, [A1, ..., An], [B1, ..., Bn]), replace
-%%      all the A's that are not variables, with fresh variables.
-unbind_sdcl_head_vars(gl_term(F/A, Hs, Cs), gl_term(F/A, Hs1, Cs)) :-
-        unbind_sdcl_head_vars_go(Hs, Hs1).
-
-unbind_sdcl_head_vars_go([], []) :- !.
-unbind_sdcl_head_vars_go([X|Xs], [Y|Ys]) :-
-        (\+ var(X),
-         !
-         ;
-         X = Y
-        ),
-        unbind_sdcl_head_vars_go(Xs, Ys). 
 
 
 %% ----------------------------------------------------------------------
@@ -500,118 +493,110 @@ test(extend,
      [setup(setup_test_gl),
       true(Next=5)]
      ) :-
-    X = s(_ | [a]),
-    gl_term_surface_form(T, X),
-    G = goal(1, T, T), 
+    T = s(_ | [a]),
+    gl_term_surface_form(X, T),
+    G = pterm(X),
     
-    DInfo = deriv_info([G]-G, 0, dgraph(_, [1], [])),
-    extend(DInfo, Extensions, []),
+    DInfo = deriv_info([G], X, start, 0, dgraph(1, [1-X], [])),
+    extensions(DInfo, Extensions, []),
     length(Extensions, Next).
 
-test(extend2,
-     [setup(setup_test_gl),
-      true(Next=1)]
-     ) :-
-    X = s([a,a,a,a], [a]),
-    gl_term_surfacetri_form(T, X),
-    G = goal(1, T, T), 
+% test(extend2,
+%      [setup(setup_test_gl),
+%       true(Next=1)]
+%      ) :-
+%     X = s([a,a,a,a], [a]),
+%     gl_term_surface_form(T, X),
+%     G = goal(1, T), 
     
-    DInfo = deriv_info([G]-G, 0, dgraph(_, [1], [])),
-    extend(DInfo, Extensions, []),
-    length(Extensions, Next).
+%     DInfo = deriv_info([G], _, start, 0, dgraph(_, [1-G], [])),
+%     extend(DInfo, Extensions, []),
+%     length(Extensions, Next).
 
-:- end_tests(extend). 
+:- end_tests(extend).
+
+ready(append1d(X, Y, Z)) :-
+        !,
+        (nonvar(X),nonvar(Y) -> true
+        ;
+         nonvar(Z)
+        ).
+ready(_).
+
+extensions(DInfo, Extensions, OptRec) :-
+        findall(Extension,
+                extend(DInfo, Extension, OptRec),
+                Extensions).
       
 
-%% extend(deriv_info(Goals-OrigGoal, DGraph), Extensions)
-%% assumptions:
-%% - Goals is not empty
-%% - Goals is a list of structures of the form goal(GoalId, Goal, UnBoundGoal) where Goal is an sdcl_term/3.
-%% - Extensions is a list of deriv_info(Goals-OrigGoal, LogProb, DGraph) where LogProb is the unconditional probability of the derivation
+%% ----------------------------------------------------------------------
+%%      extend(+deriv_info(Goals, OrigGoal, Parent, LogProb, DGraph),
+%%             -Extensions, +Options)
+%%
+%%  - Goals is a non empty list of of goal terms. 
+%%  - A term is either goal(Id, Term) term is a gl_term/3 or pterm(Term) where pterm is a prolog term 
+%%  - Extensions is a a list of deriv_info(Goals, LogProb, DGraph) terms
+%%  - in the deriv_info terms, LogProb is the unconditional probability of the derivation
 
-
-
-extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, OptRec) :-
-        G = goal(_, Goal, _),
-        (bf_options_constrained_only(OptRec, true) ->
-         unconstrained(Goal)
-        ), 
+extend(deriv_info(Goals, Orig, Parent, LogProb, DGraph), Extension, OptRec) :-
+        extend(Goals, Parent, LogProb, DGraph,
+               Goals1, Parent1, LogProb1, DGraph1,
+               OptRec),
+        Extension = deriv_info(Goals1, Orig, Parent1, LogProb1, DGraph1).
+       
+% if there are no goals left
+extend([], _, LogProb, DGraph, [], _, LogProb, DGraph, _).
+% if the first sublist is empty, continue to rest.
+extend([[]|Rs], P, L, D, Rs1, P1, L1, D1, OptRec) :-
+        !,
+        extend(Rs, P, L, D, Rs1, P1, L1, D1, OptRec).
+% if the first element is a non_empty sublist, extend it. 
+extend([SubList|Rest], Parent, LogProb, DGraph, [SubList1|Rest], Parent1, LogProb1, DGraph1, OptRec) :-
+        is_list(SubList),
         !, 
-        Extensions = [deriv_info(Rest-OrigGoal, LogProb, DGraph)].        
-extend(deriv_info([G|Rest]-OrigGoal, LogProb, DGraph), Extensions, _OptRec) :-
-        % the current derivation graph
-        DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
+        extend(SubList, Parent, LogProb, DGraph, SubList1, Parent1, LogProb1, DGraph1, OptRec).
+% if the first element is a dterm and it is ready to be called, call it
+extend([dterm(Term)|Rest], Parent, LogProb, DGraph, Rest1, Parent1, LogProb1, DGraph1, OptRec) :-
+        ready(Term),
+        !,
+        call1(Term),
+        extend(Rest, Parent, LogProb, DGraph, Rest1, Parent1, LogProb1, DGraph1, OptRec).
+% if the first element is a dterm, it is not ready to be called, and
+% there are more goals remaining, delay dterm by starting new sublist of goals.
+extend([dterm(Term), Next|Rest], Parent, LogProb, DGraph, Goals1, Parent1, LogProb1, DGraph1, OptRec) :-
+        \+ ready(Term),
+        !,
+        SubList = [Next, dterm(Term)],
+        extend([SubList | Rest], Parent, LogProb, DGraph, Goals1, Parent1, LogProb1, DGraph1, OptRec).
+% if the only remaining element is a dterm, then 
+extend([dterm(Term)], _, _, _, _, _, _, _, _) :-
+        \+ ready(Term),
+        !,
+        throw(error(use_error(extend/3, "invalid"))).
 
-        %% - G_new: the new queue of goals for the current derivation
-        %% - OrigGoal_copy: a copy of the toplevel goal (keeps track
-        %% of top level bindings in this derivation)
-        %% - DGraph_new: the new derivation graph generated by a
-        %% choice of extending rule
-        findall(deriv_info(G_new-OrigGoal, LogProb_new, DGraph_new),
-                (
-                 % find a matching rule for the current goal
-                 G = goal(NodeId, Goal, UnBoundGoal),
-                 % writeln(G),
-                 
-                 match(Goal, UnBoundGoal, BodyList, RuleId, Prob),
-
-                 
-                 (
-                  bagof(goal(ChildNodeId, ChildGoal, UnBoundChildGoal),
-                        (
-                         member(ChildGoal-UnBoundChildGoal, BodyList),
-                         gen_node_id(ChildNodeId)
-                        ),
-                        ChildNodes) -> true
-                  ;
-                  ChildNodes = []
-                 ),
-
-                 findall(ChildNodeId,
-                         member(goal(ChildNodeId, _, _), ChildNodes),
-                         ChildNodeIds),
-
-                 
-                 
-                 %% append new goal nodes onto the list of nodes for the derivation graph
-                 append(ChildNodes, Nodes, Nodes_new),
-                 
-                 %% create a new hyperedge for the derivation graph
-                 HyperEdge = hyperedge(NodeId, RuleId, ChildNodeIds),
-                 % debug(dgraph,
-                       % "Generate hyperedge: ~w", [HyperEdge]),
-                 
-                 %% construct updated derivation graph
-                 HyperEdges_new = [HyperEdge|HyperEdges],
-                 DGraph_new = dgraph(StartNodeId, Nodes_new, HyperEdges_new),
-
-                 %% assert dgraph is a tree
-                 %% i.e. number of nodes is number of edge children plus 1
-                 % assert_dgraph_tree_property(DGraph_new), 
-                         
-                 %% calculate the updated log probability of the
-                 %% current derivation
-                 LogProb_new is LogProb + log(Prob),
-
-
-                 % writeln(LogProb_new is LogProb + log(Prob)),
-                 %% calculate conditional prefix probability
-                 % nl, 
-                 % assertion(LogProb_new =< LogProb),
- 
-                 %% prepend the new goal nodes onto the goal stack
-                 append(ChildNodes, Rest, G_new)
-                                 
-                ),
-                Extensions
-               ).
-        % (Extensions = [] ->
-        %  writeln(G)
-        %  nl
-        % ;
-        %  true
-        % ).
+extend([pterm(Term)|Rest], Parent, LogProb, DGraph,
+       Rest1, NodeId-RuleId, LogProb1, DGraph1, _OptRec) :-
         
+        match(Term, BodyList, RuleId, Prob),
+
+        append(BodyList, Rest, Rest1),
+
+        assertion(var(NodeId)),
+
+        gen_node_id(NodeId),
+
+        add_node(DGraph, Term, NodeId, DGraph0),
+        
+
+        (Parent = ParentId-ParentRuleId ->
+         add_edge(DGraph0, ParentId, ParentRuleId, NodeId, DGraph1)
+        ;
+         true
+        ),
+
+        LogProb1 is LogProb + log(Prob).
+
+
 
 
 
@@ -622,41 +607,33 @@ gen_node_id(Id) :-
         gensym('node_', Id).
 
 
-
-%% match goal against SDCL DB
-%% match(Goal, UnBoundGoal, BodyList, Rule-RuleId, RuleProb)
-match(Goal, UnBoundGoal, BodyList, RuleId, Prob) :-
+%% ----------------------------------------------------------------------
+%%      match(+Goal, -BodyList, -RuleId, -Prob)
+%% 
+match(Goal, BodyList, RuleId, Prob) :-
         % find a matching rule for the goal in the db
         Rule=gl_rule(RuleId, Goal, HGuard-BGuard, Body, _),
         call(Rule),
-        % writeln(Rule), 
-
-        % writeln(bound),
-        call_list(HGuard),
-        call_list(BGuard),
+        call1(HGuard),
         
         get_rule_prob(RuleId, Prob),
 
-        RuleCopy = gl_rule(RuleId, UnBoundGoal, UnBoundHGuard-UnBoundBGuard, UnBoundBody, _),
-        call(RuleCopy),
-        % writeln(unbound-UnboundGoal),
-        % call_list(UnBoundHGuard),
-        % call_list(UnBoundBGuard),
-        % writeln(Rule), 
-        
-        % writeln(RuleCopy),
-        % call_list(UnBoundGuard),
+        and_to_list(Body, BodyList0),
+        append(BGuard, BodyList0, BodyList).
 
-        
-        and_to_list(Body, TargetBodyList),
-        and_to_list(UnBoundBody, UnBoundBodyList),
-        pairs_keys_values(BodyList, TargetBodyList, UnBoundBodyList).
-        % writeln(BodyList).
-
-call_list([]).
-call_list([G|Gs]) :-
-        call(G),
-        call_list(Gs).
+%% ----------------------------------------------------------------------
+%% call1 is call predicate on lists. Treats lists as conjunctions of
+%% goals, and calls sublists recursively.
+call1([]) :- !.
+call1([G|Gs]) :-
+        !,
+        call1(G),
+        call1(Gs).
+call1(G) :-
+        functor(G, F, _),
+        F \= '|',
+        !,
+        call(G).
 
 :- begin_tests(match).
 
@@ -668,7 +645,7 @@ test(match,
     gl_term_surface_form(G, X),
     
     findall(RuleId, 
-            match(G, G, RuleId, _, _),
+            match(G, RuleId, _, _),
             MatchingRuleIds),
     length(MatchingRuleIds, NMatch).
         
@@ -691,7 +668,7 @@ list_to_and([X|Xs], (X, Ys)) :-
         list_to_and(Xs, Ys).
 
 %% ----------------------------------------------------------------------
-%%      mi_best_first_all(Goal, List of deriv(Goal, DGraph, ConditionalProb), Options)
+%%      prove_all(Goal, List of deriv(Goal, DGraph, ConditionalProb), Options)
 %%
 %%
 %%      Options:
@@ -702,28 +679,25 @@ list_to_and([X|Xs], (X, Ys)) :-
 %%       - InferenceLimit: Limits the maximum number of inference
 %%       steps for each derivation of Goal (default: 1000).
 %%       ----------------------------------------------------------------------
-:- dynamic mi_best_first_all_derivation/1.
+:- dynamic prove_all_derivation/1.
 
-mi_best_first_all(Goal, Results, LogP) :-
-        mi_best_first_all(Goal, Results, LogP, []).
+prove_all(Goal, Results, LogP) :-
+        prove_all(Goal, Results, LogP, []).
 
-mi_best_first_all(Goal, Results, LogP, Options) :-
-        (is_list(Options) -> 
-        % make options record
-         mi_best_first_options_default(DefaultOptions),
-         merge_options(Options, DefaultOptions, AllOptions),
-         make_bf_options(AllOptions, OptionsRecord, _RestOptions)
+prove_all(Goal, Results, LogP, Options) :-
+        (is_list(Options) ->
+         make_options(Options, OptionsRecord, _)
         ;
          OptionsRecord = Options
         ),
         
-        bf_options_time_limit_seconds(OptionsRecord, TimeLimit),
 
         get_time(StartTime),
-        retractall(mi_best_first_all_derivation(_)),
-        % side-effect: populate mi_best_first_all_derivation/1.
-        mi_best_first_all_go(StartTime-TimeLimit, Goal, Options), 
-        findall(D, mi_best_first_all_derivation(D), Derivations),
+        retractall(prove_all_derivation(_)),
+        
+        % side-effect: populate prove_all_derivation/1        
+        prove_all_go(StartTime, Goal, OptionsRecord), 
+        findall(D, prove_all_derivation(D), Derivations),
         
         % add conditional probability given Goal being true to each
         % derivation
@@ -754,15 +728,16 @@ mi_best_first_all(Goal, Results, LogP, Options) :-
         print_message(information, expl_search(scores(Scores, Conds))).
 
 
-mi_best_first_all_go(StartTime-TimeLimit, _, _) :-
+prove_all_go(StartTime, _, OptRec) :-
         get_time(Now),
+        options_time_limit_seconds(OptRec, TimeLimit), 
         Now-StartTime > TimeLimit,
         writeln((Now-StartTime > TimeLimit)),
         !.
-mi_best_first_all_go(StartTime-TimeLimit, Goal, Options) :- 
-        (mi_best_first(Goal, Score, DGraph, StartTime-TimeLimit, Options),
+prove_all_go(StartTime, Goal, Options) :- 
+        (prove(Goal, Score, DGraph, StartTime, Options),
          Deriv = deriv(Goal, DGraph, Score),
-         assertz(mi_best_first_all_derivation(Deriv)),
+         assertz(prove_all_derivation(Deriv)),
          fail
         ;
          true).
@@ -774,7 +749,7 @@ mi_best_first_all_go(StartTime-TimeLimit, Goal, Options) :-
 %%      Log likelihood of data
 log_likelihood(Goal, LogP, Options) :-
         findall(L,
-                mi_best_first_all(Goal, _, L, Options),
+                prove_all(Goal, _, L, Options),
                 Ls),
         sum_list(Ls, LogP).
 
@@ -849,7 +824,7 @@ pq_show(pq(Elems, Size, _M), N) :-
 pq_show(pq(Elems, Size, _)) :-
         format("Size: ~w\n", [Size]),
         member(Score-Elem, Elems),
-        Elem = deriv_info(_, _, DGraph),
+        Elem = deriv_info(_, _, _, DGraph),
         pprint_dgraph(DGraph),
         writeln(score-Score), 
         % pprint_raw_dgraph(DGraph),
@@ -898,7 +873,7 @@ assert_dgraph_tree_property(DGraph) :-
 %% Convert DGraph into a DTree
 dgraph_dtree(DGraph, DTree) :-
         DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
-        StartNode = goal(StartNodeId, _, _),
+        StartNode = goal(StartNodeId, _),
         (
          member(StartNode, Nodes) ->
          true
@@ -910,12 +885,12 @@ dgraph_dtree(DGraph, DTree) :-
 
 dgraph_dtree_go(HyperEdges,
                 Nodes,
-                dtree(goal(NodeId, _, _), RuleId, Trees)) :-
+                dtree(goal(NodeId, _), RuleId, Trees)) :-
         member(hyperedge(NodeId, RuleId, ChildNodeIds), HyperEdges),
         !, 
         findall(dtree(ChildNode, R, Cs), 
                 (member(ChildNodeId, ChildNodeIds),
-                 ChildNode = goal(ChildNodeId, _, _),
+                 ChildNode = goal(ChildNodeId, _),
                  (
                   member(ChildNode, Nodes) ->
                   true
@@ -931,11 +906,11 @@ dgraph_dtree_go(HyperEdges,
 :- begin_tests(dgraph).
 
 test(dgraph_dtree) :- 
-      Nodes = [goal(node_1, g1, _),
-               goal(node_2, g2, _),
-               goal(node_3, g3, _),
-               goal(node_4, g4, _),
-               goal(node_5, g5, _)],
+      Nodes = [goal(node_1, g1),
+               goal(node_2, g2),
+               goal(node_3, g3),
+               goal(node_4, g4),
+               goal(node_5, g5)],
       HyperEdges = [hyperedge(node_1, r(1), [node_2, node_5]),
                     hyperedge(node_2, r(2), [node_3, node_4]), 
                     hyperedge(node_3, r(1), []),
@@ -951,11 +926,11 @@ test(dgraph_dtree) :-
 
 
 test_dtree(DTree) :-
-        N1 = goal(node_1, g1, _),
-        N2 = goal(node_2, g2, _),
-        N3 = goal(node_3, g3, _),
-        N4 = goal(node_4, g4, _),
-        N5 = goal(node_5, g5, _),
+        N1 = goal(node_1, g1),
+        N2 = goal(node_2, g2),
+        N3 = goal(node_3, g3),
+        N4 = goal(node_4, g4),
+        N5 = goal(node_5, g5),
         DTree = dtree(N1, r(1),
                       [dtree(N2, r(2),
                              [dtree(N3, r(1), []),
@@ -995,7 +970,7 @@ pprint_dtree(DTree) :-
         pprint_dtree(DTree, 2).
 pprint_dtree(DTree, Indent) :-
         pprint_dtree(DTree, Indent, 0).
-pprint_dtree(dtree(goal(NodeId, Goal, _), RuleId, SubTrees), Indent, Cursor) :-
+pprint_dtree(dtree(goal(NodeId, Goal), RuleId, SubTrees), Indent, Cursor) :-
         tab(Cursor),
         write('+ '),
         pprint_term(Goal, GString),
@@ -1171,8 +1146,8 @@ prolog:message(beam_terms(Beam)) -->
         beam_terms_go_(Elems).
 
 beam_terms_go_([]) --> expl_search_prefix, [nl].
-beam_terms_go_([W-deriv_info(Goals-_, _, _) | Es]) -->
-        {(Goals = [goal(_, T, _)|_] ->
+beam_terms_go_([W-deriv_info(Goals, _, _, _) | Es]) -->
+        {(Goals = [goal(_, T)|_] ->
           pprint_term(T, TString)
          ;
           TString = finished

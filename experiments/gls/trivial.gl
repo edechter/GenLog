@@ -35,8 +35,8 @@ show_attrs(Var).
 :- begin(genlog).
 
 rule_group(
-           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | U) :: 200),
-           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | V) :: 200),
+           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | U) :: 10),
+           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | V) :: 10),
            ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
            ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
            ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1)

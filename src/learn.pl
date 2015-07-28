@@ -110,7 +110,7 @@ init_vb_params(norm(Mean, StdDev), VBParams) :-
 %%
 %%      Run the batch vbem algorithm for Goals. See the vbem_options
 %%      record above for relevant options and their defaults. Any
-%%      options for mi_best_first/4 are also applicable here, and the
+%%      options for prove/4 are also applicable here, and the
 %%      defaults are the same.
 
 run_batch_vbem(Goals) :-
@@ -573,7 +573,7 @@ increment_alphas_by(Assoc) :-
 %%      goal or count(Goal, C).
 %%      - Derivations is a list of structures
 %%      [dsearch_results(OrigGoal, Count, deriv(ResultGoal, DGraph, CondProb))|...]
-%%      - Options are shared with mi_best_first/3
+%%      - Options are shared with prove/3
 %%
 
 prove_goals(Goals, Derivations) :-
@@ -585,7 +585,7 @@ prove_goals(Goals, Derivations, Options) :-
 prove_goals([], DsIn, DsIn, _).
 prove_goals([count(Goal, Count) | Goals], DsIn, DsOut, Options) :-
         !,
-        mi_best_first_all(Goal, Derivations, _, Options),
+        prove_all(Goal, Derivations, _, Options),
         DsTmp = [dsearch_result(Goal, Count, Derivations) | DsIn],
         prove_goals(Goals, DsTmp, DsOut, Options).
 prove_goals([Goal|Goals], DsIn, DsOut, Options) :-
@@ -610,7 +610,7 @@ prove_goals([Goal|Goals], DsIn, DsOut, Options) :-
 %%      expected number of times the rule is used for this set of
 %%      observations.
 %%
-%%      Options: takes the same options as mi_best_first_all.
+%%      Options: takes the same options as prove_all.
 %%
 
 expected_rule_counts(DSearchResults, Assoc) :-

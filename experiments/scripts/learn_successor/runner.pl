@@ -75,7 +75,7 @@ power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
 %%                               Constants
 exp_constants(
    constants{beam_width:100,
-             time_limit_seconds:30,
+             time_limit_seconds:2,
              max_iter:100000,
 
              exp:0.85,

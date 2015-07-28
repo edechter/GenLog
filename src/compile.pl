@@ -362,11 +362,13 @@ translate_to_gl_rule(Clause, RuleGroupInd, Rule, RuleWeight) :-
          BG = []
         ),
         and_to_list(B1, BList),
-        maplist(tr_numbered_gl_term, BList, BList1),
-        list_to_and(BList1, RuleBody0), 
+        maplist(mk_pterm, BList, BList1),
+        maplist(tr_numbered_gl_term, BList1, BList2),
+        list_to_and(BList2, RuleBody0), 
         tr_numbered_gl_term(H, RuleHead0),
         RuleGuards0 = G,
-        BodyGuards0 = BG,
+        maplist(mk_dterm, BG, BG1),
+        BodyGuards0 = BG1,
         % unnumber the variables NB: both head and body are unnumbered
         % at once so that we preserve the correspondence between variables
         varnumbers((RuleHead0, RuleGuards0, BodyGuards0, RuleBody0),
@@ -376,6 +378,10 @@ translate_to_gl_rule(Clause, RuleGroupInd, Rule, RuleWeight) :-
 
 goal_to_rule_group(gl_term(F/A, _, _Args), RuleGroupInd, RuleGroup) :-
         RuleGroup = rule_group(F, A, RuleGroupInd).
+
+mk_pterm(X, pterm(X)).
+mk_dterm(X, dterm(X)).
+        
 
         
         
@@ -411,6 +417,9 @@ test('translate gl rule (with weight)',
 :- end_tests('translate gl rules').
 
 
+tr_numbered_gl_term(pterm(TIn), pterm(TOut)) :-
+        !,
+        tr_numbered_gl_term(TIn, TOut).
 tr_numbered_gl_term(TIn, gl_term(Functor/Arity, Vars, Conds)) :-
         functor(TIn, Functor, _),
         TIn =.. [_|Args],
