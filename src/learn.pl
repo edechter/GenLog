@@ -711,7 +711,7 @@ expected_rule_counts1(Ds, Weights, Assoc) :-
 %%     dgraph_rule_counts(+DGraph, -Assoc) is Det
 %%
 %%     Returns the rule counts Assoc for DGraph. 
-%%     - DGraph: The dgraph(_, _) structure.
+%%     - DGraph: The dgraph(_, _, _) structure.
 %%     - Assoc: An assoc (key = rule id, val = number) in which each
 %%     key is associated with the number of times it appears in the
 %%     DGraph. If a rule is not present in the derivation, it is given
@@ -730,7 +730,7 @@ dgraph_rule_counts(DGraph, W, Assoc) :-
         dgraph_rule_counts(Hs, W, Empty, Assoc).
 
 dgraph_rule_counts([], _, AssocIn, AssocIn). 
-dgraph_rule_counts([hyperedge(_, RuleId, _)|Hs], W, AssocIn, AssocOut) :-
+dgraph_rule_counts([edge(_, RuleId, _)|Hs], W, AssocIn, AssocOut) :-
         (
          get_assoc(RuleId, AssocIn, C_old, AssocTmp, C_new) ->
          C_new is C_old + W
@@ -754,16 +754,16 @@ test(expected_rule_counts1,
         
         
 
-test_dgraph(dgraph(_,[goal(node_1, g1),
-                      goal(node_2, g2),
-                      goal(node_3, g3),
-                      goal(node_4, g4),
-                      goal(node_5, g5)], 
+test_dgraph(dgraph(_,[node_1-g1,
+                      node_2-g2,
+                      node_3-g3,
+                      node_4-g4,
+                      node_5-g5], 
                    [
-                    hyperedge(node_1, 1, [node_2, node_3]),
-                    hyperedge(node_2, 1, [node_4]),
-                    hyperedge(node_3, 2, []),
-                    hyperedge(node_4, 1, [])
+                    edge(node_1, 1, [node_2, node_3]),
+                    edge(node_2, 1, [node_4]),
+                    edge(node_3, 2, []),
+                    edge(node_4, 1, [])
                     ])).
 
 test(dgraph_rule_counts,

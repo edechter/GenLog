@@ -2,10 +2,8 @@
 
 :- ensure_loaded(experiment(number_words)).
 
-
-
-num_preds(1, 4).
-num_preds(2, 4).
+num_preds(1, 10).
+num_preds(2, 10).
 
 pred(Type, Index, Pred) :-
         num_preds(Type, N), 
@@ -30,18 +28,6 @@ lexemes(Ls) :- setof(L,
                       L='START'),
                      Ls
                     ).
-
-% append1(X, Y, Z) :- append1_(X, Y, Z).
-
-% append1d(X, Y, Z) :-
-%          when((ground(X) ; ground(Y); ground(Z)),
-%               append1_(X, Y, Z)).
-
-
-% append1_([H], [L|Ls], [H, L|Ls]).
-% append1_([H|T], L, [H|R]) :-
-%         L \= [],
-% 	append1_(T, L, R).
 
 
 :- begin(genlog).

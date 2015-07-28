@@ -35,19 +35,24 @@ show_attrs(Var).
 :- begin(genlog).
 
 rule_group(
-           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | U) :: 10),
-           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | V) :: 10),
+           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | U) :: 200),
+           ( s(X  | UV) @ [append1d(U, V, UV)]---> s(X | V) :: 200),
            ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
            ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
            ( s(XY  | Z) @ [Z=[_, _|_]]---> [append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1)
            ).
 
 rule_group(
-           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
-           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
-           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1),           
+           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # r(X | Z), r(Y | Z) :: 100),
+           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # r(X | Z), r(Y | X) :: 1),
+           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # r(Y | Z), r(X | Y) :: 1),
            ( s([a] | [a]) :: 200 ), 
            ( s([b] | [a]) :: 200 )
            ).
-  
+
+rule_group(
+           ( r([a] | [a]) :: 200 ), 
+           ( r([b] | [a]) :: 200 )
+          ).
+
 :- end(genlog).

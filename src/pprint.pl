@@ -60,7 +60,7 @@ pprint_rule(Head, Guard, Body, Out) :-
         ),
 
         (
-         BodyList = [gl_term(_, _, _)|_] ->
+         BodyList = [_|_] ->
          maplist(pprint_term, BodyList, BodyStrings),
          maplist(call(atomic_concat, ''), BodyStrings, BodyStrings1), 
          atomic_list_concat(BodyStrings1, ', ', BodyString),
@@ -77,6 +77,9 @@ pprint_rule(R) :-
 pprint_term(T) :-
         pprint_term(T, O),
         write(O).
+pprint_term(pterm(T), O) :-
+        !,
+        pprint_term(T, O).
 pprint_term(gl_term(F/_, Vars, Conds), Out) :-
         % copy_and_numbervars((Vars, Conds), (VarsN, CondsN)),
         pprint_vars_conds(Vars, Conds, VarConds),

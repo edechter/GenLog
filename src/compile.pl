@@ -698,6 +698,18 @@ load_gl(File) :-
         !,
         format(atom(Msg), "Cannot find file ~w", [File]),
         throw(evaluation_error(load_gl/1, Msg)).
+load_gl(GzFile) :-
+        file_name_extension(File, 'gz', GzFile),
+        !,
+        format(atom(Cmd), "gunzip ~w", [GzFile]),
+        shell(Cmd, Status),
+        (Status \= 0 ->
+         throw(error(runtime_error(load_gl/1,
+                                   context("Failed to gunzip file."))))
+        ;
+         load_gl(File)).
+        
+              
 load_gl(File) :-
         style_check(-singleton), 
         qcompile(File),

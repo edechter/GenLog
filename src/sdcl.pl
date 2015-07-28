@@ -26,6 +26,7 @@
            prove/4,
            prove/5,
 
+           prove_all/2,
            prove_all/3,
            prove_all/4,
 
@@ -308,16 +309,15 @@ prove(Goal, Score, DGraph, StartTime, Options) :-
         gen_node_id(NodeId),
         
         % initial list of goals
-        GoalList = [pterm(GoalTr)],
+        GoalList = [pterm(GoalTr)-NodeId],
 
 
         % Initialize priority queue. Each element of priority queue is
-        % of the form deriv_info(GoalList, OrigGoal, Parent, LogProb, DGraph)
-        % where Parent is either start or ParentId-ParentRuleId
-        DGraph0 = dgraph(NodeId, [NodeId-pterm(GoalTr)], []),
+        % of the form deriv_info(GoalList, OrigGoal, LogProb, DGraph)
+        DGraph0 = dgraph(NodeId, [NodeId-GoalTr], []),
 
         options_beam_width(OptionsRecord, BeamWidth),
-        pq_singleton(deriv_info(GoalList, GoalTr, start, 0, DGraph0),
+        pq_singleton(deriv_info(GoalList, [], GoalTr, 0, DGraph0),
                      0,
                      BeamWidth,
                      PQ),
@@ -338,24 +338,25 @@ test(prove_finds_first_solution,
      ]) :-
         G=s(_X | [a]),
         get_time(StartTime),
-        prove(G, _, _, StartTime,
+        prove(G, _, DG, StartTime,
                       [beam_width(100),
                        time_limit_seconds(2)
                        ]),
+
         !.
 
-test(prove_finds_more_than_one_solution,
-     [
-      setup(setup_test_gl),
-      cleanup(cleanup_test_gl),
-      all(G=@= [s([a] | [a]), s([b]|[a])])
-     ]) :-
-        G=s(_X | [a]),
-        get_time(StartTime),
-        prove(G, _, _, StartTime,
-                      [beam_width(100),
-                       time_limit_seconds(2)
-                       ]).
+% test(prove_finds_more_than_one_solution,
+%      [
+%       setup(setup_test_gl),
+%       cleanup(cleanup_test_gl),
+%       all(G=@= [s([a] | [a]), s([b]|[a])])
+%      ]) :-
+%         G=s(_X | [a]),
+%         get_time(StartTime),
+%         prove(G, _, _, StartTime,
+%                       [beam_width(100),
+%                        time_limit_seconds(2)
+%                        ]).
         
 
 :- end_tests(prove).
@@ -384,8 +385,7 @@ prove_go(PQ, OrigGoal, LogProb,
                  DGraphOut, TimeInfo, OptionsRecord) :-
         %% return any of the solutions
         PQ = pq(PqElems, Size, MaxSize),
-        % pq_show(PQ, 3),
-        DInfo = deriv_info([], OrigGoal1, _, LogProbMax, DGraph),
+        DInfo = deriv_info([], [], OrigGoal1,LogProbMax, DGraph),
         select(_-DInfo, PqElems, PqElems1),
         !,
         Size1 is Size - 1,
@@ -403,14 +403,7 @@ prove_go(Beam, TargetGoal, LogProb,
         % If the next best is not a solution
         % generate a new beam from the current one
         extend_all(Beam, NewBeam, OptionsRecord),
-        
-        
-        % NewBeam=pq(_, S, _),
-        % (S = 0 ->
-        %  writeln(Beam)
-        % ;
-        %  true),
-        
+                       
         !, 
         print_message(informational, beam_size(NewBeam)),
 
@@ -497,7 +490,7 @@ test(extend,
     gl_term_surface_form(X, T),
     G = pterm(X),
     
-    DInfo = deriv_info([G], X, start, 0, dgraph(1, [1-X], [])),
+    DInfo = deriv_info([G], [], X, 0, dgraph(1, [1-X], [])),
     extensions(DInfo, Extensions, []),
     length(Extensions, Next).
 
@@ -509,12 +502,23 @@ test(extend,
 %     gl_term_surface_form(T, X),
 %     G = goal(1, T), 
     
-%     DInfo = deriv_info([G], _, start, 0, dgraph(_, [1-G], [])),
+%     DInfo = deriv_info([G], _, 0, dgraph(_, [1-G], [])),
 %     extend(DInfo, Extensions, []),
 %     length(Extensions, Next).
 
 :- end_tests(extend).
 
+ready(T) :-
+        var(T),
+        !,
+        throw(error(instantiation_error(ready/1, context('Argument must be nonvar')))).
+        
+ready(pterm(Term)-_) :-
+        !,
+        ready(Term).
+ready(dterm(Term)) :-
+        !,
+        ready(Term).
 ready(append1d(X, Y, Z)) :-
         !,
         (nonvar(X),nonvar(Y) -> true
@@ -530,75 +534,86 @@ extensions(DInfo, Extensions, OptRec) :-
       
 
 %% ----------------------------------------------------------------------
-%%      extend(+deriv_info(Goals, OrigGoal, Parent, LogProb, DGraph),
-%%             -Extensions, +Options)
+%%      extend(+DerivInfo, -Extensions, +Options)
+%%             
 %%
 %%  - Goals is a non empty list of of goal terms. 
 %%  - A term is either goal(Id, Term) term is a gl_term/3 or pterm(Term) where pterm is a prolog term 
-%%  - Extensions is a a list of deriv_info(Goals, LogProb, DGraph) terms
+%%  - Extensions is a list of DerivInfo.
 %%  - in the deriv_info terms, LogProb is the unconditional probability of the derivation
 
-extend(deriv_info(Goals, Orig, Parent, LogProb, DGraph), Extension, OptRec) :-
-        extend(Goals, Parent, LogProb, DGraph,
-               Goals1, Parent1, LogProb1, DGraph1,
+extend(deriv_info(Goals, Delayed, Orig, LogProb, DGraph), Extension, OptRec) :-
+        assertion(nonvar(Delayed)),
+        assertion(is_list(Goals)),
+        extend(Goals, Delayed, LogProb, DGraph,
+               Goals1, Delayed1, LogProb1, DGraph1,
                OptRec),
-        Extension = deriv_info(Goals1, Orig, Parent1, LogProb1, DGraph1).
+        Extension = deriv_info(Goals1, Delayed1, Orig, LogProb1, DGraph1).
+
        
 % if there are no goals left
-extend([], _, LogProb, DGraph, [], _, LogProb, DGraph, _).
-% if the first sublist is empty, continue to rest.
-extend([[]|Rs], P, L, D, Rs1, P1, L1, D1, OptRec) :-
+extend([], [], LogProb, DGraph, [], [], LogProb, DGraph, _).
+extend([], [_D|_Ds], _, _, _, _, _, _, _) :-
         !,
-        extend(Rs, P, L, D, Rs1, P1, L1, D1, OptRec).
-% if the first element is a non_empty sublist, extend it. 
-extend([SubList|Rest], Parent, LogProb, DGraph, [SubList1|Rest], Parent1, LogProb1, DGraph1, OptRec) :-
-        is_list(SubList),
-        !, 
-        extend(SubList, Parent, LogProb, DGraph, SubList1, Parent1, LogProb1, DGraph1, OptRec).
+        throw(error(use_error(extend/3, "Delayed goals remain on goal stack and cannot be executed."))).        
+
 % if the first element is a dterm and it is ready to be called, call it
-extend([dterm(Term)|Rest], Parent, LogProb, DGraph, Rest1, Parent1, LogProb1, DGraph1, OptRec) :-
+extend([Term|Rest], Delayed, LogProb, DGraph,
+                    Rest1, Delayed1, LogProb1, DGraph1, OptRec) :-
         ready(Term),
         !,
-        call1(Term),
-        extend(Rest, Parent, LogProb, DGraph, Rest1, Parent1, LogProb1, DGraph1, OptRec).
-% if the first element is a dterm, it is not ready to be called, and
-% there are more goals remaining, delay dterm by starting new sublist of goals.
-extend([dterm(Term), Next|Rest], Parent, LogProb, DGraph, Goals1, Parent1, LogProb1, DGraph1, OptRec) :-
-        \+ ready(Term),
-        !,
-        SubList = [Next, dterm(Term)],
-        extend([SubList | Rest], Parent, LogProb, DGraph, Goals1, Parent1, LogProb1, DGraph1, OptRec).
-% if the only remaining element is a dterm, then 
-extend([dterm(Term)], _, _, _, _, _, _, _, _) :-
-        \+ ready(Term),
-        !,
-        throw(error(use_error(extend/3, "invalid"))).
-
-extend([pterm(Term)|Rest], Parent, LogProb, DGraph,
-       Rest1, NodeId-RuleId, LogProb1, DGraph1, _OptRec) :-
-        
-        match(Term, BodyList, RuleId, Prob),
-
-        append(BodyList, Rest, Rest1),
-
-        assertion(var(NodeId)),
-
-        gen_node_id(NodeId),
-
-        add_node(DGraph, Term, NodeId, DGraph0),
-        
-
-        (Parent = ParentId-ParentRuleId ->
-         add_edge(DGraph0, ParentId, ParentRuleId, NodeId, DGraph1)
+        extend1(Term, LogProb, DGraph, NewGoals, LogProb0, DGraph0, OptRec),
+        append(Delayed, NewGoals, NewGoals1),
+        append(NewGoals1, Rest, Rest0),
+        (Term = dterm(_) ->
+         assertion(maplist(nonvar, Rest0)),
+         extend(Rest0, [], LogProb0, DGraph0,
+                Rest1, Delayed1, LogProb1, DGraph1, OptRec)
         ;
-         true
-        ),
+         Term = pterm(_)-_ ->
+         Rest1=Rest0,
+         Delayed1=[],
+         LogProb1 = LogProb0,
+         DGraph1 = DGraph0
+        ).
+        
+        
+extend([Term|Rest], Delayed, LogProb, DGraph,
+                    Rest1, Delayed1, LogProb1, DGraph1, OptRec) :-
+        \+ ready(Term),
+        !,
+        Delayed0 = [Term|Delayed],
+        extend(Rest, Delayed0, LogProb, DGraph,
+               Rest1, Delayed1, LogProb1, DGraph1, OptRec).
+
+
+extend1(dterm(Term), LogProb, DGraph,
+        [], LogProb, DGraph, _OptRec) :-
+         
+        call1(Term).
+
+extend1(pterm(Term)-NodeId, LogProb, DGraph,
+       BodyList, LogProb1, DGraph1, _OptRec) :-
+        
+        
+        match(Term, BodyList0, RuleId, Prob),
+
+        add_ids_to_bodylist(BodyList0, Children, ChildIds, BodyList),
+
+        pairs_keys_values(ChildNodes, ChildIds, Children),
+        add_nodes(DGraph, ChildNodes, DGraph0),
+        add_edge(DGraph0, NodeId, RuleId, ChildIds, DGraph1),
 
         LogProb1 is LogProb + log(Prob).
 
-
-
-
+add_ids_to_bodylist([], [], [], []).
+add_ids_to_bodylist([pterm(T)|Rest0], [T|Ts], [Id|Ids], [pterm(T)-Id|Rest]) :-
+        !,
+        gen_node_id(Id),
+        add_ids_to_bodylist(Rest0, Ts, Ids, Rest).
+add_ids_to_bodylist([T|Rest0], Ts, Ids, [T|Rest]) :-
+        add_ids_to_bodylist(Rest0, Ts, Ids, Rest).
+        
 
 reset_gen_node :-
         reset_gensym('node_').
@@ -680,6 +695,18 @@ list_to_and([X|Xs], (X, Ys)) :-
 %%       steps for each derivation of Goal (default: 1000).
 %%       ----------------------------------------------------------------------
 :- dynamic prove_all_derivation/1.
+
+prove_all(Goal, Options) :-
+        format("Proving ~w: ...\n", [Goal]), 
+        prove_all(Goal, Results, LogP, Options),
+        format("LogProb: ~w\n", [LogP]), 
+        forall(
+               member(deriv(Goal, DGraph, Score), Results),
+               (format("CondProb: ~w\n", [Score]),
+                pprint_dgraph(DGraph),
+                nl
+               )).
+                
 
 prove_all(Goal, Results, LogP) :-
         prove_all(Goal, Results, LogP, []).
@@ -824,7 +851,7 @@ pq_show(pq(Elems, Size, _M), N) :-
 pq_show(pq(Elems, Size, _)) :-
         format("Size: ~w\n", [Size]),
         member(Score-Elem, Elems),
-        Elem = deriv_info(_, _, _, DGraph),
+        Elem = deriv_info(_, _, _, _, DGraph),
         pprint_dgraph(DGraph),
         writeln(score-Score), 
         % pprint_raw_dgraph(DGraph),
@@ -871,35 +898,35 @@ assert_dgraph_tree_property(DGraph) :-
 %% --------------------
 %% dgraph_dtree(+DGraph, -DTree) is det
 %% Convert DGraph into a DTree
-dgraph_dtree(DGraph, DTree) :-
+dgraph_dtree(DGraph, DTree) :-        
         DGraph = dgraph(StartNodeId, Nodes, HyperEdges),
-        StartNode = goal(StartNodeId, _),
+        StartNode = StartNodeId-_,
         (
          member(StartNode, Nodes) ->
          true
          ;
          throw(error(ill_formed_dgraph, 'StartNode not found in Nodes'))
         ), 
-        DTree = dtree(StartNode, _, _), 
+        DTree = dtree(StartNode, _, _),
+
         dgraph_dtree_go(HyperEdges, Nodes, DTree).
 
 dgraph_dtree_go(HyperEdges,
                 Nodes,
-                dtree(goal(NodeId, _), RuleId, Trees)) :-
-        member(hyperedge(NodeId, RuleId, ChildNodeIds), HyperEdges),
+                dtree(NodeId-_, RuleId, Trees)) :-
+        member(edge(NodeId, RuleId, ChildNodeIds), HyperEdges),
         !, 
-        findall(dtree(ChildNode, R, Cs), 
+        findall(dtree(ChildNodeId-ChildNode, R, Cs), 
                 (member(ChildNodeId, ChildNodeIds),
-                 ChildNode = goal(ChildNodeId, _),
                  (
-                  member(ChildNode, Nodes) ->
+                  member(ChildNodeId-ChildNode, Nodes) ->
                   true
                  ;
                   throw(error(ill_formed_dgraph, 'ChildNode not found in Nodes'))
                  ),
                  dgraph_dtree_go(HyperEdges,
                                  Nodes,
-                                 dtree(ChildNode, R, Cs))), 
+                                 dtree(ChildNodeId-ChildNode, R, Cs))), 
                  Trees).
 %% --------------------
 
@@ -970,7 +997,7 @@ pprint_dtree(DTree) :-
         pprint_dtree(DTree, 2).
 pprint_dtree(DTree, Indent) :-
         pprint_dtree(DTree, Indent, 0).
-pprint_dtree(dtree(goal(NodeId, Goal), RuleId, SubTrees), Indent, Cursor) :-
+pprint_dtree(dtree(NodeId-Goal, RuleId, SubTrees), Indent, Cursor) :-
         tab(Cursor),
         write('+ '),
         pprint_term(Goal, GString),
@@ -1147,7 +1174,7 @@ prolog:message(beam_terms(Beam)) -->
 
 beam_terms_go_([]) --> expl_search_prefix, [nl].
 beam_terms_go_([W-deriv_info(Goals, _, _, _) | Es]) -->
-        {(Goals = [goal(_, T)|_] ->
+        {(Goals = [_-T|_] ->
           pprint_term(T, TString)
          ;
           TString = finished
