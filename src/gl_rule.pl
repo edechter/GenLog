@@ -35,10 +35,10 @@
 
  
 %% Local imports
-:- use_module(sdcl).
 :- use_module(plunit_extra).
 :- use_module(assoc_extra).
 :- use_module(array).
+:- use_module(kb).
 
 %% ----------------------------------------------------------------------
 %%                The gl_rule data type.

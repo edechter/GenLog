@@ -218,7 +218,6 @@ get_rule_group_id_alphas(RuleGroupId, RAs) :-
                  get_rule_alpha(R, A)),
                 RAs). 
 
-
 % a term is unconstrained if all of its arguments are variables.
 unconstrained(gl_term(_, Args, _)) :-
         !, 

@@ -20,6 +20,11 @@
 %% ----------------------------------------------------------------------
 %%     portray dispatch on gl_term
 %%
+
+:- multifile error:has_type/2.
+error:has_type(gl_term, G) :-
+        is_gl_term(G).
+               
 :- multifile
         user:portray/1.
 

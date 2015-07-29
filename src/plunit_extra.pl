@@ -7,6 +7,9 @@
            cleanup_test_gl/0]).
 
 :- use_module(compile).
+:- use_module(kb).
+:- use_module(gl_rule).
+
 
 :- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/experiments/gls/'], GlDir),
@@ -51,9 +54,3 @@ setup_test_gl(File) :-
 
 cleanup_test_gl :-
         remove_all_rules.
-
-remove_all_rules :-
-        rules(RuleIds),
-        retractall(gl_rule(_, _, _, _, _)),
-        forall(member(RuleId, RuleIds),
-               remove_rule_params(RuleId)).

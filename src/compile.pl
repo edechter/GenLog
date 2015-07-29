@@ -31,8 +31,12 @@
 :- use_module(library(varnumbers)).
 :- use_module(library(gensym)).
 :- use_module(library(debug)).
-:- use_module(sdcl).
+
+:- use_module(prove).
+:- use_module(misc).
 :- use_module(gl_rule).
+:- use_module(gl_term).
+:- use_module(kb).
 :- use_module(pprint).
 
 % :- add_import_module(compile,
@@ -122,7 +126,7 @@ compile_gl_file(File) :-
         record_rule_groups,
         normalize_rules,
         
-        debug(compile, "Success! Finished compiling rules in file ~w.", [File]).
+        print_message(informational, format("Success! Finished compiling rules in file ~w.", [File])).
 
 compile_gl(File) :-
         absolute_file_name(File, File1), 

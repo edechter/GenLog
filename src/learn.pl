@@ -32,7 +32,8 @@
 :- r(library("matrixStats")).
 
 :- use_module(gl_rule).
-:- use_module(sdcl).
+:- use_module(prove).
+:- use_module(kb).
 :- use_module(compile).
 :- use_module(assoc_extra).
 :- use_module(pprint).
@@ -435,8 +436,8 @@ free_energy1(PriorHyperParams,
              FreeEnergy1) :-
         Mu_r = PriorHyperParams,
         Mu_r_Star = HyperParams,
-        sdcl:rule_group_norms(PriorHyperParams, Mu_A),
-        sdcl:rule_group_norms(HyperParams, Mu_A_Star),
+        rule_group_norms(PriorHyperParams, Mu_A),
+        rule_group_norms(HyperParams, Mu_A_Star),
         list_array(Mu_r_Vals, Mu_r),
         list_array(Mu_r_Star_Vals, Mu_r_Star),
         % writeln(Mu_A),
@@ -512,7 +513,7 @@ normalize_variational_weights(VariationalWeightsNum, %% numerator
               ).
 
 sum_rule_array_across_rule_groups(RuleArray, RuleGroupArray) :-
-        sdcl:num_rule_groups(N),
+        num_rule_groups(N),
         array(N, RuleGroupArray, 0),
         forall(between(1, N, RuleGroupId),
                (rule_group_id_rules(RuleGroupId, RuleIds),

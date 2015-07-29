@@ -27,7 +27,8 @@
 :- use_module(library(option)).
 
 :- use_module(gl_rule).
-:- use_module(sdcl).
+:- use_module(misc).
+:- use_module(prove).
 :- use_module(compile). 
 :- use_module(array). 
 %% ----------------------------------------------------------------------

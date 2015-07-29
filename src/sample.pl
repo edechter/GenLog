@@ -134,7 +134,7 @@ sample_remaining_([goal(_, G, _)|Nodes], In, Out, Opts) :-
 sample_probs_from_alphas :-
         num_rule_groups(N),
         forall(between(1, N, RGId),
-               (sdcl:get_rule_group_id_alphas(RGId, RAs),
+               (rule_group_id_alphas(RGId, RAs),
                 pairs_keys_values(RAs, Rs, As),
                 Xs <- rdirichlet(1, As),
                 [Ps]= Xs,

@@ -43,9 +43,9 @@ rule_group(
            ).
 
 rule_group(
-           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # r(X | Z), r(Y | Z) :: 100),
-           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # r(X | Z), r(Y | X) :: 1),
-           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # r(Y | Z), r(X | Y) :: 1),
+           ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 10),
+           % ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
+           % ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1),
            ( s([a] | [a]) :: 200 ), 
            ( s([b] | [a]) :: 200 )
            ).
