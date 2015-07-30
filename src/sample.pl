@@ -6,7 +6,9 @@
                    sample/3,
                    sample_probs_from_alphas/0]).
 
-:- use_module(sdcl).
+:- use_module(prove).
+:- use_module(gl_term).
+:- use_module(kb).
 :- use_module(gl_rule).
 :- use_module(compile).
 :- use_module(pgen).

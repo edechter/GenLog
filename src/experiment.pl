@@ -147,7 +147,7 @@ run_experiment(PATH_TO_RUNNER) :-
 run_experiment(PATH_TO_RUNNER, _) :-
         \+ exists_file(PATH_TO_RUNNER),
         !,
-        throw(error(argument_error, context(run_experiment/1, 'Cannot find experiment runner script.'))).
+        throw(error(run_experiment/1, 'Cannot find experiment runner script.', PATH_TO_RUNNER)).
 run_experiment(PATH_TO_RUNNER, Fields) :-
         set_setting(runner, PATH_TO_RUNNER),
         load_files([PATH_TO_RUNNER], [module(runner)]),

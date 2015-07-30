@@ -3,20 +3,69 @@
 :- module(misc, [append1/3,
                  append1d/3,
 
+                 
                  take/3,
                  replicate/3,
                  print_current_frame/0,
 
                  and_to_list/2,
                  list_to_and/2,
-                 call1/1
+                 call1/1,
+                 calld/2,
+                 is_list1/1,
+                 ready/1
+               
                 
 
                  ]).
 
 
 :- use_module(library(clpfd)).
+:- use_module(library(error)).
 
+%% ----------------------------------------------------------------------
+%%      ready(+Term)
+%%
+%%  Returns true if goal Term should be extended immediately. Returns
+%%  false, extendin Term should be delayed until ready. 
+
+ready(T) :-
+        var(T),
+        !,
+        throw(error(instantiation_error)).
+
+ready(pterm(Term)-_) :-
+        !,
+        ready(Term).
+ready(dterm(Term)) :-
+        !,
+        ready(Term).
+
+% ready(append1d(X, Y, Z)) :-
+%         (Z \= [_, _|_]
+%         ;
+%          X \= [_|_]
+%         ;
+%          Y \= [_|_]
+%         ),
+%         !, 
+%         true.
+% ready(append1d(X, Y, Z)) :-
+%         !,
+%         is_list1(X).
+%         % (is_list1(X),is_list1(Y) -> true
+%         % ;
+%         %  is_list1(Z)
+%         % ).
+ready(_).
+
+%% -----------------------------------------------------------------------
+:- dynamic delayed/1. 
+            
+%% ----------------------------------------------------------------------
+is_list1(X) :-
+        nonvar(X),
+        is_of_type(list_or_partial_list, X).
 %% ----------------------------------------------------------------------
 %%      append1(X, Y, Z)
 %%
@@ -34,7 +83,11 @@ append1([H], Ls, [H | Ls]).
 append1([H|T], L, [H|R]) :-
 	append1d(T, L, R).
 
-append1d(X, Y, Z) :- append1(X, Y, Z).
+append1d(X, Y, Z) :-
+        % writeln(X, Y, Z),
+        when((nonvar(X)),
+             append1(X, Y, Z)).
+
 
 
 %% ----------------------------------------------------------------------
@@ -105,9 +158,56 @@ call1([G|Gs]) :-
         call1(Gs).
 call1(G) :-
         functor(G, F, _),
-        F \= '|',
+        F \= '[|]',
         !,
         call(G).
+
+
+calld(G, Delayed) :-
+        calld(G, [], Delayed).
+calld([], DelayedIn, DelayedOut) :-
+        !,
+        DelayedIn = DelayedOut.
+calld(G, DelayedIn, DelayedOut) :-
+        functor(G, F, _),
+        F \= '[|]',
+        !,
+        calld([G], DelayedIn, DelayedOut).
+calld([G|Goals], DelayedIn, DelayedOut) :-
+        % trace,
+        % writeln(calld([G|Goals], Delayed)),
+        catch((
+               (ready(G) ->
+                calld_(G, BodyList),
+                append([DelayedIn, BodyList, Goals], Goals1),
+                calld(Goals1, [], DelayedOut)
+               ;
+                calld(Goals, [G|DelayedIn], DelayedOut)
+               )),
+              cut,
+              fail).
+
+calld_(!, []) :-
+        !,
+        (true
+        ;
+         throw(cut)).
+calld_(G, BodyList) :-
+        G = (_, _),
+        and_to_list(G, BodyList).
+calld_(G, BodyList) :-
+        delayed(G), 
+        G \= (_, _),
+        clause(G, Body),
+        and_to_list(Body, BodyList).
+calld_(G, []) :-
+        G \= (_, _),
+        % predicate_property(G, built_in),
+        !,
+        call(G).
+        
+
+      
 
 %% conjunction to list
 and_to_list(true, []).

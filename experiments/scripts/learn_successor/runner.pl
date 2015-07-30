@@ -26,7 +26,7 @@
 
 :- use_module(genlog(experiment)).
 :- use_module(genlog(gl_rule)).
-:- use_module(genlog(sdcl)).
+:- use_module(genlog(prove)).
 :- use_module(genlog(compile)).
 
 :- use_module(genlog(learn)).
