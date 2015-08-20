@@ -71,5 +71,4 @@ test(normalize_empty,
      [true(KVs==[])]) :-
         normalize([], KVs).
 
-
 :- end_tests(data_utils).
