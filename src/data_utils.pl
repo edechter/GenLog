@@ -10,6 +10,8 @@
            normalize/2
            ]).
 
+:- use_module(library(assoc)).
+
 %% ----------------------------------------------------------------------
 %%      atom_split_list(?Atom, ?List)
 %%
@@ -47,6 +49,7 @@ sentence_data_set(StartPredicate, [S|Ss], Gs) :-
 
 
 %% ----------------------------------------------------------------------
+%%    normalize(+KeyValues, ?KeyValuesNormalized)
 normalize([], []) :- !.
 normalize(KVs,KVs1) :-
         pairs_keys_values(KVs, Ks, Vs),
@@ -72,3 +75,46 @@ test(normalize_empty,
         normalize([], KVs).
 
 :- end_tests(data_utils).
+
+%% ----------------------------------------------------------------------
+%%     items_counts(+Items, ?ItemCountPairs)
+%%
+%% Each element sof ItemCountPairs is Item-Count where Count is the
+%% number of times Item appears in list Item. Terms are compared using
+%% (==)/2.
+
+items_counts(Items, ItemCountPairs) :-
+        must_be(list, Items),
+        empty_assoc(Empty), 
+        items_counts_loop(Items, Empty, ItemCountAssoc),
+        assoc_to_list(ItemCountAssoc, ItemCountPairs).
+        
+items_counts_loop([], ItemsCountsIn, ItemsCountsIn).        
+items_counts_loop([X|Xs], ItemsCountsIn, ItemsCountsOut) :-
+        (get_assoc(X, ItemsCountsIn, OldCount, ItemsCountsTmp, NewCount) ->
+         NewCount is OldCount + 1
+        ;
+         put_assoc(X, ItemsCountsIn, 1, ItemsCountsTmp)
+        ),
+        items_counts_loop(Xs, ItemsCountsTmp, ItemsCountsOut).
+
+:- begin_tests(items_counts).
+
+test(items_counts_empty,
+     true(ICs=[])) :-
+        items_counts([], ICs).
+
+test(items_counts_small,
+     [set(El==[a-1, b-2, c-3])]) :-
+        Items = [b, a, c, c, b, c],
+        items_counts(Items, ItemCountPairs),
+        member(El, ItemCountPairs).
+     
+:- end_tests(items_counts).
+               
+        
+        
+
+
+
+
