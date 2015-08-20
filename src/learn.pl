@@ -65,14 +65,14 @@
 
 %% options and defaults for vbem
 :- record vbem_options(max_iter = 1000, % maximum number of iterations to run vbem
-                       epsilon  = 1e-3, % stop when improvement is in
+                       epsilon  = 1e-6, % stop when improvement is in
                                         % variational lower bound is less than epsilon
 
                        % how to initialize the variational parameters
                        % - normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.
                        % - uniform(Lo, Hi) samples uniformly from [0,1]
-                       init_params = uniform(0.0, 1.0),
+                       init_params = uniform(0.0, 10.0),
 
                        % where to save the genlog data files during learning
                        save_dir    = './'

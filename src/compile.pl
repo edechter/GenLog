@@ -371,8 +371,8 @@ translate_to_gl_rule(Clause, RuleGroupInd, Rule, RuleWeight) :-
         list_to_and(BList2, RuleBody0), 
         tr_numbered_gl_term(H, RuleHead0),
         RuleGuards0 = G,
-        maplist(mk_dterm, BG, BG1),
-        BodyGuards0 = BG1,
+        % maplist(mk_dterm, BG, BG1),
+        BodyGuards0 = BG,
         % unnumber the variables NB: both head and body are unnumbered
         % at once so that we preserve the correspondence between variables
         varnumbers((RuleHead0, RuleGuards0, BodyGuards0, RuleBody0),

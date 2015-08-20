@@ -27,6 +27,7 @@
 :- use_module(library(option)).
 
 :- use_module(gl_rule).
+:- use_module(kb).
 :- use_module(misc).
 :- use_module(prove).
 :- use_module(compile). 
@@ -61,7 +62,7 @@ pprint_rule(Head, Guard, Body, Out) :-
         ),
 
         (
-         BodyList = [_|_] ->
+         (BodyList \= [] ; BGuardN \= []) ->
          maplist(pprint_term, BodyList, BodyStrings),
          maplist(call(atomic_concat, ''), BodyStrings, BodyStrings1), 
          atomic_list_concat(BodyStrings1, ', ', BodyString),

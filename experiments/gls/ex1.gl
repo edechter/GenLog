@@ -1,0 +1,33 @@
+%% ex1.gl
+%% simple sdcl for copy language
+%% ----------------------------------------------------------------------
+
+
+:- begin(genlog).
+
+s(XY) --->
+        append(X, Y, XY),
+        a(X),
+        b(Y | X).
+
+rule_group(
+           (a(XY) --->
+               append(X, Y, XY),
+               a(X),
+               a(Y),
+            
+            a([a]))
+).
+
+rule_group(
+           (b(XY|Z) # [Z = [Z0|Z1]]--->
+               append(X, Y, XY),
+               b(X | Z0),
+               b(Y | Z1),
+).
+
+b([a] | [a]).
+b([b] | [b]).          
+
+
+:- end(genlog).

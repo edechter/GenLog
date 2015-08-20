@@ -1,8 +1,8 @@
 
 
-:- module(misc, [append1/3,
+:- module(misc, [
                  append1d/3,
-
+                 appendd/3,
                  
                  take/3,
                  replicate/3,
@@ -11,87 +11,34 @@
                  and_to_list/2,
                  list_to_and/2,
                  call1/1,
-                 calld/2,
-                 is_list1/1,
-                 ready/1
-               
-                
+                 calld/2
 
                  ]).
 
 
 :- use_module(library(clpfd)).
+:- use_module(library(chr)).
 :- use_module(library(error)).
+:- use_module(concat).
 
 %% ----------------------------------------------------------------------
-%%      ready(+Term)
+%%     append1d(X, Y, Z)
 %%
-%%  Returns true if goal Term should be extended immediately. Returns
-%%  false, extendin Term should be delayed until ready. 
-
-ready(T) :-
-        var(T),
-        !,
-        throw(error(instantiation_error)).
-
-ready(pterm(Term)-_) :-
-        !,
-        ready(Term).
-ready(dterm(Term)) :-
-        !,
-        ready(Term).
-
-% ready(append1d(X, Y, Z)) :-
-%         (Z \= [_, _|_]
-%         ;
-%          X \= [_|_]
-%         ;
-%          Y \= [_|_]
-%         ),
-%         !, 
-%         true.
-% ready(append1d(X, Y, Z)) :-
-%         !,
-%         is_list1(X).
-%         % (is_list1(X),is_list1(Y) -> true
-%         % ;
-%         %  is_list1(Z)
-%         % ).
-ready(_).
-
-%% -----------------------------------------------------------------------
-:- dynamic delayed/1. 
-            
-%% ----------------------------------------------------------------------
-is_list1(X) :-
-        nonvar(X),
-        is_of_type(list_or_partial_list, X).
-%% ----------------------------------------------------------------------
-%%      append1(X, Y, Z)
-%%
-%% Same as append/3, but X, Y, and Z cannot be empty.
-append1(X, Y, Z) :-
-        (Z \= [_, _|_]
-        ;
-         X \= [_|_]
-        ;
-         Y \= [_|_]
-        ),
-        !,
-        fail.
-append1([H], Ls, [H | Ls]).
-append1([H|T], L, [H|R]) :-
-	append1d(T, L, R).
-
+%% Z is the concatentation of X and Y where X and Y are non-empty
+%% lists. Predicate will delay until X is non-var or Y and Z are
+%% non-var.
+%% 
 append1d(X, Y, Z) :-
-        % writeln(X, Y, Z),
-        when((nonvar(X)),
-             append1(X, Y, Z)).
+        not_null(X),
+        not_null(Y),
+        appendd(X, Y, Z).
+
+appendd(X, Y, Z) :- concat(X, Y, Z).
 
 
 
 %% ----------------------------------------------------------------------
-%% Auxiliary
+%%     Auxiliary
 
 %% take(N[Int], ListIn, ListOut) returns the first N elements of ListIn
 %% in ListOut. If N > length(ListIn), ListOut = ListIn.
@@ -122,7 +69,7 @@ replicate(N, Xs, YsIn, YsOut) :-
         replicate(N1, Xs, YsTmp, YsOut).
 
 
-:- begin_tests(auxiliary).
+:- begin_tests(replicate).
 
 test(replicate, [true(Xs = [a,a,a,a,a])]) :-
         replicate(5, [a], Xs).
@@ -130,8 +77,7 @@ test(replicate, [true(Xs = [a,a,a,a,a])]) :-
 test(replicate_empty, [true(Xs = [])]) :-
         replicate(5, [], Xs).
 
-
-:- end_tests(auxiliary).
+:- end_tests(replicate).
 
 % print_current_frame
 print_current_frame :-
@@ -141,12 +87,6 @@ print_current_frame :-
 
 
 %% ----------------------------------------------------------------------
-
-
-
-
-
-
 %%      call1(+G)
 %%
 %% If G is a list, apply call1 to each element in turn.
@@ -205,11 +145,11 @@ calld_(G, []) :-
         % predicate_property(G, built_in),
         !,
         call(G).
-        
 
-      
-
-%% conjunction to list
+%% ----------------------------------------------------------------------
+%%     and_to_list(+Conjunction, -List)
+%%
+%% Convert conjunction of goals to a list of goals non-recursively.
 and_to_list(true, []).
 and_to_list(C, [C]) :-
         C \= true,
@@ -220,6 +160,8 @@ and_to_list((C, Cs), [C|Xs]) :-
         C \= true,
         and_to_list(Cs, Xs).
 
+%% ----------------------------------------------------------------------
+%%     list_to_and(+List, Conjunction)
 list_to_and([], true).
 list_to_and([X], X).
 list_to_and([X|Xs], (X, Ys)) :-

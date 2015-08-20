@@ -1,0 +1,28 @@
+
+
+
+:- begin(genlog).
+
+
+s(XY)            ---> [X=[_|_], append1d(X, Y, XY)] # a(X), r(Y | X).
+
+rule_group(
+  (a(XY) ---> [X=[_|_], append1d(X, Y, XY)] # a(X), a(Y) :: 0.25), 
+  (a([a]) :: 0.65)
+          ).
+
+r(XY | As)  ---> [Bs=[_|_], append1d(Bs, Cs, XY)] # b(Bs|As), c(Cs | As).
+
+b(XY | [A1, A2|As])  ---> [B=[_|_], append1d(B, Bs, XY)] # b(B|[A1]), b(Bs | [A2|As]).
+c(XY | [A1, A2|As])  ---> [C=[_|_], append1d(C, Cs, XY)] # c(C|[A1]), c(Cs | [A2|As]).
+
+b([b] | [a]).
+c([c] | [a]).
+
+:- end(genlog).
+
+
+
+
+
+

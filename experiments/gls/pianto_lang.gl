@@ -1,0 +1,108 @@
+
+
+
+num_preds(1, 5).
+num_preds(2, 5).
+
+pred(Type, Index, Pred) :-
+        num_preds(Type, N), 
+        between(1, N, Index),
+        format(atom(Pred), "A(t=~w, i=~w)", [Type, Index]).
+
+pred(Type, Pred) :- pred(Type, _, Pred).
+
+preds(Type, As) :- maplist(call(pred, Type), As).
+
+
+lexemes([a, b, c, start]).
+lexeme(L) :-
+        lexemes(Ls), 
+        member(L, Ls).
+
+
+:- begin(genlog).
+
+rule_group(
+           macro(
+                 (s(X) ---> '?A'(X | [start])),
+                 (preds(1, ['?A']))
+                )
+          ).
+          
+% conditioning on string of length > 1
+rule_group(
+           % macro(
+           %       ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | Z)),
+           %       preds(1, ['?A', '?B', '?C'])
+           %      ),
+           
+           % macro(
+           %       ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | X)),
+           %       preds(1, ['?A', '?B', '?C'])
+           %      ),
+
+           % macro(
+           %       ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
+           %       preds(1, ['?A', '?B', '?C'])
+           %      ),
+
+           macro(
+                 ('?A'(XY | [U, W|V])        --->  [X = [_|_], append1d(X, Y, XY), writeln(X+Y=XY)] # '?B'(X | [U]), '?C'(Y | [W|V])),
+                 preds(1, ['?A', '?B', '?C'])
+                 )
+            
+           
+           % macro(
+           %       ('?A'(X | [U, W|V]) ---> '?B'(X | [U])),
+           %       preds(1, ['?A', '?B'])
+           %       ),
+           
+           % macro(
+           %       ('?A'(X| [U, W|V])  ---> '?B'(X | [W|V])),
+           %       preds(1, ['?A', '?B'])
+           %       )
+           ).
+
+rule_group(
+           % macro(
+           %       ('?A'(XY| Z) @ [Z=[_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | Z)),
+           %       preds(1, ['?A', '?B', '?C'])
+           %      ),
+           
+           macro(
+                 ('?A'(XY| Z) @ [Z=[_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | X)),
+                 preds(1, ['?A', '?B', '?C'])
+                ),
+
+           % macro(
+           %       ('?A'(XY| Z) @ [Z=[_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
+           %       preds(1, ['?A', '?B', '?C'])
+           %      ),
+           
+           macro(
+                 ('?A'(X | Y) @ [Y=[_]] ---> [X = [_]] # '?B'(X  | Y)),
+                 (pred(1, '?A'), pred(2, '?B'))
+                )
+           ).
+
+macro(
+      (rule_group(
+                 macro(
+                       ('?A'(X | Y) ---> [X = [_]] # true)
+                      ,
+                      (pred(2, '?A'),
+                       lexeme(L),
+                       X = [L]))))
+     ,
+     (
+      lexeme(G),
+      Y = [G]
+     )
+     ).
+
+
+
+:- end(genlog).
+
+
+
