@@ -44,17 +44,6 @@ sentence_data_set(StartPredicate, [S|Ss], Gs) :-
         sentence_data_set(StartPredicate, [S-1|Ss], Gs).
 
 
-:- begin_tests(data_utils).
-
-test(sentence_data_set,
-     [true(Gs==[count(s([my, dog, hates, cats], []), 1), count(s([does, your, dog, hate, cats, ?], []), 1)])]) :-
-        sentence_data_set(s, ['my dog hates cats', 'does your dog hate cats ?'], Gs).
-
-:- end_tests(data_utils).
-
-
-
-
 
 
 %% ----------------------------------------------------------------------
@@ -67,3 +56,20 @@ normalize(KVs,KVs1) :-
                  V1 is V / Z),
                 Vs1),
         pairs_keys_values(KVs1, Ks, Vs1).
+
+ :- begin_tests(data_utils).
+
+test(sentence_data_set,
+     [true(Gs==[count(s([my, dog, hates, cats], []), 1), count(s([does, your, dog, hate, cats, ?], []), 1)])]) :-
+        sentence_data_set(s, ['my dog hates cats', 'does your dog hate cats ?'], Gs).
+
+test(normalize,
+     [true(KVs==[a-0.4, b-0.2, c-0.4])]) :-
+        normalize([a-4, b-2, c-4], KVs).
+
+test(normalize_empty,
+     [true(KVs==[])]) :-
+        normalize([], KVs).
+
+
+:- end_tests(data_utils).
