@@ -7,7 +7,8 @@
 :- module(data_utils,
           [atom_split_list/2,
            sentence_data_set/3,
-           normalize/2
+           normalize/2,
+           items_counts/2, % +Items, ?ItemCountPairs
            ]).
 
 :- use_module(library(assoc)).
