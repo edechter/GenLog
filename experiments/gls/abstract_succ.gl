@@ -14,7 +14,7 @@ pred(Type, Pred) :- pred(Type, _, Pred).
 preds(Type, As) :- maplist(call(pred, Type), As).
 
 
-lexemes([a, b, c, start]).
+lexemes([a, b, c, d, 1, 2, 3, 4, start]).
 lexeme(L) :-
         lexemes(Ls), 
         member(L, Ls).
@@ -24,8 +24,8 @@ lexeme(L) :-
 
 rule_group(
            macro(
-                 (s(X) ---> '?A'(X | [start])),
-                 (preds(1, ['?A']))
+                 (s(X, Y) ---> '?A'(X | [start]), '?B'(Y | X)),
+                 (preds(1, ['?A', '?B']))
                 )
           ).
           
@@ -41,10 +41,10 @@ rule_group(
                  preds(1, ['?A', '?B', '?C'])
                 ),
 
-           macro(
-                 ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
-                 preds(1, ['?A', '?B', '?C'])
-                ),
+           % macro(
+           %       ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
+           %       preds(1, ['?A', '?B', '?C'])
+           %      ),
 
            macro(
                  ('?A'(XY | [U, W|V])        --->  [X = [_|_], append1d(X, Y, XY), writeln(X+Y=XY)] # '?B'(X | [U]), '?C'(Y | [W|V])),
@@ -74,10 +74,10 @@ rule_group(
                  preds(1, ['?A', '?B', '?C'])
                 ),
 
-           macro(
-                 ('?A'(XY| Z) @ [Z=[_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
-                 preds(1, ['?A', '?B', '?C'])
-                ),
+           % macro(
+           %       ('?A'(XY| Z) @ [Z=[_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
+           %       preds(1, ['?A', '?B', '?C'])
+           %      ),
            
            macro(
                  ('?A'(X | Y) @ [Y=[_]] ---> [X = [_]] # '?B'(X  | Y)),

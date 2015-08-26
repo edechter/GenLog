@@ -421,8 +421,6 @@ extend([],  LogProb, DGraph, [], LogProb, DGraph, _).
 % if the first element is a dterm and it is ready to be called, call it
 extend([Term|Rest], LogProb, DGraph,
        Rest1, LogProb1, DGraph1, OptRec) :-
-        ready(Term),
-        !,
         extend1(Term, LogProb, DGraph, NewGoals, LogProb0, DGraph0, OptRec),
         append(NewGoals, Rest, Rest0),
         (Term = dterm(_) ->
@@ -440,12 +438,12 @@ extend([Term|Rest], LogProb, DGraph,
                context(Term, 'must be either pterm(_) or dterm(_)')))
         ).
         
-extend([Term|Rest], LogProb, DGraph,
-                    Rest1, LogProb1, DGraph1, OptRec) :-
-        \+ ready(Term),
-        !,
-        extend(Rest, LogProb, DGraph,
-               Rest1, LogProb1, DGraph1, OptRec).
+% extend([Term|Rest], LogProb, DGraph,
+%                     Rest1, LogProb1, DGraph1, OptRec) :-
+%         \+ ready(Term),
+%         !,
+%         extend(Rest, LogProb, DGraph,
+%                Rest1, LogProb1, DGraph1, OptRec).
 
 
 % ----- extend1 

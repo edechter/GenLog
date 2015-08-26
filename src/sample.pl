@@ -34,9 +34,10 @@ sample(Goal, LogProb) :-
         sample(Goal, LogProb, []).
 
 sample(Goal, LogProb, Options) :-
-        writeln(top-Goal), 
         sample_probs_from_alphas,
         sample_(Goal, LogProb, Options).
+
+
 
 %% sample_(Goal, LogProv, OptRecord)
 %%
@@ -61,7 +62,6 @@ sample_constrained_(Goal, LogProb, OptRecord) :-
         sample_from_derivations_(Goal, Derivations, L1, OptRecord),
         LogProb is L0 + L1. 
         
-
 %% sample_from_derivations_(+Goal, +Derivations, LogProb)
 %% sample_from_derivations_(+Goal, +Derivations, Derivation, LogProb)
 %%
@@ -79,7 +79,6 @@ sample_from_derivations_(Goal, Derivations, LogProb, OptRecord) :-
         %% sample from distribution over derivations
         sample_categorical(DPs, Derivation, Prob),
 
-         
         LogProb0 is log(Prob),
 
         %% for each unconstrained goal remaining in the derivation,
@@ -91,23 +90,6 @@ sample_from_derivations_(Goal, Derivations, LogProb, OptRecord) :-
         %% bind goal of this sample to its realization in this derivation
         writeln(Nodes), 
         sample_remaining_(Nodes, LogProb1, OptRecord),
-        % findall(G-LogProb,
-        %         (member(goal(_, G, _), Nodes),
-        %          (unconstrained(G) ->
-        %           writeln(2-G),
-        %           sample_unconstrained_(G, LogProb, OptRecord),
-        %           writeln(4-G)
-        %          ;
-        %           LogProb = 0)
-        %         ),
-        %         GLogProbs
-        %        ),
-
-        % last(GLogProbs, GlTerm-_),
-        % translate_to_gl_term(Goal, GlTerm1),
-        % writeln(glterm1-GlTerm1),
-        % GlTerm=GlTerm1, 
-        % writeln(42-(GlTerm=GlTerm1)),
         !,
         LogProb is LogProb0 + LogProb1.
 
@@ -213,10 +195,6 @@ sample_unconstrained_(Goal, LogProb, TimeInfo, OptRecord) :-
         sample_unconstrained_(Body, LogProb1, TimeInfo, OptRecord),
         call_list(BGuard),
         LogProb is LogProb0 + LogProb1.
-                 
-take(N, Xs, Ys) :-
-        length(Ys, N),
-        append(Ys, _, Xs).
 
 call_list([]) :- !.
 call_list([G|Gs]) :-

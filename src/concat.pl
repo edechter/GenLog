@@ -59,13 +59,14 @@ concat_2(Xs, Ys, Zs) :-
         !,  
         append(Xs, Ys, Zs).
 concat_2(Xs, Ys, Zs) :-
-        % if Ys is a list and Zs is not, 
+        % if Ys is a list and Zs is not, don't do anything. 
         is_list(Ys),
         !.
 concat_2(Xs, Ys, Zs) :-
-        last_var(Ys, V),
-        when(nonvar(V),
-             concat_2(Xs, Ys, Zs)).
+        true.
+        % last_var(Ys, V),
+        % when(nonvar(V),
+             % concat_2(Xs, Ys, Zs)).
 
 last_var(L, V) :- var(L), !, V = L.
 last_var([_|Rest], V) :- last_var(Rest, V).

@@ -29,11 +29,13 @@
 %% non-var.
 %% 
 append1d(X, Y, Z) :-
+        % X \= [],
+        % Y \= [],
         not_null(X),
         not_null(Y),
         appendd(X, Y, Z).
 
-appendd(X, Y, Z) :- concat(X, Y, Z).
+appendd(X, Y, Z) :- append(X, Y, Z).
 
 
 
