@@ -246,9 +246,6 @@ run_online_vbem(GoalGen, Data, Options) :-
         
 
 run_online_vbem(GoalGen, Iter, DataOut, Options) :-
-        prolog_current_frame(Frame),
-        print_message(information, frame(Frame)),
-        
         print_message(informational, online_vbem(start_iter(Iter))),
 
         make_online_vbem_options(Options, OptRecord, _), 
