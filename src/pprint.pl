@@ -194,16 +194,22 @@ pprint_rule_map_in_rule_group(_, M, N, _) :-
 pprint_rule_map_in_rule_group(Arr, RuleGroupId, N, Options) :-
         rule_group_id_rules(RuleGroupId, Rules),
         rule_group_id_rule_group(RuleGroupId, RuleGroup),
-        format("--- Rule Group ~w: ~w ---\n", [RuleGroupId, RuleGroup]),
-        forall(member(RuleId, Rules),
-               (pprint_rule(RuleId, S),
-                get(RuleId, Arr, Val),
-                member(thresh(T), Options),
-                (Val > T ->
-                 format("~|~w: ~10+~|~w ~`.t ~90+~g\n", [RuleId, S, Val])
-                )
-               ;
-                true)),
+        with_output_to(codes(Codes),
+                       forall(member(RuleId, Rules),
+                              (pprint_rule(RuleId, S),
+                               get(RuleId, Arr, Val),
+                               member(thresh(T), Options),
+                               (Val > T ->
+                                format("~|~w: ~10+~|~w ~`.t ~120+~g\n", [RuleId, S, Val])
+                               )
+                              ;
+                               true))),
+        length(Codes, K), 
+        (K > 0 ->
+         format("\n--- Rule Group ~w: ~w ---\n", [RuleGroupId, RuleGroup]),
+         format("~s", [Codes])
+        ;
+         true),
         RuleGroupId1 is RuleGroupId + 1,
         pprint_rule_map_in_rule_group(Arr, RuleGroupId1, N, Options).
 

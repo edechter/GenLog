@@ -917,9 +917,12 @@ prolog:message(online_vbem(goal(Goal))) -->
 rule_alpha_prefix --> ['Rule alpha map: '].
 prolog:message(alphas(Thresh)) -->
         {rules(RuleIds)},
-        ['---- Rule Alpha Map ----'], [nl],
-        message_alpha_go_(RuleIds, Thresh),
-        ['---- End Rule Alpha Map ----'], [nl].
+        ['~| ~`%t Rule Alpha Map ~`%t ~120+'], [nl],
+        {with_output_to(atom(Atom),
+                        pprint_rule_alphas([thresh(Thresh)]))},
+        [Atom],
+        [nl],
+        ['~| ~`%t End Rule Alpha Map ~`%t ~120+'], [nl], [nl].
 
 message_alpha_go_([], _) --> [].
 message_alpha_go_([Id|Ids], Thresh) -->
