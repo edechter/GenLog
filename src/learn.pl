@@ -118,6 +118,16 @@ run_batch_vbem(Goals) :-
         run_batch_vbem(Goals, []).
 
 run_batch_vbem(Goals, Options) :-
+        get_rule_alphas(Alphas),
+        get_rule_probs(Probs), 
+        catch(
+              run_batch_vbem_(Goals, Options),
+              Exception,
+              (set_rule_alphas(Alphas),
+               set_rule_probs(Probs),
+               throw(Exception))).
+
+run_batch_vbem_(Goals, Options) :- 
         make_vbem_options(Options, OptRecord, _),
 
         print_message(informational, batch_vbem(start(OptRecord))),
@@ -182,7 +192,6 @@ compute_vb_fixed_point(DSearchResults,
         %% compute new vb params
         get_rule_alphas(PriorHyperParams),
 
-        %% TODO: replace with an array instead of assoc
         array_like(PriorHyperParams, VBParamsOut),
         array(N, VBParamsOut, 0),
         forall(between(1, N, I),
@@ -226,7 +235,7 @@ compute_vb_fixed_point(DSearchResults,
 %%      run_online_vbem(+GoalGen, -Data)
 %%      run_online_vbem(+GoalGen, -Data, +Options)
 %%
-%%      Run the onling VBEM algorithm for Goals from goal generator GoalGen.
+%%      Run the online VBEM algorithm for Goals from goal generator GoalGen.
 %%
 %%      - GoalGen: a generator of goals.
 run_online_vbem(GoalGen, Data) :-
@@ -237,10 +246,6 @@ run_online_vbem(GoalGen, Data, Options) :-
 
         print_message(informational, online_vbem(start(OptRecord))),
 
-        %% initialize the alpha hyperparams
-        % online_vbem_options_init_params(OptRecord, InitParams), 
-        % set_rule_alphas(InitParams),        
-        
         %% initiate loop
         run_online_vbem(GoalGen, 1, Data, Options).
         
@@ -357,7 +362,6 @@ free_energy(PriorHyperParams,
 %%      - MultinomialWeights: an assoc associating each rule id with a
 %%      weight.
 
-% loglikelihood/3
 loglikelihood(D, Loglikelihood) :-
         get_rule_probs(Ws),
         loglikelihood(D, Ws, Loglikelihood).
