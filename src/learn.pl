@@ -327,26 +327,25 @@ free_energy(PriorHyperParams,
             LogLikelihood,
             FreeEnergy
             ) :-
-        writeln(1), 
         loglikelihood(DSearchResults,
                       MultinomialWeights,
                       LogLikelihood),
-        writeln(2), 
         assertion(LogLikelihood < 0),
         % terms 2 and 3 in Eq 8.
         free_energy1(PriorHyperParams,
                      HyperParams, 
                      FreeEnergy1),
-        writeln(3),
         % term 4 in Eq 8.
         free_energy2(PriorHyperParams,
                      HyperParams,
                      MultinomialWeights, 
                      FreeEnergy2
                      ),
-        writeln(4),
         FreeEnergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2,
-        print_message(informational, (freeenergy is (- LogLikelihood) + FreeEnergy1 + FreeEnergy2)).
+        print_message(informational, free_energy(FreeEnergy,
+                                                 breakdown(loglikelihood(LogLikelihood),
+                                                           free_energy1(FreeEnergy1),
+                                                           free_energy2(FreeEnergy2)))).
 
 %% ----------
 %%      loglikelihood(+DSearchResults, +MultinomialWeights, -Loglikelihood) is det
@@ -918,8 +917,6 @@ prolog:message(online_vbem(goal(Goal))) -->
 rule_alpha_prefix --> ['Rule alpha map: '].
 prolog:message(alphas(Thresh)) -->
         {rules(RuleIds)},
-        % {pprint_rule_alphas(Out, [thresh(Thresh)])},
-        % {atomic_list_concat(As, '\n', Out)},
         ['---- Rule Alpha Map ----'], [nl],
         message_alpha_go_(RuleIds, Thresh),
         ['---- End Rule Alpha Map ----'], [nl].
@@ -935,6 +932,14 @@ message_alpha_go_([Id|Ids], Thresh) -->
          {true}
         ),
         message_alpha_go_(Ids, Thresh).
-         
+
+
+prolog:message(free_energy(FreeEnergy,
+                           breakdown(loglikelihood(LL),
+                                     free_energy1(FE1),
+                                     free_energy2(FE2)))) -->
+        {NLL is -LL},
+        ['Free energy: ~| ~5g~10+ = ~5g ~10+ + ~5g ~10+ + ~5g' - [FreeEnergy, NLL, FE1, FE2]],
+        [nl].
         
 
