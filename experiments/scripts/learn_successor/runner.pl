@@ -145,7 +145,8 @@ run_testing(_Options) :-
         asserta(data(D)), 
         pairs_keys_values(D.transition_probs, Xs, Ys), 
         plot_xy(Xs, Ys), 
-        show.
+        show,
+        writeln(D).
 
 main(Options) :-
         run_training(Options),
