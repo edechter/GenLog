@@ -77,8 +77,19 @@ succ_goals(Lo, Hi, Count, Goals) :-
                  succ_goal(N, Count, Goal)),
                 Goals).
 
-% decade_goals(Count, Goals) :-
-        % between(2, 9), 
+decade_goal(N0, Count, Goal) :-
+        between(2, 9, N0),
+        N is N0 * 10, 
+        number_word(N, W),
+        N1 is N + 10,
+        number_word(N1, W1),
+        Goal = count(succ(W, W1), Count).
+
+decade_goals(Count, Goals) :-
+        findall(Goal,
+                decade_goal(_, Count, Goal),
+                Goals).
+        
 
 power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
         succ_goals(Lo, Hi, 1, Gs),
@@ -99,20 +110,22 @@ exp_constants(
             }
              ).
 
-phase1(
+phase(
        constants{
         goal_generator: GoalGen, 
-                 goals_per_iter: 98,
+                 goals_per_iter: 8,
                  max_online_iter: 1,
-                 run_id: phase1
+                 run_id: phase
                 }
       ) :-
-        succ_goals(1, 98, 100, Goals),
-        list_to_circular(Goals, GoalGen). 
+        decade_goals(100, Goals),
+        list_to_circular(Goals, GoalGen).
 
 
 
-phases([phase1]).
+
+
+phases([phase]).
 
 
 %% ----------------------------------------------------------------------
