@@ -41,7 +41,9 @@
 :- use_module(genlog(interact)).
 
 :- ensure_loaded(experiment(number_words)).
+
 :- use_module(experiment(analyze)).
+:- use_module(experiment(plot)).
 
 %% experiment root directory
 :- getenv('HOME', Dir),
@@ -147,9 +149,16 @@ run_training(Options) :-
         forall(member(Phase, Phases),
                run_phase(Phase, Options)).
 
+run_testing :-
+        count(1, 98, [beam_width(200), time_limit_seconds(3)]), 
+        asserta(data(D)), 
+        pairs_keys_values(D.transition_probs, Xs, Ys), 
+        plot_xy(Xs, Ys), 
+        show.
+
 main(Options) :-
-        run_training(Options).
-        % run_testing.
+        run_training(Options),
+        run_testing.
 
 
 

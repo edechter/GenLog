@@ -2,8 +2,8 @@
 
 :- ensure_loaded(experiment(number_words)).
 
-num_preds(1, 4).
-num_preds(2, 4).
+num_preds(1, 5).
+num_preds(2, 5).
 
 pred(Type, Index, Pred) :-
         num_preds(Type, N), 
