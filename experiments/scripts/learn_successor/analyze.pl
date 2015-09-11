@@ -1,6 +1,8 @@
 
 
-:- module(analyze, []).
+:- module(analyze, [
+                    count/3
+                   ]).
 
 :- use_module(library(option), [
                                  merge_options/3
