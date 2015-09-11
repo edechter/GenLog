@@ -14,10 +14,12 @@ pred(Type, Pred) :- pred(Type, _, Pred).
 preds(Type, As) :- maplist(call(pred, Type), As).
 
 
-lexemes([a, b, c, d, 1, 2, 3, 4, start]).
+lexemes([1, 2, 3, 4, b, start]).
 lexeme(L) :-
         lexemes(Ls), 
         member(L, Ls).
+
+
 
 
 :- begin(genlog).
@@ -41,13 +43,8 @@ rule_group(
                  preds(1, ['?A', '?B', '?C'])
                 ),
 
-           % macro(
-           %       ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
-           %       preds(1, ['?A', '?B', '?C'])
-           %      ),
-
            macro(
-                 ('?A'(XY | [U, W|V])        --->  [X = [_|_], append1d(X, Y, XY), writeln(X+Y=XY)] # '?B'(X | [U]), '?C'(Y | [W|V])),
+                 ('?A'(XY | [U, W|V])        --->  [X = [_|_], append1d(X, Y, XY)] # '?B'(X | [U]), '?C'(Y | [W|V])),
                  preds(1, ['?A', '?B', '?C'])
                  ),
             
@@ -74,15 +71,22 @@ rule_group(
                  preds(1, ['?A', '?B', '?C'])
                 ),
 
-           % macro(
-           %       ('?A'(XY| Z) @ [Z=[_]] ---> [X = [_|_], append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y)),
-           %       preds(1, ['?A', '?B', '?C'])
-           %      ),
-           
            macro(
                  ('?A'(X | Y) @ [Y=[_]] ---> [X = [_]] # '?B'(X  | Y)),
                  (pred(1, '?A'), pred(2, '?B'))
+                
                 )
+           % macro(
+           %       ('?A'(X|Y) @ [Y=[_]] ---> id(X | Y) )
+           %      ,
+           %       (pred(1, '?A'))
+           %      ),
+           % macro(
+           %       ('?A'(X|Y) @ [Y=[_]] ---> next(X | Y) )
+           %      ,
+           %       (pred(1, '?A'))
+           %      )
+
            ).
 
 macro(
@@ -99,6 +103,14 @@ macro(
       Y = [G]
      )
      ).
+
+id(X | X) ---> true.
+
+next([2]|[1]) ---> true.
+
+next([3]|[2]) ---> true.
+
+next([4]|[3]) ---> true.
 
 
 

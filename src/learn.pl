@@ -24,6 +24,7 @@
 :- use_module(library(settings)).
 :- nodebug(real).
 
+
 :- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/', src, '/', 'learn.r'], Learn_R_Path),
    prolog_to_os_filename(Learn_R_Path, Learn_R_Path2),
@@ -39,12 +40,12 @@
 :- use_module(pprint).
 :- use_module(pgen).
 :- use_module(array).
+:- use_module(data_utils).
 
 :- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/lib/'], LIB),
    asserta(user:file_search_path(foreign, LIB));
    true.
-   
 
 :- use_foreign_library(foreign('digamma.dylib')).
 :- use_foreign_library(foreign('multinom.dylib')).
@@ -72,13 +73,14 @@
                        % - normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.
                        % - uniform(Lo, Hi) samples uniformly from [0,1]
-                       init_params = uniform(0.0, 10.0),
+                       init_params = uniform(0.0, 1.0),
 
                        % where to save the genlog data files during learning
                        save_dir    = './'
                       ).
 
 
+%% init VB parameters by perturbing current rule alpha values
 init_vb_params(uniform(Lo, Hi), VBParams) :-
         assertion(Hi > Lo),
         num_rules(N), 
@@ -100,7 +102,7 @@ init_vb_params(norm(Mean, StdDev), VBParams) :-
         rules(RuleIds),
         length(RuleIds, NRules),
         Ps <- rnorm(NRules, Mean, StdDev), 
-        pairs_keys_values(RPs, RuleIds, Ps),
+        % pairs_keys_values(RPs, RuleIds, Ps),
         list_array(Ps, VBParams).
                  
                  
@@ -139,6 +141,7 @@ run_batch_vbem_(Goals, Options) :-
                       
         compute_variational_weights(VBParams, Weights), 
         set_rule_probs(Weights),
+        % set_probs_from_alphas,
 
         
         VBStateIn = vbem_state{
@@ -221,7 +224,7 @@ compute_vb_fixed_point(DSearchResults,
         (
          abs(VBStateIn.free_energy - FreeEnergy) < Eps ->
          VBStateOut = VBStateNext,
-         debug(learning, "Batch VBEM: Converged ... Finished. \n", [])
+         writeln("Batch VBEM: Converged ... Finished.")
         ;
          compute_vb_fixed_point(DSearchResults, VBStateNext, VBStateOut, OptRecord)
         ).
@@ -253,62 +256,73 @@ run_online_vbem(GoalGen, Data, Options) :-
 run_online_vbem(GoalGen, Iter, DataOut, Options) :-
         print_message(informational, online_vbem(start_iter(Iter))),
 
-        make_online_vbem_options(Options, OptRecord, _), 
+        make_online_vbem_options(Options, OptRecord, _),
+
+
         
-        %% get next goal
-        (yield(GoalGen, Goal, GoalGen1) -> true
+        %% get next goal(s)
+        online_vbem_options_goals_per_iter(OptRecord, GoalsPerIter), 
+        (yield(GoalGen, GoalsPerIter, Goals, GoalGen1) -> 
+         print_message(informational, online_vbem(goal(Goals))),
+         time(
+              run_batch_vbem(Goals, Options),
+              CPU_time,
+              _Wall_time),
+         
+         print_message(informational, online_vbem(end_iter(Iter, CPU_time))),
+         
+         !,
+
+         %% save data to file
+         Info = ovbem_info{iter : Iter,
+                           goal : Goal},
+         online_vbem_options_save_dir(OptRecord, SaveDir),
+         online_vbem_options_run_id(OptRecord, RunId),
+         format(atom(File), "~w~w_~|~`0t~d~4+.gl", ['ovbem_gl_', RunId, Iter]),
+         directory_file_path(SaveDir, File, Path),
+         save_gl(Path, [ovbem_info(Info)]),
+         format(atom(Cmd), 'gzip ~w', [Path]),
+         shell(Cmd),
+         print_message(informational, shell(Cmd)),
+         
+         online_vbem_options_max_online_iter(OptRecord, MaxIter),        
+         (Iter >= MaxIter ->
+          debug(learning, "OnlineVBEM: Maximum iteration reached. Finished.\n", [])
+         ;
+          
+          Iter1 is Iter + 1,
+          DataOut = [Goal|DataOut1],
+          run_online_vbem(GoalGen1, Iter1, DataOut1, Options)
+         )
+
         ;
-         print_message(informational, online_vbem(no_more_goals)),
-         fail,
-         !
-        ), 
-        print_message(informational, online_vbem(goal(Goal))),
-        time(
-             run_batch_vbem([Goal], Options),
-             CPU_time,
-             _Wall_time),
+         
+         % if no goals left, end online VBEM
+         print_message(informational, online_vbem(no_more_goals))
+        ). 
 
-        print_message(informational, online_vbem(end_iter(Iter, CPU_time))),
-
-        print_message(informational, alphas(1)),
-        
-        !,
-
-        %% save data to file
-        Info = ovbem_info{iter : Iter,
-                          goal : Goal},
-        online_vbem_options_save_dir(OptRecord, SaveDir),
-        format(atom(File), "~w~|~`0t~d~4+.gl", ['ovbem_gl_', Iter]),
-        directory_file_path(SaveDir, File, Path),
-        save_gl(Path, [ovbem_info(Info)]),
-        format(atom(Cmd), 'gzip ~w', [Path]),
-        shell(Cmd),
-        print_message(informational, shell(Cmd)),
-        
-        online_vbem_options_max_iter(OptRecord, MaxIter),        
-        (Iter >= MaxIter ->
-         debug(learning, "OnlineVBEM: Maximum iteration reached. Finished.\n", [])
-        ;
-
-         Iter1 is Iter + 1,
-         DataOut = [Goal|DataOut1],
-         run_online_vbem(GoalGen1, Iter1, DataOut1, Options)
-        ).
 
 
          
 %% options and defaults for online vbem
 :- record online_vbem_options(
                        % maximum number of iterations to run vbem
-                       max_iter = 1000, 
+                       max_online_iter = 1000, 
                        
                        % how to initialize the hyperparameters
                        % normal(+Mean, +StdDev) samples randomly from a
                        % normal distribution with Mean and StdDev provided.   
                        init_params = normal(0.1, 0.01),
 
+                       % number of goals in each online batch
+                       goals_per_iter = 1,
+
                        % where to save the genlog data files during learning
-                       save_dir    = './'
+                       save_dir    = './',
+
+                       % optional id for the run
+                       run_id = ''
+
                       ).
 
 %% ----------------------------------------------------------------------
@@ -581,7 +595,8 @@ prove_goals(Goals, Derivations) :-
         prove_goals(Goals, Derivations, []).
         
 prove_goals(Goals, Derivations, Options) :-
-        prove_goals(Goals, [], Derivations, Options).
+        combine_goals_(Goals, Goals1), 
+        prove_goals(Goals1, [], Derivations, Options).
 
 prove_goals([], DsIn, DsIn, _).
 prove_goals([count(Goal, Count) | Goals], DsIn, DsOut, Options) :-
@@ -591,7 +606,22 @@ prove_goals([count(Goal, Count) | Goals], DsIn, DsOut, Options) :-
         prove_goals(Goals, DsTmp, DsOut, Options).
 prove_goals([Goal|Goals], DsIn, DsOut, Options) :-
         Goal \= count(_, _), % check is redundant due to CUT above
-        prove_goals([count(Goal, 1)|Goals], DsIn, DsOut, Options). 
+        prove_goals([count(Goal, 1)|Goals], DsIn, DsOut, Options).
+
+combine_goals_(Goals, Goals2) :-
+        findall(G-C,
+                (member(X, Goals),
+                 (X = count(G, C) ->
+                  true ;
+                  G = X,
+                  C = 1
+                 )
+                ),
+                Goals1),
+        items_counts(Goals1, GoalCountPairs),
+        findall(count(G, C),
+                member(G-C, GoalCountPairs),
+                Goals2).
 
 
 %% ----------------------------------------------------------------------
@@ -837,22 +867,22 @@ time(Goal, CPU, Wall) :-
 % }
 % */
 
-% digamma(X, Y) :-
-%         Y0 = 0,
-%         assertion(X > 0),
-%         digamma_loop(X, Y0, Y).
-% digamma_loop(X, Yin, Yout) :-
-%         X < 7,
-%         !,
-%         Ytmp is Yin - 1/X,
-%         X1 is X + 1, 
-%         digamma_loop(X1, Ytmp, Yout).
-% digamma_loop(X, Yin, Yout) :-
-%         X1 is X - 1/2, 
-%         XX is 1/X1,
-%         XX2 is XX * XX,
-%         XX4 is XX2 * XX2,
-%         Yout is Yin + log(X1) + (1/24) * XX2 - (7/960)*XX4 + (31/8064)*XX4*XX2 - (127/30720)*XX4*XX4.
+digamma(X, Y) :-
+        Y0 = 0,
+        assertion(X > 0),
+        digamma_loop(X, Y0, Y).
+digamma_loop(X, Yin, Yout) :-
+        X < 7,
+        !,
+        Ytmp is Yin - 1/X,
+        X1 is X + 1, 
+        digamma_loop(X1, Ytmp, Yout).
+digamma_loop(X, Yin, Yout) :-
+        X1 is X - 1/2, 
+        XX is 1/X1,
+        XX2 is XX * XX,
+        XX4 is XX2 * XX2,
+        Yout is Yin + log(X1) + (1/24) * XX2 - (7/960)*XX4 + (31/8064)*XX4*XX2 - (127/30720)*XX4*XX4.
         
         
         

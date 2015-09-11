@@ -3,7 +3,9 @@
 %% Author: Eyal Dechter
 %% ----------------------------------------------------------------------
  
-:- module(runner, [main/1]).
+:- module(runner, [main/1,
+                   succ_goal/3
+                  ]).
 
 :- multifile user:file_search_path/2.
 :- dynamic   user:file_search_path/2.
@@ -34,8 +36,12 @@
 :- use_module(genlog(pprint)).
 
 :- use_module(genlog(data_utils)).
+:- use_module(genlog(kb)).
+:- use_module(genlog(misc)).
+:- use_module(genlog(interact)).
 
 :- ensure_loaded(experiment(number_words)).
+:- use_module(experiment(analyze)).
 
 %% experiment root directory
 :- getenv('HOME', Dir),
@@ -49,11 +55,18 @@ gl_file(GlFile) :-
 
 %% ------------------------------------------
 %% make number data
+
+number_word_settings([split_teens(false), irregular_decade(true), split_decade(false)]).
+
+:- number_word_settings(Settings),
+        forall(member(S, Settings),
+               (S =.. [F, V],
+                set_setting(number_words:F, V))).
+
 succ_goal(N, Count, Goal) :-
         number_word(N, W),
         N1 is N+1,
         number_word(N1, W1),
-        % append(W, W1, W2),
         Goal = count(succ(W, W1), Count).
 
 succ_goals(Lo, Hi, Count, Goals) :-
@@ -61,6 +74,9 @@ succ_goals(Lo, Hi, Count, Goals) :-
                 (between(Lo, Hi, N),
                  succ_goal(N, Count, Goal)),
                 Goals).
+
+% decade_goals(Count, Goals) :-
+        % between(2, 9), 
 
 power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
         succ_goals(Lo, Hi, 1, Gs),
@@ -74,89 +90,75 @@ power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
 %% ----------------------------------------------------------------------
 %%                               Constants
 exp_constants(
-   constants{beam_width:500,
-             time_limit_seconds:5,
-             max_iter:100000,
+   constants{beam_width:          200,
+             time_limit_seconds:  5,
+             init_alpha :         uniform(2),
+             max_iter   :         10
+            }
+             ).
 
-             exp:0.85,
-             c:10,
-             lo:1,
-             hi:30}).
+phase1(
+       constants{
+        goal_generator: GoalGen, 
+                 goals_per_iter: 9,
+                 max_online_iter: 1,
+                 run_id: phase1
+                }
+      ) :-
+        succ_goals(1, 9, 100, Goals),
+        list_to_circular(Goals, GoalGen). 
+
+phase2(
+       constants{
+                 goal_generator: GoalGen, 
+                 goals_per_iter: 98,
+                 max_online_iter: 1,
+                 run_id: phase2
+                }
+      ) :-
+        succ_goals(1, 98, 100, Goals),
+        list_to_circular(Goals, GoalGen).
+
+
+
+
+
+phases([phase1, phase2]).
+
 
 %% ----------------------------------------------------------------------
 %% ----------------------------------------------------------------------
 
-main(Options) :-
-        exp_constants(Const),
+init_run :-
+        load_random_seed,
         gl_file(GlFile),
         compile_gl_file(GlFile),
-        Options0 = [beam_width(Const.beam_width),
-                    time_limit_seconds(Const.time_limit_seconds),
-                    constrained_only(false),
-                    max_iter(Const.max_iter)],
-        merge_options(Options, Options0, Options1),
-        set_rule_alphas(normal(0.2, 0.005)),
-
-        % power_law_goals(Const.exp,
-        %                 Const.lo,
-        %                 Const.hi,
-        %                 Const.c,
-        %                 GoalWeights),
-        succ_goals(1, 99, 1, Goals),
-        % succ_goals(20, 28, 1, Gs1), 
-        % append(Gs0, Gs1, Goals),
-        % list_to_categorical(GoalWeights, GoalGen),xo
-        list_to_random_choice(Goals, GoalGen),
-        run_online_vbem(GoalGen, _Data, Options1).
-
-% %% ----------------------------------------------------------------------
-% %%    analyze
-
-% analyze1(GlFile, Ls) :-
-%         load_gl(GlFile),
-%         number_goals(1, 20, 1, Goals),
-%         prove_goals(Goals, Ds, [beam_width(10), time_limit_seconds(10)]), 
-%         findall(L,k
-
-%                 (member(D, Ds), 
-%                  loglikelihood(D, L)),
-%                 Ls).
-
-% analyze(Dir, LoglikelihoodData) :-
-%         absolute_file_name(Dir, Path),
-%         directory_files(Path, Files),
-%         findall(F, 
-%                 (member(F, Files),
-%                  atom_prefix(F, 'ovbem_gl'),
-%                  file_name_extension(_, 'gl', F)),
-%                 Files1),
-%         % writeln(Files1),
-%         retractall(worked(_)),
-%         findall(Ls,
-%                 (member(F, Files1),
-%                  directory_file_path(Path, F, P),
-%                  (analyze1(P, Ls) ->
-%                   assert(worked(P))
-%                  ;
-%                   throw(error('FAIL'))
-%                  )
-%                 ),
-%                 LoglikelihoodData),
-%         length(LoglikelihoodData, N).
+        exp_constants(Consts),
+        set_rule_alphas(Consts.init_alpha).
         
+run_phase(Phase, Options0) :-
+        PhaseSpec =.. [Phase, Spec],
+        call(PhaseSpec),
+        exp_constants(Consts),
+        merge_options(Spec, Options0, Options1), 
+        merge_options(Consts, Options1,  Options),
+        GoalGen = Spec.goal_generator,
+        run_online_vbem(GoalGen, _, Options).
+
+run_training(Options) :-
+        init_run,
+        phases(Phases),
+        forall(member(Phase, Phases),
+               run_phase(Phase, Options)).
+
+main(Options) :-
+        run_training(Options).
+        % run_testing.
 
 
-bench :-
-        exp_constants(Const),
-        gl_file(GlFile),
-        compile_sdcl_file(GlFile),
-        Options = [beam_width(Const.beam_width),
-                    time_limit_seconds(Const.time_limit_seconds),
-                    max_iter(Const.max_iter)],
-        succ_goal(15, 1, G),
-        prove_goals([G], _L, Options).
-            
 
 
-df_list(X-X, []) :- !.
-df_list([X|Y]-Z, [X|Xs]) :- df_list(Y-Z, Xs).
+%% ----------------------------------------------------------------------
+%%    test
+
+

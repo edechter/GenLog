@@ -11,22 +11,44 @@
 
 :- module(pgen,
           [yield/3,
+           yield/4,
            enum/2,
            list_to_gen/2,
+           list_to_circular/2,
            list_to_random_choice/2,
            list_to_categorical/2]
            ).
 
 :- use_module(library(random)).
 
+%% yield(Gen, Number, Elements, NewGen)
+yield(Gen, 0, [], Gen) :- !.
+yield(Gen, N, [X|Xs], Gen2) :-
+        yield(Gen, X, Gen1),
+        N1 is N - 1,
+        yield(Gen1, N1, Xs, Gen2).
+
 yield(Gen, Next, Gen1) :-
         call(Gen, Next, Gen1).
 
+%% list_to_gen(List, Gen)
 list_to_gen(List, Gen) :-
         Gen =.. [list_gen, List].
 
 list_gen([X|Xs], X, Gen) :-
         Gen =.. [list_gen, Xs].
+
+%% list_to_circular(List, Gen)
+list_to_circular(List, Gen) :-
+        Gen =.. [list_to_circular_, List].
+
+list_to_circular_([X|Xs], X, Gen) :-
+        shift_left_([X|Xs], Ys),
+        Gen =.. [list_to_circular_, Ys].
+
+shift_left_([], []).
+shift_left_([X|Xs], Ys) :-
+        append(Xs, [X], Ys). 
 
 
 
@@ -44,8 +66,14 @@ list_to_rc_(List, X, Gen) :-
 %% List is list of pairs K-W, where W is the weight associated with
 %% item K. Gen generates samples of K's proportional to their weights.
 list_to_categorical(List, Gen) :-
+        % if List is a list of pairs
+        List = [_-_|_],
+        !, 
         list_to_cdf(List, Cdf), 
         Gen =.. [cdf_to_categorical_, Cdf].
+list_to_categorical(List, Gen) :-
+        % if List is unweighted, i.e., not a list of pairs
+        list_to_random_choice(List, Gen).
 
 cdf_to_categorical_(Cdf, X, Gen) :-
         categorical(Cdf, X),

@@ -2,57 +2,47 @@
 %% simple sdcl for English
 %% ----------------------------------------------------------------------
 
-% delayed(on).
+
+num_preds(1, 4).
+
+pred(Type, Index, Pred) :-
+        num_preds(Type, N), 
+        between(1, N, Index),
+        format(atom(Pred), "A(t=~w, i=~w)", [Type, Index]).
+
+pred(Type, Pred) :- pred(Type, _, Pred).
+
+preds(Type, As) :- maplist(call(pred, Type), As).
 
 
-
-% append1(X, Y, Z) :-
-%         (
-%          delayed(on) ->
-%          when((ground(X) ; ground(Y); ground(Z)),
-%               append1_(X, Y, Z))
-%         ;
-%          append1_(X, Y, Z)).
-
-% append1_([H], [L|Ls], [H, L|Ls]).
-% append1_([H|T], L, [H|R]) :-
-%         L\=[],
-% 	append1_(T, L, R).
-
-show_attrs(Vars) :-
-        is_list(Vars),
-        !,
-        maplist(show_attrs, Vars).
-show_attrs(Var) :-
-        get_attrs(Var, Attrs),
-        writeln(Var-Attrs),
-        !.
-show_attrs(Var).
-
-
+lexemes([a,b]).
+lexeme(L) :-
+        lexemes(Ls), 
+        member(L, Ls).
 
 
 :- begin(genlog).
 
 rule_group(
-           ( s(X  | UV) @ [UV = [U, V|W]]---> [X = [_|_]] # s(X | [U]) :: 200),
-           ( s(X  | UV) @ [UV = [U, V|W]]---> [X = [_|_]] # s(X | [V|W]) :: 200),
-           ( s(XY  | Z) @ [Z=[_, _|_]] ---> [X = [_|_], append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 100),
-           ( s(XY  | Z) @ [Z=[_, _|_]]---> [X = [_|_], append1d(X, Y, XY)] # s(X | Z), s(Y | X) :: 1),
-           ( s(XY  | Z) @ [Z=[_, _|_]]---> [X = [_|_], append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1)
-           ).
+           macro(
+                 (s(X) ---> '?A'(X)),
+                 (preds(1, ['?A']))
+                )
+          ).
 
 rule_group(
-           ( s(XY  | Z) @ [Z=[_]]---> [X = [_|_], append1d(X, Y, XY)] # s(X | Z), s(Y | Z) :: 10),
-           ( s(XY  | Z) @ [Z=[_]]---> [X = [_|_], append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1),
-           % ( s(XY  | Z) @ [Z=[_]]---> [append1d(X, Y, XY)] # s(Y | Z), s(X | Y) :: 1),
-           ( s([a] | [a]) :: 200 ), 
-           ( s([b] | [a]) :: 200 )
-           ).
-
-rule_group(
-           ( r([a] | [a]) :: 200 ), 
-           ( r([b] | [a]) :: 200 )
+           macro(
+                 ('?A'(XY) ---> append1d(X, Y, XY) # '?B'(X), '?C'(Y)),
+                 preds(1, ['?A', '?B', '?C'])
+                ),
+           macro(
+                 ('?A'(X) ---> true)
+                ,
+                 (pred(1, '?A'),
+                  lexeme(L),
+                  X = [L]
+                 )
+                )
           ).
 
 :- end(genlog).

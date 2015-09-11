@@ -92,10 +92,16 @@ items_counts(Items, ItemCountPairs) :-
         
 items_counts_loop([], ItemsCountsIn, ItemsCountsIn).        
 items_counts_loop([X|Xs], ItemsCountsIn, ItemsCountsOut) :-
-        (get_assoc(X, ItemsCountsIn, OldCount, ItemsCountsTmp, NewCount) ->
-         NewCount is OldCount + 1
+        (X \= El-Count ->
+         El = X,
+         Count = 1
         ;
-         put_assoc(X, ItemsCountsIn, 1, ItemsCountsTmp)
+         X = El-Count
+        ),
+        (get_assoc(El, ItemsCountsIn, OldCount, ItemsCountsTmp, NewCount) ->
+         NewCount is OldCount + Count
+        ;
+         put_assoc(El, ItemsCountsIn, Count, ItemsCountsTmp)
         ),
         items_counts_loop(Xs, ItemsCountsTmp, ItemsCountsOut).
 

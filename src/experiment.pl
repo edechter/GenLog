@@ -16,7 +16,8 @@
 :- module(experiment,
           [run_experiment/0,
            run_experiment/1,
-           run_experiment/2
+           run_experiment/2,
+           run_experiment/3
           ]).
 
 
@@ -126,6 +127,8 @@ require_runner :-
 %% ----------------------------------------------------------------------
 %%      run_experiment
 %%      run_experiment(+PATH_TO_RUNNER)
+%%      run_experiment(+PATH_TO_RUNNER, +Options)
+%%      run_experiment(+PATH_TO_RUNNER, +Goal, +Options)
 %%
 %%      Run experiment specified in the runner script at
 %%      PATH_TO_RUNNER.
@@ -144,17 +147,21 @@ run_experiment :-
 run_experiment(PATH_TO_RUNNER) :-
         run_experiment(PATH_TO_RUNNER, []).
 
-run_experiment(PATH_TO_RUNNER, _) :-
+run_experiment(PATH_TO_RUNNER, Fields) :-
+        run_experiment(PATH_TO_RUNNER, main, Fields).
+
+run_experiment(PATH_TO_RUNNER, _, _) :-
         \+ exists_file(PATH_TO_RUNNER),
         !,
         throw(error(run_experiment/1, 'Cannot find experiment runner script.', PATH_TO_RUNNER)).
-run_experiment(PATH_TO_RUNNER, Fields) :-
+run_experiment(PATH_TO_RUNNER, Goal, Fields) :-
         set_setting(runner, PATH_TO_RUNNER),
         load_files([PATH_TO_RUNNER], [module(runner)]),
         setup_experiment(Fields, Config),
         config_data_path(Config, DataPath), 
         Options = [save_dir(DataPath)],
-        call(runner:main, Options).
+        call(runner:Goal, Options).
+        
 
 current_datetime(DateTime) :- 
         get_time(Time),

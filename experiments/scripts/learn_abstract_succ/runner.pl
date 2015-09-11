@@ -43,53 +43,100 @@ gl_file(GlFile) :-
    getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/', 'experiments/gls', '/', 'abstract_succ.gl'], GlFile).
 
-% goal_list([
-%            s([1, a], [2, b]),
-%            s([1, b], [2, c]),
-%            s([2, a], [3, b]),
-%            s([2, b], [3, c])
-%            ]).
+%% ----------------------------------------------------------------------
+%% Create the observed data goals.
+%% There are several categories:
+%% 1) Units: analog of 1-10
+%% 2) Decades: analog of 10-99 minus the transition goals (see 3)
+%% 3) Transitions: analog of 9-10, 19-20, ...
 
-goal_list([
-           s([1, a], [1, b]),
-           s([1, b], [1, c]),
-           s([1, c], [2, a]),
-           
-           s([2, a], [2, b]),
-           s([2, b], [2, c]),
-           s([2, c], [3, a]),           
+unit_list([1,2,3,4]).
 
-           s([3, a], [3, b]),
-           s([3, b], [3, c]),
-           s([3, c], [4, a])           
-          ]).
+unit_goals(Xs) :- findall(X, unit_goal(X), Xs). 
 
-goal(N, G) :-
-        goal_list(List), 
-        random_member(G, List).         
+unit_goal(s([X], [Y])) :-
+        unit_list(Units), 
+        append([_, [X, Y], _], Units).
 
+decade_goals(Goals) :-
+        findall(G, decade_goal(G), Goals).
 
+decade_goal(s([D, b, U], [D, b, U1])) :-
+        unit_list(Units),
+        member(D, Units), 
+        member(U, Units), 
+        last(Units, L),
+        U \= L,
+        unit_goal(s([U], [U1])).
+
+transition_goal(s([D, b, Last], [D1, b, First])) :-
+        unit_goal(s([D], [D1])),
+        unit_list(Units),
+        last(Units, Last),
+        Units = [First|_].
+              
+goals(phase1, Goals) :-
+        unit_goals(Goals).
+goals(phase2(UnitWeight, DecadeWeight, TransitionWeight), Goals) :-
+        findall(U-UnitWeight,
+                unit_goal(U),
+                UnitGoals),
+        
+        findall(D-DecadeWeight,
+                decade_goal(D),
+                DecadeGoals),
+        writeln(DecadeGoals),
+        findall(T-TransitionWeight,
+                transition_goal(T),
+                TransitionGoals),
+        
+        append([UnitGoals, DecadeGoals, TransitionGoals], Goals).
+                     
+
+                 
+                 
 %% ----------------------------------------------------------------------
 %%                               Constants
 exp_constants(
    constants{beam_width:100,
              time_limit_seconds:5,
-             max_iter:100}).
+             goals_per_iter:1000,
+             max_iter:50
+             }).
 
+phase2_spec(phase2(UnitWeight, DecadeWeight, TransitionWeight)) :-
+        UnitWeight         = 10,
+        DecadeWeight       = 5,
+        TransitionWeight   = 4.
+            
+iters(phase1, 0).
+iters(phase2(_, _, _), 2).
 
-main(Options) :-
+alpha_init(uniform(4)).
+
+run_phase(Which, Options) :-
+       iters(Which, Iters),
+       exp_constants(Const),
+       Const1 = Const.put([max_online_iter=Iters]),
+       merge_options(Options, Const1, Options1),
+       goals(Which, Goals),
+       list_to_categorical(Goals, GoalGen),
+       run_online_vbem(GoalGen, Data, Options1).
+       
+run(Options) :-
         gl_file(GL_FILE),
         compile_gl_file(GL_FILE),
-        exp_constants(Const),
-        Options0 = [beam_width(Const.beam_width),
-                    time_limit_seconds(Const.time_limit_seconds),
-                    constrained_only(false),
-                    max_iter(Const.max_iter)],
-        merge_options(Options, Options0, Options1),
-        set_rule_alphas(normal(0.2, 0.05)),
-        goal_list(Goals),
-        list_to_random_choice(Goals, GoalGen),
-        run_online_vbem(GoalGen, Data, Options1).
-  
+        alpha_init(InitParams), 
+        set_rule_alphas(InitParams),
+        %% run
+        % merge_options(Options, [run_id(phase1)], Options1), 
+        % run_phase(phase1, Options1),
+        phase2_spec(Phase2),
+        merge_options(Options, [run_id(phase2)], Options2), 
+        run_phase(Phase2, Options2).
+       
+
+main(Options) :-
+        run(Options). 
 
         

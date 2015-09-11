@@ -4,7 +4,8 @@
           [
            dgraph_size/2,
            assert_dgraph_tree_property/1,
-           pprint_dgraph/1, 
+           pprint_dgraph/1,
+           pprint_dgraph/2, 
            
            add_node/4,
            add_nodes/3,
@@ -165,8 +166,10 @@ test_dtree(DTree) :-
 %%      Unit Tests
 
 pprint_dgraph(DGraph) :-
+        pprint_dgraph(DGraph, []).
+pprint_dgraph(DGraph, Options) :-
         dgraph_dtree(DGraph, DTree),
-        pprint_dtree(DTree).
+        pprint_dtree(DTree, Options).
 
 pprint_raw_dgraph(DGraph) :-
         DGraph = dgraph(_StartNode, _Nodes, Edges),
@@ -188,10 +191,12 @@ pprint_raw_dtree(DTree) :-
 
 % pprint_dtree(DTree) pretty prints a derivation tree DTree
 pprint_dtree(DTree) :-
-        pprint_dtree(DTree, 2).
-pprint_dtree(DTree, Indent) :-
-        pprint_dtree(DTree, Indent, 0).
-pprint_dtree(dtree(NodeId-Goal, RuleId, SubTrees), Indent, Cursor) :-
+        pprint_dtree(DTree, []).
+pprint_dtree(DTree, Options) :-
+        pprint_dtree(DTree, 2, Options).
+pprint_dtree(DTree, Indent, Options) :-
+        pprint_dtree(DTree, Indent, 0, Options).
+pprint_dtree(dtree(NodeId-Goal, RuleId, SubTrees), Indent, Cursor, Options) :-
         tab(Cursor),
         write('+ '),
         pprint_term(Goal, GString),
@@ -201,13 +206,24 @@ pprint_dtree(dtree(NodeId-Goal, RuleId, SubTrees), Indent, Cursor) :-
          get_rule(RuleId, Rule),
          pprint_rule(Rule, RString)
         ),
-        format("~w: ~w -- ~w : ~w", [NodeId, GString, RuleId, RString]),
+        option(show_value(WhichValue), Options, show_value(none)),
+        (WhichValue = prob ->
+         get_rule_prob(RuleId, P),
+         format(atom(V), "~g", [P])
+        ;
+         WhichValue = alpha ->
+         get_rule_alpha(RuleId, A),
+         format(atom(V), "~g", [A])
+        ;
+         WhichValue = none ->
+         V = ''
+        ),
+        format("~w: ~w -- ~w : ~w :: ~w", [NodeId, GString, RuleId, RString, V]),
         nl,
-
         (
         Cursor1 is Cursor + Indent,
         member(SubTree, SubTrees),
-        pprint_dtree(SubTree, Indent, Cursor1),
+        pprint_dtree(SubTree, Indent, Cursor1, Options),
         fail
         ;
         true

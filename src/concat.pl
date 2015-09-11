@@ -3,7 +3,8 @@
                    list_len/2,
                    single/1,
                    null/1,
-                   not_null/1
+                   not_null/1,
+                   sublists_constraint/2
                   
                    ]).
 
@@ -13,10 +14,7 @@
 %%   concat/3
 
 concat(X, Y, Z) :-
-        list_len(X, NX),
-        list_len(Y, NY),
-        list_len(Z, NZ),
-        NZ #= NX + NY,
+        % sublists_constraint([X, Y], Z),
         when(nonvar(X),
               concat_1(X, Y, Z)
              ),
@@ -47,9 +45,10 @@ remove_bound([V|Vs], [N|Ns], Vs1, Ns1) :-
 % concat_1(X, Y, Z) is called when the first argument X is nonvar. 
 concat_1([], Y, Z) :- !, Y = Z.
 concat_1([X|Xs], Y, Z) :- !,
+        % sublists_constraint([Xs, Y], Zs0),
+        Z = [X|Zs0],
         when(nonvar(Xs),
-             concat_1(Xs, Y, Zs0)),
-        Z = [X|Zs0].
+             concat_1(Xs, Y, Zs0)).
 
 % concat_2(X, Y, Z) is called when the second argument Y is nonvar.
 concat_2(X, [], Z) :- !,
@@ -64,12 +63,11 @@ concat_2(Xs, Ys, Zs) :-
         !.
 concat_2(Xs, Ys, Zs) :-
         true.
-        % last_var(Ys, V),
-        % when(nonvar(V),
-             % concat_2(Xs, Ys, Zs)).
 
 last_var(L, V) :- var(L), !, V = L.
 last_var([_|Rest], V) :- last_var(Rest, V).
+
+
 
 
 %% ----------------------------------------------------------------------
@@ -83,7 +81,10 @@ list_len(List, N) :-
         var(List),
         !,
         (get_attr(List, len, N) ->
-         true
+         (nonvar(N) ->
+          list_len_concrete(List, N)
+         ;
+          true)
         ;
          N #>= 0,
          put_attr(List, len, N)
@@ -115,6 +116,15 @@ null(X) :- list_len(X, 0).
 %% not_null/1
 not_null(X) :-
         N #>= 1,
-        % {N >= 1},
         list_len(X, N).
 
+%% sublists_constraint/2
+sublists_constraint([], Y) :-
+        list_len(Y, 0).
+sublists_constraint([X|Xs], Y) :-
+        list_len(Y, M),
+        list_len(X, N),
+        list_len(Y0, M0),
+        sublists_constraint(Xs, Y0),
+        M #= M0 + N.
+        

@@ -148,7 +148,7 @@ pprint_rule_probs:-
 
 pprint_rule_probs(Options) :-
         get_rule_probs(Arr),
-        pprint_rule_array(Assoc, Options).
+        pprint_rule_array(Arr, Options).
 
 pprint_rule_probs(Out, Options) :-
         get_rule_probs(Assoc),

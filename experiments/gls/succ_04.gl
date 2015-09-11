@@ -2,8 +2,8 @@
 
 :- ensure_loaded(experiment(number_words)).
 
-num_preds(1, 10).
-num_preds(2, 10).
+num_preds(1, 4).
+num_preds(2, 4).
 
 pred(Type, Index, Pred) :-
         num_preds(Type, N), 
@@ -19,15 +19,17 @@ lexeme(L) :-
         lexemes(Ls), 
         member(L, Ls).
 
-lexemes(Ls) :- setof(L,
-                     N^W^(
-                      between(1, 99, N),
-                      number_word(N, W),
-                      member(L, W)
-                     ;
-                      L='START'),
-                     Ls
-                    ).
+
+lexemes(Ls) :-
+        setof(L,
+              N^W^(
+                   between(1, 99, N),
+                   number_word(N, W),
+                   member(L, W)
+                  ;
+                   L='START'),
+              Ls
+             ).
 
 
 :- begin(genlog).
@@ -58,15 +60,6 @@ rule_group(
          pred(1, '?C')
         )
         ),
-
-   macro(
-         ('?A'(XY| Z) @ [Z=[_, _|_]] ---> [append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y))
-        ,
-        (pred(1, '?A'),
-         pred(1, '?B'),
-         pred(1, '?C')
-        )
-        ),
            
    macro(
          ('?A'(X | [U, W|V]) ---> '?B'(X | [U]))
@@ -86,7 +79,7 @@ rule_group(
         )
           ).
 
-
+% conditioning on string of length = 1
 rule_group(
    macro(
          ('?A'(XY| Z) @ [Z=[_]] ---> [append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | Z))
@@ -99,15 +92,6 @@ rule_group(
            
    macro(
          ('?A'(XY| Z)  @ [Z=[_]]---> [append1d(X, Y, XY)] # '?B'(X | Z), '?C'(Y | X))
-        ,
-        (pred(1, '?A'),
-         pred(1, '?B'),
-         pred(1, '?C')
-        )
-        ),
-
-   macro(
-         ('?A'(XY| Z) @ [Z=[_]] ---> [append1d(X, Y, XY)] # '?B'(Y | Z), '?C'(X | Y))
         ,
         (pred(1, '?A'),
          pred(1, '?B'),

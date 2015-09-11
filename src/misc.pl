@@ -11,7 +11,10 @@
                  and_to_list/2,
                  list_to_and/2,
                  call1/1,
-                 calld/2
+                 calld/2,
+
+                 load_random_seed/0,
+                 load_random_seed/1
 
                  ]).
 
@@ -29,13 +32,14 @@
 %% non-var.
 %% 
 append1d(X, Y, Z) :-
-        % X \= [],
-        % Y \= [],
-        not_null(X),
-        not_null(Y),
+        X = [_|_],
+        Y = [_|_],
+        % not_null(X),
+        % not_null(Y),
         appendd(X, Y, Z).
 
-appendd(X, Y, Z) :- append(X, Y, Z).
+appendd(X, Y, Z) :- concat(X, Y, Z).
+% appendd(X, Y, Z) :- append(X, Y, Z).
 
 
 
@@ -168,4 +172,22 @@ list_to_and([], true).
 list_to_and([X], X).
 list_to_and([X|Xs], (X, Ys)) :-
         list_to_and(Xs, Ys).
-                
+
+
+%% ----------------------------------------------------------------------
+%%     load_random_seed/0
+%%     load_random_seed/1
+
+'$random_seed_file_default'('./.swipl_random_seed').
+
+load_random_seed :-
+        '$random_seed_file_default'(File),
+        load_random_seed(File).
+
+load_random_seed(File) :-
+        open(File, read, S),
+        read(S, T),
+        T = seed(Rand),
+        set_random(seed(Rand)).
+
+        

@@ -91,10 +91,9 @@ prove_all(Goal, Options) :-
         must_be(nonvar, Goal),
         format("Proving ~w: ...\n", [Goal]), 
         prove_all(Goal, Results, LogP, Options),
-        sort_results_by_prob(Results, Results1), 
         format("LogProb: ~w\n", [LogP]), 
         forall(
-               member(deriv(Goal, DGraph, Score), Results1),
+               member(deriv(Goal, DGraph, Score), Results),
                (format("CondProb: ~w\n", [Score]),
                 pprint_dgraph(DGraph),
                 nl
@@ -127,11 +126,13 @@ prove_all(Goal, Results, LogP, Options) :-
         % side-effect: populate prove_all_derivation/1        
         prove_all_go(StartTime, Goal, OptionsRecord), 
         findall(D, prove_all_derivation(D), Derivations),
+        sort_results_by_prob(Derivations, Derivations1),
+
         
         % add conditional probability given Goal being true to each
         % derivation
         findall(Score,
-                member(deriv(Goal, DGraph, Score), Derivations),
+                member(deriv(Goal, DGraph, Score), Derivations1),
                 Scores),
 
 
@@ -144,11 +145,13 @@ prove_all(Goal, Results, LogP, Options) :-
          log_sum_exp(Scores, LogP),
          findall(deriv(Goal, DGraph, ConditionalProb), 
                  (
-                  member(deriv(Goal, DGraph, Score), Derivations),
+                  member(deriv(Goal, DGraph, Score), Derivations1),
                   ConditionalProb is exp(Score - LogP)
                  ),
                  Results)
         ),
+
+        % sort_results_by_prob(Results0, Results), 
 
         findall(Cond,
                 member(deriv(_, _, Cond), Results),
@@ -390,7 +393,7 @@ extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut, OptRec) :-
 %% DInfo.
 extensions(DInfo, Extensions, OptRec) :-
         findall(Extension,
-                extend(DInfo, Extension, OptRec),
+                 extend(DInfo, Extension, OptRec),
                 Extensions).
       
 
@@ -463,7 +466,12 @@ extend1(pterm(Term)-NodeId, LogProb, DGraph,
         add_nodes(DGraph, ChildNodes, DGraph0),
         add_edge(DGraph0, NodeId, RuleId, ChildIds, DGraph1),
 
-        LogProb1 is LogProb + log(Prob).
+        catch(
+              LogProb1 is LogProb + log(Prob),
+              error(E, _),
+              (writeln(Prob),
+               fail)).
+               % LogProb1 is -9e-100)).
 
 % ----- add_ids_to_bodylist 
 add_ids_to_bodylist([], [], [], []).
@@ -603,10 +611,13 @@ prolog:message(expl_search(scores(Scores, Conds))) -->
         {pairs_keys_values(Pairs, Scores, Conds)},
         {keysort(Pairs, Pairs0)},
         {reverse(Pairs0, PairsSorted)},
-        {length(PairsSorted, N)}, 
-        expl_search_prefix, ['Derivation Scores:'], [nl],
-        expl_search_prefix, ['Number: ~d'-[N]], [nl], 
-        print_scores_go_(PairsSorted). 
+        {length(PairsSorted, N)},
+        [nl],
+        expl_search_prefix, ['~| ~`-t ~5+ Derivation Scores ~| ~`-t ~5+'], [nl],
+        expl_search_prefix, ['Number of derivations found: ~d'-[N]], [nl],
+        expl_search_prefix, ['Top 10 derivations:'], [nl],
+        {take(10, PairsSorted, PairsSorted1)}, 
+        print_scores_go_(PairsSorted1). 
 
 print_scores_go_([]) --> expl_search_prefix, [nl].
 print_scores_go_([S-C|Ss]) -->
@@ -644,31 +655,6 @@ empty_pqueue([]).
 
 add_to_pqueue(In, V, K, Out) :-
         add_to_pq_df(In, V, K, Out).
-% add_to_pqueue([], V, K, [V-K]) :-
-%         !.
-        
-% add_to_pqueue([V0-K0|In], V, K, Out) :-
-%         V >= V0,
-%         !,
-%         Out = [V-K, V0-K0| In].
-% add_to_pqueue([V0-K0|In], V, K, Out) :-
-%         V < V0,
-%         !,
-%         Out = [V0-K0 | Tmp],
-%         add_to_pqueue(In, V, K, Tmp).
-
-% add_to_pq_df([], V, K) --> [V-K].
-% add_to_pq_df([V0-K0|In], V, K) -->
-%         {V >= V0},
-%         !, 
-%         [V-K, V0-K0],
-%         In.
-% add_to_pq_df([V0-K0|In], V, K) -->
-%         {print_current_frame},
-%         {V < V0},
-%         !, 
-%         [V0-K0],
-%         add_to_pq_df(In, V, K).
 
 add_to_pq_df(In, V, K, Out) :-
         add_to_pq_df_(H-H, In-[], V, K, Out-[]).
@@ -680,8 +666,7 @@ add_to_pq_df_(H-[V-K, V0-K0|L1], [V0-K0|L1]-L2, V, K, Out) :-
         Out = H-L2.
 add_to_pq_df_(H-[V0-K0|H0], [V0-K0|L1]-L2, V, K, Out) :-
         V < V0,
-        add_to_pq_df_(H-H0, L1-L2, V, K, Out).
-        
+        add_to_pq_df_(H-H0, L1-L2, V, K, Out).        
 
 list_to_pqueue(In, PQ) :-
         keysort(In, PQ0),
@@ -691,7 +676,6 @@ pqueue_to_list(In, In).
 
 pqueue_size(Pq, N) :-
         length(Pq, N).
-
 
 :- begin_tests(prove).
 

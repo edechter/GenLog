@@ -170,18 +170,6 @@ get_rule_alphas(Array) :-
                 (get_rule_alpha(RuleId, Alpha),
                  set(RuleId, Array,  Alpha))).
 
-%% ----------------------------------------------------------------------
-%%      get_rule_alphas(Array)
-%%
-%% Get array whose values are the rule alphas.
-get_rule_alphas(Array) :-
-        num_rules(N),
-        array(N, Array),
-        forall(between(1, N, RuleId),
-               (
-                get_rule_alpha(RuleId, W),
-                set(RuleId, Array, W))).
-
 
 
 %% ----------------------------------------------------------------------
@@ -239,7 +227,7 @@ set_rule_alphas(uniform(K)) :-
         !,
         assertion(number(K)),
         forall(rule_group(RuleGroup),
-               (rule_group_rules(RuleGroup, RuleIds),
+               (get_rule_group_rules(RuleGroup, RuleIds),
                 length(RuleIds, N),
                 assertion(N>0),
                 Alpha is 1.0/(K*N),
