@@ -102,26 +102,17 @@ exp_constants(
 phase1(
        constants{
         goal_generator: GoalGen, 
-                 goals_per_iter: 9,
+                 goals_per_iter: 98,
                  max_online_iter: 1,
                  run_id: phase1
                 }
       ) :-
-        succ_goals(1, 9, 100, Goals),
+        succ_goals(1, 98, 10, Goals),
         list_to_circular(Goals, GoalGen). 
 
-phase2(
-       constants{
-                 goal_generator: GoalGen, 
-                 goals_per_iter: 98,
-                 max_online_iter: 1,
-                 run_id: phase2
-                }
-      ) :-
-        succ_goals(1, 98, 100, Goals),
-        list_to_circular(Goals, GoalGen).
 
-phases([phase1, phase2]).
+
+phases([phase1]).
 
 
 %% ----------------------------------------------------------------------
