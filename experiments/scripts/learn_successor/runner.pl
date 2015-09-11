@@ -119,10 +119,6 @@ phase2(
         succ_goals(1, 98, 100, Goals),
         list_to_circular(Goals, GoalGen).
 
-
-
-
-
 phases([phase1, phase2]).
 
 
