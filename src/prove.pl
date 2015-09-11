@@ -372,7 +372,12 @@ extend_all_go(MaxSize, Inf, [V-K|PqElems], [], PqIn, PqOut, OptRec) :-
           )
         ).
 extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut, OptRec) :-
+        % length(Elems, L),
+        % length(PqElems, PL), 
+        % format('extend_all_go: NElems: ~p, NPQElems: ~p\n', [L, P]),
+        % writeln(Inf),
         pqueue_size(PqIn, Size),
+        % writeln(debug(v(V), inf(Inf), size(Size), maxSize(MaxSize))),
         ((Size >= MaxSize, V < Inf)  ->
          % if pqueue is saturated and next element to be inserted is
          % worse than current queue infinfum, there's no point in
@@ -380,12 +385,13 @@ extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut, OptRec) :-
          PqIn = PqOut
         ;
          % otherwise, insert element
-         add_to_pqueue(PqIn, V, K, PqTmp),
+         add_to_pqueue(PqIn, V, K, PqTmp0),
+         take(MaxSize, PqTmp0, PqTmp),
          % if V is smaller than infinum, set new infinum to V
          (V < Inf ->
-          Inf1 = V
+          Inf1 REAg= V
          ;
-          Inf1 = Inf
+          last(PqTmp, Inf1-_),
          ),
          extend_all_go(MaxSize, Inf1, PqElems, Elems, PqTmp, PqOut, OptRec)
         ).
@@ -666,6 +672,7 @@ beam_terms_go_([W-deriv_info(Goals, _, _) | Es]) -->
 empty_pqueue([]).
 
 add_to_pqueue(In, V, K, Out) :-
+        length(In, L),
         add_to_pq_df(In, V, K, Out).
 
 add_to_pq_df(In, V, K, Out) :-

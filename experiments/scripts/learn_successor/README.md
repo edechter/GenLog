@@ -809,10 +809,31 @@ https://www.dropbox.com/s/xo1exvfo30aklqz/Screenshot%202015-09-11%2013.58.30.png
 Slight improvements across the board.
 
 ** Experiment 5: 
+ABORTED see note below
+commit: ee3ab61
 
-Same Experiment 4, but count 100. That is, start with grammar learned
+Same as Experiment 4, but count 100. That is, start with grammar learned
 after experiment 3, and train on numbers 1-98 for a one batch 100
 count.
+
+:LOGBOOK:
+?- load_gl('/Users/edechter/data/exp_2015-09-11-12-31-39/data/ovbem_gl_phase2_0001.gl').
+
+:END:
+
+Note: Experiment 5 failed because of bug in add_to_pqueue. The bug was
+that if an a really bad derivation was inserted into a saturated
+pqueue, then the infinum was not being updated when a better
+derivation was found. This meant that insertion of derivations was not
+being pruned in some cases. This bug should have only affected the
+runtime of the code, not the accuracy, but since the code is
+time-bound, it's hard to tell.
+
+ABORT
+
+** Experiment 5*: 
+
+
 
 
 
