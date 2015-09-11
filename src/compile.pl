@@ -715,7 +715,8 @@ load_gl(GzFile) :-
         
               
 load_gl(File) :-
-        style_check(-singleton), 
+        style_check(-singleton),
+        remove_all_rules, 
         qcompile(File),
         load_global_vars_,
         style_check(+singleton).
