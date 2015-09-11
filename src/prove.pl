@@ -114,6 +114,9 @@ prove_all(Goal, Results, LogP) :-
         prove_all(Goal, Results, LogP, []).
 
 prove_all(Goal, Results, LogP, Options) :-
+        print_message(information,
+                      begin(prove_all(goal(Goal), options(Options)))),
+                                      
         (is_list(Options) ->
          make_options(Options, OptionsRecord, _)
         ;
@@ -122,7 +125,8 @@ prove_all(Goal, Results, LogP, Options) :-
         
         get_time(StartTime),
         retractall(prove_all_derivation(_)),
-        
+
+
         % side-effect: populate prove_all_derivation/1        
         prove_all_go(StartTime, Goal, OptionsRecord), 
         findall(D, prove_all_derivation(D), Derivations),
@@ -157,7 +161,8 @@ prove_all(Goal, Results, LogP, Options) :-
                 member(deriv(_, _, Cond), Results),
                 Conds),
         
-        print_message(information, expl_search(scores(Scores, Conds))).
+        print_message(information, expl_search(scores(Scores, Conds))),
+        print_message(information, end(prove_all(goal(Goal)))).
 
 
 prove_all_go(StartTime, _, OptRec) :-
@@ -600,6 +605,13 @@ log_sum_exp_go(Xm, X, Y) :-
 
 expl_search_prefix -->
         ['Expl Search:     ' -[]].
+
+prolog:message(begin(prove_all(goal(Goal), options(_Options)))) -->
+        expl_search_prefix, ['Beginning prove_all explanation search for goal ~w ...'-Goal], [nl].        
+prolog:message(end(prove_all(goal(Goal)))) -->
+        expl_search_prefix, ['Finished prove_all explanation search for goal ~w.'-Goal], [nl].        
+                            
+         
 
 prolog:message(expl_search(start(OptionsRecord))) -->
         expl_search_prefix, ['Initializing with options: '-[]], [nl],

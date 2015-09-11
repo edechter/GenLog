@@ -1,7 +1,8 @@
 
 
 :- module(analyze, [
-                    count/3
+                    count/3,
+                    count/4
                    ]).
 
 :- use_module(library(option), [

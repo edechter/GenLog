@@ -107,7 +107,7 @@ phase1(
                  run_id: phase1
                 }
       ) :-
-        succ_goals(1, 98, 10, Goals),
+        succ_goals(1, 98, 100, Goals),
         list_to_circular(Goals, GoalGen). 
 
 
@@ -140,8 +140,8 @@ run_training(Options) :-
         forall(member(Phase, Phases),
                run_phase(Phase, Options)).
 
-run_testing :-
-        count(1, 98, [beam_width(200), time_limit_seconds(3)]), 
+run_testing(_Options) :-
+        count(1, 98, D, [beam_width(200), time_limit_seconds(3)]), 
         asserta(data(D)), 
         pairs_keys_values(D.transition_probs, Xs, Ys), 
         plot_xy(Xs, Ys), 
@@ -149,7 +149,7 @@ run_testing :-
 
 main(Options) :-
         run_training(Options),
-        run_testing.
+        run_testing(Options).
 
 
 
