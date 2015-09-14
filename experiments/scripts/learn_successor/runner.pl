@@ -128,7 +128,7 @@ phase(
                  run_id: phase
                 }
       ) :-
-        decade_goals(100, Goals),
+        transition_goals(100, Goals),
         list_to_circular(Goals, GoalGen).
 
 
