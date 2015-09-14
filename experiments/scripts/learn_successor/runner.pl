@@ -89,6 +89,16 @@ decade_goals(Count, Goals) :-
         findall(Goal,
                 decade_goal(_, Count, Goal),
                 Goals).
+
+transition_goal(Count, Goal) :-
+        between(2, 9, D),
+        N is D * 10 -1,
+        succ_goal(N, Count, Goal).
+
+transition_goals(Count, Goals) :-
+        findall(G,
+                transition_goal(Count, G),
+                Goals).
         
 
 power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
