@@ -128,13 +128,14 @@ exp_constants(
 
 phase(
        constants{
-        goal_generator: GoalGen, 
-                 goals_per_iter: 8,
+                 goal_generator: GoalGen, 
+                 goals_per_iter: L,
                  max_online_iter: 1,
                  run_id: phase
                 }
       ) :-
-        transition_goals(1000, Goals),
+        goal_list(Goals),
+        length(Goals, L), 
         list_to_circular(Goals, GoalGen).
 
 
