@@ -46,8 +46,8 @@
 :- use_module(experiment(plot)).
 
 %% experiment root directory
-:- getenv('HOME', Dir),
-   atomic_list_concat([Dir, '/', data], Root), 
+:- getenv('GENLOG_ROOT', Dir),
+   atomic_list_concat([Dir, '/', experiments, '/', data], Root),
    set_setting(experiment:root, Root).
 
 %% select genlog file
