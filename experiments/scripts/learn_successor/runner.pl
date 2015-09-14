@@ -128,7 +128,7 @@ phase(
                  run_id: phase
                 }
       ) :-
-        transition_goals(100, Goals),
+        transition_goals(1000, Goals),
         list_to_circular(Goals, GoalGen).
 
 
