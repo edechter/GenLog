@@ -109,6 +109,12 @@ power_law_goals(Exp, Lo, Hi, C, GoalWeights) :-
                  W is C/(I**Exp)),
                 GoalWeights).
 
+goal_list(Goals) :-
+        succ_goals(1, 9, 1000, Goals1),
+        succ_goals(1, 99, 1000, Goals2),
+        transition_goals(100, Goals3),
+        append([Goals1, Goals2, Goals3], Goals).
+
 %% ----------------------------------------------------------------------
 %% ----------------------------------------------------------------------
 %%                               Constants
