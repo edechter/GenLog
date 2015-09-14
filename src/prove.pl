@@ -389,9 +389,9 @@ extend_all_go(MaxSize, Inf, PqElems, [V-K|Elems], PqIn, PqOut, OptRec) :-
          take(MaxSize, PqTmp0, PqTmp),
          % if V is smaller than infinum, set new infinum to V
          (V < Inf ->
-          Inf1 REAg= V
+          Inf1 = V
          ;
-          last(PqTmp, Inf1-_),
+          last(PqTmp, Inf1-_)
          ),
          extend_all_go(MaxSize, Inf1, PqElems, Elems, PqTmp, PqOut, OptRec)
         ).
