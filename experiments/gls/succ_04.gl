@@ -2,7 +2,7 @@
 
 :- ensure_loaded(experiment(number_words)).
 
-num_preds(1, 6).
+num_preds(1, 10).
 num_preds(2, 6).
 
 pred(Type, Index, Pred) :-
@@ -78,6 +78,7 @@ rule_group(
         )
         )
           ).
+
 
 % conditioning on string of length = 1
 rule_group(
