@@ -21,6 +21,10 @@
 
            load_gl/1,
 
+           gl_global/1,
+           get_gl_globals/1,
+           set_gl_globals/1,
+
            op(1100, xfy, --->),
            op(1200, xfy, ::),
            op(950, xfy, @),
@@ -147,7 +151,24 @@ compile_gl(File) :-
          ),
           fail
         ).
-       
+
+
+%% Predicate true for the name of all global variables that genlog
+%% needs to keep track of.
+:- dynamic gl_global/1.
+
+get_gl_globals(Pairs) :-
+        findall(Name-Value,
+                (gl_global(Name),
+                 nb_getval(Name, Value)),
+                Pairs).
+
+set_gl_globals(Pairs) :-
+        forall(member(Name-Value, Pairs),
+              (gl_global(Name),
+               nb_setval(Name, Value))
+              ).
+
 
 %% ----------------------------------------------------------------------
 %%      open_gl(+File, +Mode, -Stream)
@@ -187,6 +208,8 @@ compile_gl_clause(Clause, RuleGroupInd, RuleGroupInd, _How) :-
         assert(TrClause),
         term_to_atom(gl_rule_prob(RuleId), NameP),
         term_to_atom(gl_rule_alpha(RuleId), NameA),
+        assertz(gl_global(NameP)),
+        assertz(gl_global(NameA)),
         nb_setval(NameP, Prob),
         nb_setval(NameA, 1.0).
 
