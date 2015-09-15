@@ -41,6 +41,7 @@
 :- use_module(pgen).
 :- use_module(array).
 :- use_module(data_utils).
+:- use_module(plunit_extra).
 
 :- getenv('GENLOG_ROOT', Dir),
    atomic_list_concat([Dir, '/lib/'], LIB),
@@ -778,7 +779,7 @@ dgraph_rule_counts([edge(_, RuleId, _)|Hs], W, AssocIn, AssocOut) :-
 :- begin_tests(learn).
 
 test(expected_rule_counts1,
-     [setup(setup_trivial_sdcl),
+     [setup(setup_test_gl),
       set(R-C=[1-15.0, 2-5.0])]) :-
         test_dgraph(DGraph),
         Ds = [DGraph, DGraph],
