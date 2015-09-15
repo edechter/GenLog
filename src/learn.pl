@@ -596,17 +596,21 @@ prove_goals(Goals, Derivations) :-
         
 prove_goals(Goals, Derivations, Options) :-
         combine_goals_(Goals, Goals1), 
-        prove_goals(Goals1, [], Derivations, Options).
+        prove_goals_(Goals1, Derivations, Options).
 
-prove_goals([], DsIn, DsIn, _).
-prove_goals([count(Goal, Count) | Goals], DsIn, DsOut, Options) :-
-        !,
-        prove_all(Goal, Derivations, _, Options),
-        DsTmp = [dsearch_result(Goal, Count, Derivations) | DsIn],
-        prove_goals(Goals, DsTmp, DsOut, Options).
-prove_goals([Goal|Goals], DsIn, DsOut, Options) :-
-        Goal \= count(_, _), % check is redundant due to CUT above
-        prove_goals([count(Goal, 1)|Goals], DsIn, DsOut, Options).
+prove_goals_(Goals, Derivations, Options) :-
+        get_gl_globals(Pairs), 
+        thread_initialization(set_gl_globals(Pairs)), 
+        concurrent_maplist(prove_goals__worker(Options), Goals, Derivations).
+
+prove_goals__worker(Options, Goal, dsearch_result(G, C, Derivations)) :-
+        (Goal = count(G, C) ->
+         true
+        ;
+         G = Goal,
+         C = 1
+        ),
+        prove_all(G, Derivations, _, Options). 
 
 combine_goals_(Goals, Goals2) :-
         findall(G-C,
