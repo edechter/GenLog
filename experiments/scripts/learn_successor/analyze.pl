@@ -25,6 +25,11 @@
                                    normalize/2
                                   ]).
 
+:- use_module(genlog(compile), [
+                                get_gl_globals/1,
+                                set_gl_globals/1
+                               ]).
+
 :- use_module(experiment(runner), [
                                    succ_goal/3
                                   ]).
@@ -60,20 +65,21 @@ count(Start, End,
       Options0) :-
         count_options_default(Def),
         merge_options(Options0, Def, Options),
-        transition_probs(Start, End, [], TransitionProbs, Options),
+        transition_probs(Start, End, TransitionProbs, Options),
         cumulative_product(TransitionProbs, CountProbs).
 
 
-transition_probs(End, End, TransitionProbsIn, TransitionProbsIn, _) :- !.
-transition_probs(Start, End, TransitionProbsIn, TransitionProbsOut, Options) :-
-        must_be(integer, Start),
-        must_be(integer, End),
+transition_probs(Start, End, TransitionProbs, Options) :-
+        findall(N, between(Start, End, N), Ns),
+        maplist(transition_probs_go(Options), Ns, TransitionProbs).
 
+transition_probs_go(Options, N, N-ProbCorrect) :- 
+        must_be(integer, N),
 
         set_probs_from_alphas,
         normalize_rules,
         
-        succ_goal(Start, 1, count(succ(Current, CorrectAnswer), _)),
+        succ_goal(N, 1, count(succ(Current, CorrectAnswer), _)),
         
         findall(Answer-Prob,
                (Goal = succ(Current, Answer),
@@ -82,14 +88,12 @@ transition_probs(Start, End, TransitionProbsIn, TransitionProbsOut, Options) :-
                 AnswerDistribution0),
 
         exponentiate_distribution(Options.alpha, AnswerDistribution0, AnswerDistribution),
-
-        Next is Start + 1,
                  
-        (member(CorrectAnswer-ProbCorrect, AnswerDistribution) -> true;
+        (member(CorrectAnswer-ProbCorrect, AnswerDistribution) ->
+         true
+        ;
          ProbCorrect = 0
-        ),
-        append(TransitionProbsIn, [Start-ProbCorrect], TransitionProbsTmp),
-        transition_probs(Next, End, TransitionProbsTmp, TransitionProbsOut, Options).
+        ).
 
 exponentiate_distribution(Alpha, DistributionIn, DistributionOut) :-
         findall(K-V1,
