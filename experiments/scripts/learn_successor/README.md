@@ -1,5 +1,7 @@
 ## README.md
 
+#+STARTUP: indent
+
 ### Experiment:
 
 - model how children learn the successor relation between number words
@@ -1262,8 +1264,57 @@ RESULTS:
    https://www.dropbox.com/s/g4r4lzvf7eag8pc/Screenshot%202015-09-15%2013.00.12.png?dl=0
 
 ** Experiment 10* 
-commit: 
+
+commit:a13b252
 Same as Experiment 10, but using 6 predicates instead of 10. Using same data scheme (unlike Experiment 9). 
+
+RESULTS:
+https://www.dropbox.com/s/tcn43tovx3ubcwm/Screenshot%202015-09-15%2014.06.40.png?dl=0
+
+Failure to learn like in experiment 10, suggesting that the failure in
+experiment 11 is due to the change in the number of predicates.
+
+** Experiment 11
+Same as Experiment 10* but set transition to count 1000
+
+
+RESULTS:
+
+https://www.dropbox.com/s/9r45jtizsqxhm5y/Screenshot%202015-09-15%2015.34.29.png?dl=0
+
+Poor performance. Much more similar to Exp 10* than to Exp 10. Suggests that the grammar in 10* is maybe just too small.
+
+** Experiment 12
+
+:LOGBOOK:
+?- run_experiment('runner.pl').
+Correct to: "experiment:run_experiment('runner.pl')"? 
+% Experiment Info:     Experiment settings ...........................
+% Experiment Info:     root:             /Users/edechter/Dropbox/Projects/SDCL/experiments/data
+% Experiment Info:     runner:           runner.pl
+% Experiment Info:     ...............................................
+% Experiment Info:     Experiment config .............................
+% Experiment Info:     path:             /Users/edechter/Dropbox/Projects/SDCL/experiments/data/exp_2015-09-15-16-14-18
+% Experiment Info:     data_path:        /Users/edechter/Dropbox/Projects/SDCL/experiments/data/exp_2015-09-15-16-14-18/data
+% Experiment Info:     git_hash:         d9d060fc93a895a306e229f5bcd859354a7c2235
+% Experiment Info:     start_time:       date(2015,9,15,16,14,18.810581922531128,14400,EDT,true)
+% Experiment Info:     random_seed:      11929389...
+% Experiment Info:     ...............................................
+% Compiling rules in file /Users/edechter/Dropbox/Projects/SDCL/experiments/gls/succ_04.gl...
+% Success! Finished compiling rules in file /Users/edechter/Dropbox/Projects/SDCL/experiments/gls/succ_04.gl.
+% Online VBEM:     Initializing with options: 
+% Online VBEM:     online_vbem_options(1,normal(0.1,0.01),115,/Users/edechter/Dropbox/Projects/SDCL/experiments/data/exp_2015-09-15-16-14-18/data,phase)
+% Online VBEM:     
+% Online VBEM:     Running ...
+% Online VBEM:     Iter 1 ...
+% Online VBEM:     current goal: [count(succ([one],[two]),1000),count(succ([two],[three]),1000),count(succ([three],[four]),1000),count(succ([four],[five]),1000),count(succ([five],[six]),1000),count(succ([six],[seven]),1000),count(succ([seven],[eight]),1000),count(succ([eight],[nine]),1000),count(succ([nine],[ten]),1000),count(succ([one],[two]),1000),count(succ([two],[three]),1000),count(succ([three],[four]),1000),count(succ([four],[five]),1000),count(succ([five],[six]),1000),count(succ([six],[seven]),1000),count(succ([seven],[eight]),1000),count(succ([eight],[nine]),1000),count(succ([nine],[ten]),1000),count(succ([ten],[eleven]),1000),count(succ([eleven],[twelve]),1000),count(succ([twelve],[threeteen]),1000),count(succ([threeteen],[fourteen]),1000),count(succ([fourteen],[fiveteen]),1000),count(succ([fiveteen],[sixteen]),1000),count(succ([sixteen],[seventeen]),1000),count(succ([seventeen],[eightteen]),1000),count(succ([eightteen],[nineteen]),1000),count(succ([nineteen],[twenty]),1000),count(succ([twenty],[twenty,one]),1000),count(succ([twenty,one],[twenty,two]),1000),count(succ([twenty,two],[twenty,three]),1000),count(succ([twenty,three],[twenty,four]),1000),count(succ([twenty,four],[twenty,five]),1000),count(succ([twenty,five],[twenty,six]),1000),count(succ([twenty,six],[twenty,seven]),1000),count(succ([twenty,seven],[twenty,eight]),1000),count(succ([twenty,eight],[twenty,nine]),1000),count(succ([twenty,nine],[thirty]),1000),count(succ([thirty],[thirty,one]),1000),count(succ([thirty,one],[thirty,two]),1000),count(succ([thirty,two],[thirty,three]),1000),count(succ([thirty,three],[thirty,four]),1000),count(succ([thirty,four],[thirty,five]),1000),count(succ([thirty,five],[thirty,six]),1000),count(succ([thirty,six],[thirty,seven]),1000),count(succ([thirty,seven],[thirty,eight]),1000),count(succ([thirty,eight],[thirty,nine]),1000),count(succ([thirty,nine],[fourty]),1000),count(succ([fourty],[fourty,one]),1000),count(succ([fourty,one],[fourty,two]),1000),count(succ([fourty,two],[fourty,three]),1000),count(succ([fourty,three],[fourty,four]),1000),count(succ([fourty,four],[fourty,five]),1000),count(succ([fourty,five],[fourty,six]),1000),count(succ([fourty,six],[fourty,seven]),1000),count(succ([fourty,seven],[fourty,eight]),1000),count(succ([fourty,eight],[fourty,nine]),1000),count(succ([fourty,nine],[fifty]),1000),count(succ([fifty],[fifty,one]),1000),count(succ([fifty,one],[fifty,two]),1000),count(succ([fifty,two],[fifty,three]),1000),count(succ([fifty,three],[fifty,four]),1000),count(succ([fifty,four],[fifty,five]),1000),count(succ([fifty,five],[fifty,six]),1000),count(succ([fifty,six],[fifty,seven]),1000),count(succ([fifty,seven],[fifty,eight]),1000),count(succ([fifty,eight],[fifty,nine]),1000),count(succ([fifty,nine],[sixty]),1000),count(succ([sixty],[sixty,one]),1000),count(succ([sixty,one],[sixty,two]),1000),count(succ([sixty,two],[sixty,three]),1000),count(succ([sixty,three],[sixty,four]),1000),count(succ([sixty,four],[sixty,five]),1000),count(succ([sixty,five],[sixty,six]),1000),count(succ([sixty,six],[sixty,seven]),1000),count(succ([sixty,seven],[sixty,eight]),1000),count(succ([sixty,eight],[sixty,nine]),1000),count(succ([sixty,nine],[seventy]),1000),count(succ([seventy],[seventy,one]),1000),count(succ([seventy,one],[seventy,two]),1000),count(succ([seventy,two],[seventy,three]),1000),count(succ([seventy,three],[seventy,four]),1000),count(succ([seventy,four],[seventy,five]),1000),count(succ([seventy,five],[seventy,six]),1000),count(succ([seventy,six],[seventy,seven]),1000),count(succ([seventy,seven],[seventy,eight]),1000),count(succ([seventy,eight],[seventy,nine]),1000),count(succ([seventy,nine],[eightty]),1000),count(succ([eightty],[eightty,one]),1000),count(succ([eightty,one],[eightty,two]),1000),count(succ([eightty,two],[eightty,three]),1000),count(succ([eightty,three],[eightty,four]),1000),count(succ([eightty,four],[eightty,five]),1000),count(succ([eightty,five],[eightty,six]),1000),count(succ([eightty,six],[eightty,seven]),1000),count(succ([eightty,seven],[eightty,eight]),1000),count(succ([eightty,eight],[eightty,nine]),1000),count(succ([eightty,nine],[ninety]),1000),count(succ([ninety],[ninety,one]),1000),count(succ([ninety,one],[ninety,two]),1000),count(succ([ninety,two],[ninety,three]),1000),count(succ([ninety,three],[ninety,four]),1000),count(succ([ninety,four],[ninety,five]),1000),count(succ([ninety,five],[ninety,six]),1000),count(succ([ninety,six],[ninety,seven]),1000),count(succ([ninety,seven],[ninety,eight]),1000),count(succ([ninety,eight],[ninety,nine]),1000),count(succ([nineteen],[twenty]),1000),count(succ([twenty,nine],[thirty]),1000),count(succ([thirty,nine],[fourty]),1000),count(succ([fourty,nine],[fifty]),1000),count(succ([fifty,nine],[sixty]),1000),count(succ([sixty,nine],[seventy]),1000),count(succ([seventy,nine],[eightty]),1000),count(succ([eightty,nine],[ninety]),1000)]
+% Batch VBEM:     Initializing with options: 
+% Batch VBEM:     vbem_options(10,1.0e-6,uniform(0.0,1.0),/Users/edechter/Dropbox/Projects/SDCL/experiments/data/exp_2015-09-15-16-14-18/data)
+:END:
+
+
+
+
 
  
 
