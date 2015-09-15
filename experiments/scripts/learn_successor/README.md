@@ -1258,8 +1258,18 @@ following distribution.
 1-99: count 1000
 decade transitions: count: 100
 
+RESULTS:
+   https://www.dropbox.com/s/g4r4lzvf7eag8pc/Screenshot%202015-09-15%2013.00.12.png?dl=0
+
+** Experiment 10* 
+commit: 
+Same as Experiment 10, but using 6 predicates instead of 10. Using same data scheme (unlike Experiment 9). 
+
+ 
+
 
 ---
+
 ** Experiment ...: 
 
 In this experiment, we interleave training and testing sessions to
