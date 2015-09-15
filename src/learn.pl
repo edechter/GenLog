@@ -656,8 +656,8 @@ expected_rule_counts(DSearchResults, Assoc, Options) :-
         expected_rule_counts(DSearchResults, Weights, Assoc, Options).
 
 expected_rule_counts(DSearchResults, Weights, Assoc, Options) :-
-        empty_rules_assoc(Empty),
-        expected_rule_counts_go(DSearchResults, Weights, Empty, Assoc, Options).
+        expected_rule_counts_go(DSearchResults, Weights, Assoc, Options).
+        
 
 % create an empty assoc with rule id keys
 empty_rules_assoc(Assoc) :-
@@ -666,27 +666,27 @@ empty_rules_assoc(Assoc) :-
         list_to_assoc(RVs, Assoc).
 
 % worker predicate
-expected_rule_counts_go([], _, Assoc, Assoc, _).
-expected_rule_counts_go([dsearch_result(_, Count, Derivations)|Goals], Weights, AssocIn, AssocOut, Options) :-
+expected_rule_counts_go(DSearchResults, Weights, Assoc, Options) :-
+        empty_rules_assoc(Empty), 
+        maplist(expected_rule_counts_go_(Weights, Options), DSearchResults, Assocs),
+        sum_assocs(0, [Empty|Assocs], Assoc).
+
+expected_rule_counts_go_(Weights, _Options, dsearch_result(_, Count, Derivations), Assoc) :-
         findall(DGraph,
                 member(deriv(_, DGraph, _), Derivations),
                 DGraphs),
         expected_rule_counts1(DGraphs, Weights, Assoc0),
-        scalar_multiply_assoc(Count, Assoc0, Assoc1),
-        add_assocs(0, Assoc1, AssocIn, AssocTmp),
-        expected_rule_counts_go(Goals, Weights, AssocTmp, AssocOut, Options).
-        
-        
+        scalar_multiply_assoc(Count, Assoc0, Assoc).
 
 
 :- begin_tests(expected_rule_counts).
 
 test(expected_rule_counts,
      [
-      setup(setup_trivial_sdcl),
-      cleanup(cleanup_trivial_sdcl)
+      setup(setup_test_gl),
+      cleanup(cleanup_test_gl)
       ]) :-
-       Goals = [s([a, a], [])],
+       Goals = [s([a, a])],
        prove_goals(Goals, DSearchResults), 
        expected_rule_counts(DSearchResults, Assoc),
        assertion(get_assoc(1, Assoc, 1.0)),
