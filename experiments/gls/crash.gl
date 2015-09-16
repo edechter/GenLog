@@ -1,0 +1,120 @@
+ 
+
+
+num_preds(1, 1).
+num_preds(2, 1).
+
+pred(Type, Index, Pred) :-
+        num_preds(Type, N), 
+        between(1, N, Index),
+        format(atom(Pred), "A(t=~w, i=~w)", [Type, Index]).
+
+pred(Type, Pred) :- pred(Type, _, Pred).
+
+preds(Type, As) :- maplist(call(pred, Type), As).
+
+
+lexeme(L) :-
+        lexemes(Ls), 
+        member(L, Ls).
+
+
+lexemes(['one']). 
+
+
+:- begin(genlog).
+
+rule_group((
+  macro(
+        (succ(X,Y) ---> '?A'(X| Y))
+       ,
+        preds(1, ['?A'])
+       ))
+          ).
+          
+% conditioning on string of length > 1
+macro(
+      (rule_group(
+                  
+                   macro(
+                         ('?A'(XY | [A|Z]) ---> [concat(X, Y, XY), concat(X, [A|Z], XAZ)] # '?B'(X | [A|Z]), '?C'(Y | XAZ))
+                        ,
+                         (pred(1, '?A'),
+                          pred(1, '?B'),
+                          pred(1, '?C')
+                         )
+                        ),
+                   macro(
+                         ('?A'(X | [A|Z]) ---> '?B'(X | Z))
+                        ,
+                         (pred(1, '?A'),
+                          pred(1, '?B')
+                         )
+                        ),
+                   macro(
+                         ('?A'([X] | [A|Z]) ---> '?B'(X | A))
+                        ,
+                         (pred(1, '?A'),
+                          pred(2, '?B')
+                         )
+                        )
+                  )
+                 
+      )
+      ,
+       lexeme(A)).
+
+
+rule_group(
+           
+           macro(
+                 ('?A'(XY | []) ---> [concat(X, Y, XY)] # '?B'(X | []), '?C'(Y | []) )
+                ,
+                 (pred(1, '?A'),
+                  pred(1, '?B'),
+                  pred(1, '?C')
+                 )
+                ),
+           macro(
+                 ('?A'(X | []) )
+                ,
+                 (pred(1, '?A'),
+                  (X = [L],
+                   lexeme(L))
+                 )
+                
+                )
+          ,
+           macro(
+                 ('?A'([] | []))
+                ,
+                 pred(1, '?A')
+                )
+          ).
+
+
+% macro(
+%       (rule_group(
+                  
+%                    macro(
+%                          '?A'(X|Y)
+%                         ,
+%                          (pred(2, '?A'),
+%                           lexeme(X))
+                         
+                        
+%                         ))
+%       )
+%       ,
+%        lexeme(Y)
+%      ).
+
+
+
+id(X | X) ---> true.
+
+
+:- end(genlog).
+
+
+
