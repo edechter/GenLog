@@ -1,7 +1,8 @@
 
 
-:- module(interact, [say/1,
-                     say/2,
+:- module(interact, [
+                     % say/1,
+                     % say/2,
                      ask/1,
                      ask/2,
                      ask/3,
@@ -10,7 +11,7 @@
 :- use_module(prove).
 :- use_module(pprint).
 :- use_module(dgraph).
-:- use_module(learn).
+% :- use_module(learn).
 :- use_module(library(assoc)).
 
 
@@ -26,12 +27,12 @@ ask(Goal, Prob, Options) :-
         member(Prob-Goal, Results).
 
 
-say(Goal) :-
-        say(Goal, []).
+% say(Goal) :-
+%         say(Goal, []).
 
-say(Goal, Options) :-
-        run_batch_vbem([Goal], Options),
-        !.
+% say(Goal, Options) :-
+%         run_batch_vbem([Goal], Options),
+%         !.
 
 explain(Goal, NumExplanations, Options) :-
         prove_all(Goal, Results, _, Options),
